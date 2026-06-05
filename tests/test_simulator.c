@@ -1,0 +1,43 @@
+#include "ifc_cambricon_llm.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static void require_true(int condition, const char *message) {
+    if (!condition) {
+        fprintf(stderr, "failed: %s\n", message);
+        exit(1);
+    }
+}
+
+static void require_close(double actual, double expected, double tolerance, const char *message) {
+    if (fabs(actual - expected) > tolerance) {
+        fprintf(stderr, "failed: %s actual=%.9f expected=%.9f tolerance=%.9f\n", message, actual, expected, tolerance);
+        exit(1);
+    }
+}
+
+int main(void) {
+    IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
+    require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
+    require_close(tile.tile_width, 2048.0, 1e-9, "Cambricon-LLM-S tile width");
+    require_true(tile.alpha_read_compute > 0.35 && tile.alpha_read_compute < 0.36, "alpha range");
+
+    IfcSimulationRow rows[IFC_ROW_COUNT];
+    IfcSummary summary = ifc_simulate_reproduction(rows, 1000);
+    require_true(summary.row_count == 21, "row count");
+    require_true(summary.max_abs_relative_error_pct <= 15.0, "max reproduction error");
+    require_true(summary.mean_abs_relative_error_pct <= 9.0, "mean reproduction error");
+
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        require_true(rows[i].speedup_vs_no_read_slicing > 1.55, "read slicing lower speedup bound");
+        require_true(rows[i].speedup_vs_no_read_slicing < 1.75, "read slicing upper speedup bound");
+        require_true(rows[i].speedup_vs_no_tiling > 1.25, "tiling lower speedup bound");
+        require_true(rows[i].speedup_vs_no_tiling < 1.36, "tiling upper speedup bound");
+    }
+
+    printf("passed: C simulator tests\n");
+    return 0;
+}
+

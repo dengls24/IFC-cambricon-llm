@@ -1,14 +1,5 @@
-.pytest_cache/
-__pycache__/
-*.py[cod]
-.coverage
-htmlcov/
-.mypy_cache/
-.ruff_cache/
 build/
-dist/
-*.egg-info/
-.venv/
-venv/
+bin/
+*.o
+.cache/
 .DS_Store
-

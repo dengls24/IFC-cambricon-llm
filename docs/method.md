@@ -1,6 +1,6 @@
 # Method Notes
 
-This project implements a compact event-free simulator for Cambricon-LLM style decode speed. It is designed for method reproduction of Figure 9 rather than a full SSD firmware simulator.
+This project implements a compact C simulator for Cambricon-LLM style decode speed. It is designed for method reproduction of Figure 9 rather than a full SSD firmware simulator.
 
 ## Hardware Profile
 
@@ -16,7 +16,7 @@ The NPU profile is the paper's 16x16 systolic array at 1 GHz, modeled as 2 TOPS 
 
 ## Tile Shape
 
-The simulator uses the Section V transfer-minimizing tile:
+The C simulator uses the Section V transfer-minimizing tile:
 
 ```text
 H_req = sqrt(cores_per_channel * page_size)
@@ -84,4 +84,3 @@ This simulator does not model:
 - multi-batch scheduling.
 
 Those features are outside the Figure 9 reproduction path.
-

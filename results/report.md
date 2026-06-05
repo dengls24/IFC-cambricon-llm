@@ -1,6 +1,6 @@
 # Figure 9 Reproduction Report
 
-This report compares the standalone IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points.
+This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points.
 
 ## Summary
 
@@ -31,12 +31,12 @@ This report compares the standalone IFC simulator against the Cambricon-LLM Figu
 | LLaMA2-13B | Cambricon-LLM-S | 1.900 | 1.878 | -1.14% | 532.405 | 256x2048 | 0.355 |
 | LLaMA2-13B | Cambricon-LLM-M | 4.700 | 5.247 | +11.63% | 190.597 | 362x5793 | 0.356 |
 | LLaMA2-13B | Cambricon-LLM-L | 14.000 | 16.017 | +14.41% | 62.434 | 512x16384 | 0.357 |
-| LLaMA2-70B | Cambricon-LLM-S | 0.300 | 0.337 | +12.40% | 2965.466 | 256x2048 | 0.355 |
-| LLaMA2-70B | Cambricon-LLM-M | 1.000 | 1.041 | +4.07% | 960.942 | 362x5793 | 0.356 |
+| LLaMA2-70B | Cambricon-LLM-S | 0.300 | 0.337 | +12.41% | 2965.466 | 256x2048 | 0.355 |
+| LLaMA2-70B | Cambricon-LLM-M | 1.000 | 1.041 | +4.06% | 960.942 | 362x5793 | 0.356 |
 | LLaMA2-70B | Cambricon-LLM-L | 3.400 | 2.903 | -14.62% | 344.473 | 512x16384 | 0.357 |
 
 ## Sanity Checks
 
 - Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.
 - The read-compute workload fraction is about 0.355 across the three Table II platforms.
-- No-read-slicing and no-tiling rows are produced as controlled ablations from the same model path.
+- No-read-slicing and no-tiling rows are produced as controlled ablations from the same C model path.

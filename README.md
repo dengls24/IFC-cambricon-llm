@@ -1,6 +1,6 @@
 # IFC Cambricon-LLM
 
-Standalone simulator for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
+Standalone C simulator for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
 
 The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM" for Figure 9:
 
@@ -14,13 +14,13 @@ It intentionally keeps the scope narrow: model weights are flash-resident, in-fl
 ## Quick Start
 
 ```bash
-python scripts/run_reproduction.py
+make run
 ```
 
 Expected output:
 
 ```text
-passed: Cambricon-LLM Figure 9 reproduction
+passed: Cambricon-LLM Figure 9 C reproduction
 rows: 21
 mean_abs_relative_error_pct: ...
 max_abs_relative_error_pct: ...
@@ -44,7 +44,7 @@ The checked simulator uses a compact per-platform calibration, not per-model fit
 Run tests:
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests
+make test
 ```
 
 ## Method
@@ -72,8 +72,8 @@ More detail is in [docs/method.md](docs/method.md). Results are summarized in [d
 ```text
 data/      Paper references and hardware/model profiles
 docs/      Method and result notes
-scripts/   Reproduction entry point
-src/       Simulator package
-tests/     Unit tests for formulas and reproduction bounds
+include/   Public C header
+src/       C simulator and CLI
+tests/     C smoke tests for formulas and reproduction bounds
 results/   Reproduction outputs
 ```

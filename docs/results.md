@@ -3,7 +3,7 @@
 Run:
 
 ```bash
-python scripts/run_reproduction.py
+make run
 ```
 
 The simulator writes a row for each Figure 9 model/platform point. The key quality target is:
@@ -13,7 +13,7 @@ max absolute relative error <= 15%
 mean absolute relative error <= 9%
 ```
 
-These thresholds are enforced by `tests/test_simulator.py`.
+These thresholds are enforced by `tests/test_simulator.c`.
 
 Current checked output:
 
