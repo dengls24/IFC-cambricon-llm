@@ -1,0 +1,79 @@
+# IFC Cambricon-LLM
+
+Standalone simulator for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
+
+The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM" for Figure 9:
+
+- Table II flash configurations for Cambricon-LLM-S/M/L.
+- A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
+- Section V hardware-aware tiling and read-compute/read-request workload split.
+- Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
+
+It intentionally keeps the scope narrow: model weights are flash-resident, in-flash computing handles the tiled weight stage, and the attention cache remains in DRAM as in the Cambricon-LLM setup.
+
+## Quick Start
+
+```bash
+python scripts/run_reproduction.py
+```
+
+Expected output:
+
+```text
+passed: Cambricon-LLM Figure 9 reproduction
+rows: 21
+mean_abs_relative_error_pct: ...
+max_abs_relative_error_pct: ...
+```
+
+The command writes:
+
+- `results/figure9_reproduction.csv`
+- `results/summary.json`
+- `results/report.md`
+
+## Current Reproduction Quality
+
+The checked simulator uses a compact per-platform calibration, not per-model fitting. Current outputs:
+
+- Rows: 21 Figure 9 points.
+- Mean absolute relative error: 8.341%.
+- Max absolute relative error: 14.618%.
+- Worst case: LLaMA2-70B on Cambricon-LLM-L.
+
+Run tests:
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests
+```
+
+## Method
+
+The simulator derives the optimal tile shape from the paper's Section V formulation:
+
+```text
+H_req = sqrt(cores_per_channel * page_size)
+W_req = channel_count * H_req
+```
+
+For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the paper. The simulator then computes:
+
+- read-compute request time from array read latency and input-vector transfer;
+- read-compute channel occupancy;
+- sliced read request time from the remaining channel bandwidth;
+- workload fraction `alpha = t_read / (t_read + t_read_compute)`;
+- overlapped tiled weight-stage time;
+- DRAM attention-cache traffic and NPU attention arithmetic.
+
+More detail is in [docs/method.md](docs/method.md). Results are summarized in [docs/results.md](docs/results.md).
+
+## Repository Layout
+
+```text
+data/      Paper references and hardware/model profiles
+docs/      Method and result notes
+scripts/   Reproduction entry point
+src/       Simulator package
+tests/     Unit tests for formulas and reproduction bounds
+results/   Reproduction outputs
+```

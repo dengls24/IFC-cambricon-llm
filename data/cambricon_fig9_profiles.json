@@ -1,0 +1,138 @@
+{
+  "paper": {
+    "title": "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM",
+    "source": "arXiv:2409.15654, Table II, Figure 9, Section V",
+    "context_tokens": 1000,
+    "precision": "W8A8",
+    "reference_decode_speed_tokens_per_s": {
+      "opt_6_7b": {"cam_llm_s": 3.6, "cam_llm_m": 11.0, "cam_llm_l": 36.3},
+      "opt_13b": {"cam_llm_s": 1.9, "cam_llm_m": 4.7, "cam_llm_l": 14.2},
+      "opt_30b": {"cam_llm_s": 0.8, "cam_llm_m": 2.5, "cam_llm_l": 7.6},
+      "opt_66b": {"cam_llm_s": 0.4, "cam_llm_m": 1.2, "cam_llm_l": 2.6},
+      "llama2_7b": {"cam_llm_s": 3.6, "cam_llm_m": 10.4, "cam_llm_l": 34.0},
+      "llama2_13b": {"cam_llm_s": 1.9, "cam_llm_m": 4.7, "cam_llm_l": 14.0},
+      "llama2_70b": {"cam_llm_s": 0.3, "cam_llm_m": 1.0, "cam_llm_l": 3.4}
+    }
+  },
+  "npu": {
+    "name": "Cambricon-LLM 16x16 systolic NPU",
+    "peak_ops_per_s": 2000000000000.0,
+    "dram_bandwidth_bytes_per_s": 40000000000.0
+  },
+  "models": {
+    "opt_6_7b": {
+      "label": "OPT-6.7B",
+      "parameters_billion": 6.7,
+      "layers": 32,
+      "hidden_size": 4096,
+      "attention_heads": 32,
+      "cache_heads": 32,
+      "head_dim": 128
+    },
+    "opt_13b": {
+      "label": "OPT-13B",
+      "parameters_billion": 13.0,
+      "layers": 40,
+      "hidden_size": 5120,
+      "attention_heads": 40,
+      "cache_heads": 40,
+      "head_dim": 128
+    },
+    "opt_30b": {
+      "label": "OPT-30B",
+      "parameters_billion": 30.0,
+      "layers": 48,
+      "hidden_size": 7168,
+      "attention_heads": 56,
+      "cache_heads": 56,
+      "head_dim": 128
+    },
+    "opt_66b": {
+      "label": "OPT-66B",
+      "parameters_billion": 66.0,
+      "layers": 64,
+      "hidden_size": 9216,
+      "attention_heads": 72,
+      "cache_heads": 72,
+      "head_dim": 128
+    },
+    "llama2_7b": {
+      "label": "LLaMA2-7B",
+      "parameters_billion": 6.74,
+      "layers": 32,
+      "hidden_size": 4096,
+      "attention_heads": 32,
+      "cache_heads": 32,
+      "head_dim": 128
+    },
+    "llama2_13b": {
+      "label": "LLaMA2-13B",
+      "parameters_billion": 13.0,
+      "layers": 40,
+      "hidden_size": 5120,
+      "attention_heads": 40,
+      "cache_heads": 40,
+      "head_dim": 128
+    },
+    "llama2_70b": {
+      "label": "LLaMA2-70B",
+      "parameters_billion": 69.0,
+      "layers": 80,
+      "hidden_size": 8192,
+      "attention_heads": 64,
+      "cache_heads": 8,
+      "head_dim": 128
+    }
+  },
+  "platforms": {
+    "cam_llm_s": {
+      "label": "Cambricon-LLM-S",
+      "channels": 8,
+      "chips_per_channel": 2,
+      "dies_per_chip": 2,
+      "planes_per_die": 2,
+      "compute_cores_per_die": 1,
+      "page_bytes": 16384,
+      "array_read_us": 30.0,
+      "channel_bandwidth_bytes_per_s": 1000000000.0,
+      "pipeline_efficiency": 0.525,
+      "footprint_penalty": 0.10,
+      "footprint_penalty_power": 0.75,
+      "unsliced_blocking_factor": 0.85,
+      "no_tiling_slowdown": 1.35
+    },
+    "cam_llm_m": {
+      "label": "Cambricon-LLM-M",
+      "channels": 16,
+      "chips_per_channel": 4,
+      "dies_per_chip": 2,
+      "planes_per_die": 2,
+      "compute_cores_per_die": 1,
+      "page_bytes": 16384,
+      "array_read_us": 30.0,
+      "channel_bandwidth_bytes_per_s": 1000000000.0,
+      "pipeline_efficiency": 0.372,
+      "footprint_penalty": 0.0,
+      "footprint_penalty_power": 0.5,
+      "unsliced_blocking_factor": 0.85,
+      "no_tiling_slowdown": 1.35
+    },
+    "cam_llm_l": {
+      "label": "Cambricon-LLM-L",
+      "channels": 32,
+      "chips_per_channel": 8,
+      "dies_per_chip": 2,
+      "planes_per_die": 2,
+      "compute_cores_per_die": 1,
+      "page_bytes": 16384,
+      "array_read_us": 30.0,
+      "channel_bandwidth_bytes_per_s": 1000000000.0,
+      "pipeline_efficiency": 0.395,
+      "footprint_penalty": 0.50,
+      "footprint_penalty_power": 0.5,
+      "unsliced_blocking_factor": 0.85,
+      "no_tiling_slowdown": 1.35
+    }
+  }
+}
+
