@@ -40,6 +40,9 @@ The command writes:
 - `results/ablation_summary.csv`
 - `results/figure12_read_slice_ablation.csv`
 - `results/figure14_tiling_ablation.csv`
+- `results/figures/figure9_decode_speed.svg`
+- `results/figures/figure12_read_slice_ablation.svg`
+- `results/figures/figure14_tiling_ablation.svg`
 
 ## Current Reproduction Quality
 
@@ -74,15 +77,22 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Results are summarized in [docs/results.md](docs/results.md).
+More detail is in [docs/method.md](docs/method.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md).
 
 ## Repository Layout
 
 ```text
-data/      Paper references and hardware/model profiles
-docs/      Method and result notes
-include/   Public C header
-src/       C simulator and CLI
-tests/     C smoke tests for formulas and reproduction bounds
-results/   Reproduction outputs
+data/         Paper references and hardware/model profiles
+docs/         Method, implementation, and result notes
+include/      Public C header
+src/main.c    CLI entry point
+src/profiles.c
+             Model/platform/reference profile tables
+src/simulator.c
+             Tile model, timing model, CSV/JSON/Markdown outputs
+src/controller.c
+             SSDsim-style flash-controller schedule and extended opcodes
+src/plots.c   SVG comparison plot writer
+tests/        C smoke tests for formulas and reproduction bounds
+results/      Reproduction outputs and SVG figures
 ```

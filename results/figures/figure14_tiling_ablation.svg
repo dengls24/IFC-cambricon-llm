@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="540" viewBox="0 0 980 540">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="490" y="34" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#202124">Figure 14-Style Hardware-Aware Tiling Ablation</text>
+<line x1="80" y1="400" x2="900" y2="400" stroke="#202124" stroke-width="1"/>
+<line x1="80" y1="80" x2="80" y2="400" stroke="#202124" stroke-width="1"/>
+<rect x="114.50" y="128.81" width="20" height="271.19" fill="#2f9c74"/>
+<rect x="142.50" y="197.84" width="20" height="202.16" fill="#9ca3af"/>
+<text x="138.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">OPT-6.7B</text>
+<text x="138.50" y="120.81" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.34x</text>
+<rect x="231.50" y="261.05" width="20" height="138.95" fill="#2f9c74"/>
+<rect x="259.50" y="296.55" width="20" height="103.45" fill="#9ca3af"/>
+<text x="255.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">OPT-13B</text>
+<text x="255.50" y="253.05" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.34x</text>
+<rect x="348.50" y="340.86" width="20" height="59.14" fill="#2f9c74"/>
+<rect x="376.50" y="356.04" width="20" height="43.96" fill="#9ca3af"/>
+<text x="372.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">OPT-30B</text>
+<text x="372.50" y="332.86" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.35x</text>
+<rect x="465.50" y="374.08" width="20" height="25.92" fill="#2f9c74"/>
+<rect x="493.50" y="380.74" width="20" height="19.26" fill="#9ca3af"/>
+<text x="489.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">OPT-66B</text>
+<text x="489.50" y="366.08" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.35x</text>
+<rect x="582.50" y="130.40" width="20" height="269.60" fill="#2f9c74"/>
+<rect x="610.50" y="199.03" width="20" height="200.97" fill="#9ca3af"/>
+<text x="606.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">LLaMA2-7B</text>
+<text x="606.50" y="122.40" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.34x</text>
+<rect x="699.50" y="261.05" width="20" height="138.95" fill="#2f9c74"/>
+<rect x="727.50" y="296.55" width="20" height="103.45" fill="#9ca3af"/>
+<text x="723.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">LLaMA2-13B</text>
+<text x="723.50" y="253.05" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.34x</text>
+<rect x="816.50" y="375.05" width="20" height="24.95" fill="#2f9c74"/>
+<rect x="844.50" y="381.51" width="20" height="18.49" fill="#9ca3af"/>
+<text x="840.50" y="426" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#374151">LLaMA2-70B</text>
+<text x="840.50" y="367.05" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">1.35x</text>
+<rect x="80" y="450" width="14" height="14" fill="#2f9c74"/><text x="100" y="462" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Full simulator</text>
+<rect x="230" y="450" width="14" height="14" fill="#9ca3af"/><text x="250" y="462" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Without tiling</text>
+<text x="470" y="462" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Paper text range: 1.3x-1.4x</text>
+</svg>

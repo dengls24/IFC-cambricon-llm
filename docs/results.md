@@ -46,3 +46,9 @@ Additional controller artifacts:
 - `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.
 - `results/figure12_read_slice_ablation.csv`: Cambricon-LLM-S read-slicing ablation against the paper's reported 1.6x-1.8x range.
 - `results/figure14_tiling_ablation.csv`: Cambricon-LLM-S hardware-aware tiling ablation against the paper's reported 1.3x-1.4x range.
+
+SVG comparison plots:
+
+- `results/figures/figure9_decode_speed.svg`: side-by-side paper/simulator bars for all 21 Figure 9 points.
+- `results/figures/figure12_read_slice_ablation.svg`: full simulator versus no-read-slicing ablation on Cambricon-LLM-S.
+- `results/figures/figure14_tiling_ablation.svg`: full simulator versus no-hardware-aware-tiling ablation on Cambricon-LLM-S.

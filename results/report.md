@@ -45,6 +45,12 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.
 
+## Plots
+
+- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.
+- `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.
+- `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.
+
 ## Sanity Checks
 
 - Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.

@@ -32,6 +32,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "error: failed to write outputs to %s\n", output_dir);
         return 1;
     }
+    if (ifc_write_plots(output_dir, rows, &summary) != 0) {
+        fprintf(stderr, "error: failed to write plots to %s\n", output_dir);
+        return 1;
+    }
 
     printf("passed: Cambricon-LLM Figure 9 C reproduction\n");
     printf("metrics_csv: %s/figure9_reproduction.csv\n", output_dir);
@@ -44,6 +48,9 @@ int main(int argc, char **argv) {
     printf("ablation_summary_csv: %s/ablation_summary.csv\n", output_dir);
     printf("figure12_read_slice_csv: %s/figure12_read_slice_ablation.csv\n", output_dir);
     printf("figure14_tiling_csv: %s/figure14_tiling_ablation.csv\n", output_dir);
+    printf("figure9_svg: %s/figures/figure9_decode_speed.svg\n", output_dir);
+    printf("figure12_svg: %s/figures/figure12_read_slice_ablation.svg\n", output_dir);
+    printf("figure14_svg: %s/figures/figure14_tiling_ablation.svg\n", output_dir);
     printf("rows: %d\n", summary.row_count);
     printf("mean_abs_relative_error_pct: %.3f\n", summary.mean_abs_relative_error_pct);
     printf("max_abs_relative_error_pct: %.3f\n", summary.max_abs_relative_error_pct);

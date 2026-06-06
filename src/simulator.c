@@ -11,76 +11,6 @@
 static const double NPU_PEAK_OPS_PER_S = 2000000000000.0;
 static const double DRAM_BANDWIDTH_BPS = 40000000000.0;
 
-const IfcModelProfile IFC_MODELS[IFC_MODEL_COUNT] = {
-    {"opt_6_7b", "OPT-6.7B", 6.7, 32, 4096, 32, 32, 128},
-    {"opt_13b", "OPT-13B", 13.0, 40, 5120, 40, 40, 128},
-    {"opt_30b", "OPT-30B", 30.0, 48, 7168, 56, 56, 128},
-    {"opt_66b", "OPT-66B", 66.0, 64, 9216, 72, 72, 128},
-    {"llama2_7b", "LLaMA2-7B", 6.74, 32, 4096, 32, 32, 128},
-    {"llama2_13b", "LLaMA2-13B", 13.0, 40, 5120, 40, 40, 128},
-    {"llama2_70b", "LLaMA2-70B", 69.0, 80, 8192, 64, 8, 128},
-};
-
-const IfcPlatformProfile IFC_PLATFORMS[IFC_PLATFORM_COUNT] = {
-    {"cam_llm_s", "Cambricon-LLM-S", 8, 2, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.525, 0.10, 0.75, 0.85, 1.35},
-    {"cam_llm_m", "Cambricon-LLM-M", 16, 4, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.372, 0.0, 0.5, 0.85, 1.35},
-    {"cam_llm_l", "Cambricon-LLM-L", 32, 8, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.395, 0.50, 0.5, 0.85, 1.35},
-};
-
-const double IFC_FIG9_REFERENCE[IFC_MODEL_COUNT][IFC_PLATFORM_COUNT] = {
-    {3.6, 11.0, 36.3},
-    {1.9, 4.7, 14.2},
-    {0.8, 2.5, 7.6},
-    {0.4, 1.2, 2.6},
-    {3.6, 10.4, 34.0},
-    {1.9, 4.7, 14.0},
-    {0.3, 1.0, 3.4},
-};
-
-typedef struct {
-    double channel_busy_until_ns[64];
-    double plane_busy_until_ns[64][128][2][2];
-    int channels;
-    int chips_per_channel;
-    int dies_per_chip;
-    int planes_per_die;
-    int page_bytes;
-    double read_ns;
-    double program_ns;
-    double channel_bandwidth_Bps;
-} IfcController;
-
-typedef struct {
-    IfcCommandOpcode opcode;
-    int logical_id;
-    int slice_id;
-    int channel;
-    int chip;
-    int die;
-    int plane;
-    double issue_ns;
-    double channel_start_ns;
-    double channel_end_ns;
-    double array_start_ns;
-    double array_end_ns;
-    double complete_ns;
-} IfcScheduledCommand;
-
-const char *ifc_opcode_name(IfcCommandOpcode opcode) {
-    switch (opcode) {
-    case IFC_OP_READ:
-        return "READ";
-    case IFC_OP_WRITE:
-        return "WRITE";
-    case IFC_OP_READ_COMPUTE:
-        return "READ_COMPUTE";
-    case IFC_OP_READ_SLICE:
-        return "READ_SLICE";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 static double attention_cache_bytes(const IfcModelProfile *model, int context_tokens) {
     return (double)model->layers * 2.0 * (double)model->cache_heads * (double)model->head_dim * (double)context_tokens;
 }
@@ -116,80 +46,6 @@ static int ensure_dir(const char *path) {
 
 static double max2(double lhs, double rhs) {
     return lhs > rhs ? lhs : rhs;
-}
-
-static void controller_init(IfcController *controller, const IfcPlatformProfile *platform) {
-    memset(controller, 0, sizeof(*controller));
-    controller->channels = platform->channels;
-    controller->chips_per_channel = platform->chips_per_channel;
-    controller->dies_per_chip = platform->dies_per_chip;
-    controller->planes_per_die = platform->planes_per_die;
-    controller->page_bytes = platform->page_bytes;
-    controller->read_ns = platform->array_read_us * 1000.0;
-    controller->program_ns = platform->program_us * 1000.0;
-    controller->channel_bandwidth_Bps = platform->channel_bandwidth_Bps;
-}
-
-static IfcScheduledCommand controller_submit(
-    IfcController *controller,
-    IfcCommandOpcode opcode,
-    int logical_id,
-    int slice_id,
-    int channel,
-    int chip,
-    int die,
-    int plane,
-    double issue_ns,
-    double channel_bytes) {
-    IfcScheduledCommand scheduled;
-    double channel_service_ns = channel_bytes / controller->channel_bandwidth_Bps * 1e9;
-    double array_service_ns = 0.0;
-    double *plane_busy = &controller->plane_busy_until_ns[channel][chip][die][plane];
-
-    if (opcode == IFC_OP_READ || opcode == IFC_OP_READ_COMPUTE) {
-        array_service_ns = controller->read_ns;
-    } else if (opcode == IFC_OP_WRITE) {
-        array_service_ns = controller->program_ns;
-    }
-
-    scheduled.opcode = opcode;
-    scheduled.logical_id = logical_id;
-    scheduled.slice_id = slice_id;
-    scheduled.channel = channel;
-    scheduled.chip = chip;
-    scheduled.die = die;
-    scheduled.plane = plane;
-    scheduled.issue_ns = issue_ns;
-    scheduled.channel_start_ns = max2(issue_ns, controller->channel_busy_until_ns[channel]);
-    scheduled.channel_end_ns = scheduled.channel_start_ns + channel_service_ns;
-
-    if (opcode == IFC_OP_READ_SLICE) {
-        scheduled.array_start_ns = -1.0;
-        scheduled.array_end_ns = -1.0;
-        scheduled.complete_ns = scheduled.channel_end_ns;
-    } else {
-        scheduled.array_start_ns = max2(scheduled.channel_end_ns, *plane_busy);
-        scheduled.array_end_ns = scheduled.array_start_ns + array_service_ns;
-        scheduled.complete_ns = scheduled.array_end_ns;
-        *plane_busy = scheduled.array_end_ns;
-    }
-    controller->channel_busy_until_ns[channel] = scheduled.channel_end_ns;
-    return scheduled;
-}
-
-static double controller_max_complete_ns(const IfcController *controller) {
-    double max_ns = 0.0;
-    for (int channel = 0; channel < controller->channels; ++channel) {
-        max_ns = max2(max_ns, controller->channel_busy_until_ns[channel]);
-        for (int chip = 0; chip < controller->chips_per_channel; ++chip) {
-            for (int die = 0; die < controller->dies_per_chip; ++die) {
-                for (int plane = 0; plane < controller->planes_per_die; ++plane) {
-                    max_ns = max2(max_ns, controller->plane_busy_until_ns[channel][chip][die][plane]);
-                }
-            }
-        }
-    }
-    return max_ns;
 }
 
 IfcTileModel ifc_derive_tile_model(const IfcPlatformProfile *platform) {
@@ -442,93 +298,6 @@ static int write_request_trace(const char *path, const IfcSimulationRow rows[IFC
     return fclose(file);
 }
 
-static int write_controller_schedule(const char *path) {
-    const IfcPlatformProfile *platform = &IFC_PLATFORMS[0];
-    IfcTileModel tile = ifc_derive_tile_model(platform);
-    IfcController controller;
-    FILE *file = fopen(path, "w");
-    if (file == NULL) {
-        return -1;
-    }
-
-    controller_init(&controller, platform);
-    fprintf(file,
-            "sample_model,sample_platform,opcode,logical_id,slice_id,channel,chip,die,plane,"
-            "issue_ns,channel_start_ns,channel_end_ns,array_start_ns,array_end_ns,complete_ns\n");
-    for (int tile_id = 0; tile_id < IFC_SAMPLE_TILES; ++tile_id) {
-        double issue_ns = controller_max_complete_ns(&controller);
-        int chip = tile_id % platform->chips_per_channel;
-        int die = (tile_id / platform->chips_per_channel) % platform->dies_per_chip;
-        int plane = (tile_id / (platform->chips_per_channel * platform->dies_per_chip)) % platform->planes_per_die;
-        for (int channel = 0; channel < platform->channels; ++channel) {
-            IfcScheduledCommand scheduled = controller_submit(
-                &controller,
-                IFC_OP_READ_COMPUTE,
-                tile_id,
-                -1,
-                channel,
-                chip,
-                die,
-                plane,
-                issue_ns,
-                tile.tile_width / (double)platform->channels);
-            fprintf(file,
-                    "opt_6_7b,%s,%s,%d,%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                    platform->name,
-                    ifc_opcode_name(scheduled.opcode),
-                    scheduled.logical_id,
-                    scheduled.slice_id,
-                    scheduled.channel,
-                    scheduled.chip,
-                    scheduled.die,
-                    scheduled.plane,
-                    scheduled.issue_ns,
-                    scheduled.channel_start_ns,
-                    scheduled.channel_end_ns,
-                    scheduled.array_start_ns,
-                    scheduled.array_end_ns,
-                    scheduled.complete_ns);
-        }
-
-        if ((tile_id + 1) % IFC_READ_SLICES_PER_REQUEST == 0) {
-            double slice_bytes = (double)platform->page_bytes / (double)IFC_READ_SLICES_PER_REQUEST;
-            for (int slice_id = 0; slice_id < IFC_READ_SLICES_PER_REQUEST; ++slice_id) {
-                for (int channel = 0; channel < platform->channels; ++channel) {
-                    int read_plane = (plane + 1) % platform->planes_per_die;
-                    IfcScheduledCommand scheduled = controller_submit(
-                        &controller,
-                        IFC_OP_READ_SLICE,
-                        tile_id / IFC_READ_SLICES_PER_REQUEST,
-                        slice_id,
-                        channel,
-                        chip,
-                        die,
-                        read_plane,
-                        issue_ns,
-                        slice_bytes);
-                    fprintf(file,
-                            "opt_6_7b,%s,%s,%d,%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                            platform->name,
-                            ifc_opcode_name(scheduled.opcode),
-                            scheduled.logical_id,
-                            scheduled.slice_id,
-                            scheduled.channel,
-                            scheduled.chip,
-                            scheduled.die,
-                            scheduled.plane,
-                            scheduled.issue_ns,
-                            scheduled.channel_start_ns,
-                            scheduled.channel_end_ns,
-                            scheduled.array_start_ns,
-                            scheduled.array_end_ns,
-                            scheduled.complete_ns);
-                }
-            }
-        }
-    }
-    return fclose(file);
-}
-
 static int write_ablation_summary(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
@@ -687,6 +456,10 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
+    fprintf(file, "\n## Plots\n\n");
+    fprintf(file, "- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.\n");
+    fprintf(file, "- `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.\n");
+    fprintf(file, "- `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
     fprintf(file, "- Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.\n");
     fprintf(file, "- The read-compute workload fraction is about 0.355 across the three Table II platforms.\n");
@@ -732,7 +505,7 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     if (write_request_trace(request_trace_path, rows) != 0) {
         return -1;
     }
-    if (write_controller_schedule(controller_schedule_path) != 0) {
+    if (ifc_write_sample_controller_schedule(controller_schedule_path) != 0) {
         return -1;
     }
     if (write_ablation_summary(ablation_summary_path, rows) != 0) {

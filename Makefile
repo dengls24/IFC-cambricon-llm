@@ -8,8 +8,9 @@ BUILD_DIR := build
 SIM_BIN := $(BIN_DIR)/ifc_cambricon_llm
 TEST_BIN := $(BIN_DIR)/test_simulator
 
-SIM_OBJS := $(BUILD_DIR)/simulator.o $(BUILD_DIR)/main.o
-TEST_OBJS := $(BUILD_DIR)/simulator.o $(BUILD_DIR)/test_simulator.o
+CORE_OBJS := $(BUILD_DIR)/profiles.o $(BUILD_DIR)/controller.o $(BUILD_DIR)/simulator.o $(BUILD_DIR)/plots.o
+SIM_OBJS := $(CORE_OBJS) $(BUILD_DIR)/main.o
+TEST_OBJS := $(CORE_OBJS) $(BUILD_DIR)/test_simulator.o
 
 .PHONY: all run test clean
 
@@ -41,4 +42,3 @@ $(BUILD_DIR):
 
 clean:
 	rm -rf $(BIN_DIR) $(BUILD_DIR)
-
