@@ -79,6 +79,7 @@ int main(void) {
     require_true(ifc_write_plots(artifact_dir, rows, &summary) == 0, "write plot outputs");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figure9_reproduction.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/platform_summary.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/latency_breakdown.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
@@ -107,6 +108,7 @@ int main(void) {
     require_true(ifc_write_analysis_outputs_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom analysis outputs");
     require_true(ifc_write_plots_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom plot outputs");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/tile_profile.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/latency_breakdown.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 

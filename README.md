@@ -36,6 +36,7 @@ The command writes:
 - `results/request_trace.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
+- `results/latency_breakdown.csv`
 - `results/controller_schedule.csv`
 - `results/ablation_summary.csv`
 - `results/figure12_read_slice_ablation.csv`
@@ -85,7 +86,7 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
 
 ## Configurable Experiments
 

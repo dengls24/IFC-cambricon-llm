@@ -1,0 +1,127 @@
+model,platform,operator_group,mapped_engine,work_metric,work_value,latency_ms,overlap_role,notes
+opt_6_7b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,4539.430131,266.111319,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_6_7b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,32959.222836,266.111319,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_6_7b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,266.111319,266.111319,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_6_7b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_6_7b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_6_7b,cam_llm_s,total_tpot,combined,tpot_ms,272.795991,272.795991,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_6_7b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,1137.580599,92.847490,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_6_7b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,8228.913444,92.847490,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_6_7b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,92.847490,92.847490,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_6_7b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_6_7b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_6_7b,cam_llm_m,total_tpot,combined,tpot_ms,99.532162,99.532162,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_6_7b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,285.379422,25.454298,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_6_7b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,2053.291270,25.454298,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_6_7b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,25.454298,25.454298,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_6_7b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_6_7b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_6_7b,cam_llm_l,total_tpot,combined,tpot_ms,32.138970,32.138970,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_13b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,8807.849507,521.960615,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_13b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,63950.730876,521.960615,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_13b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,521.960615,521.960615,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_13b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_13b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_13b,cam_llm_s,total_tpot,combined,tpot_ms,532.405415,532.405415,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_13b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,2207.245938,180.151846,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_13b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,15966.548474,180.151846,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_13b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,180.151846,180.151846,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_13b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_13b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_13b,cam_llm_m,total_tpot,combined,tpot_ms,190.596646,190.596646,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_13b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,553.721267,51.988833,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_13b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,3983.997987,51.988833,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_13b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,51.988833,51.988833,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_13b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_13b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_13b,cam_llm_l,total_tpot,combined,tpot_ms,62.433633,62.433633,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_30b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,20325.806556,1233.432428,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_30b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,147578.609714,1233.432428,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_30b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,1233.432428,1233.432428,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_30b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,688128000.000000,17.203200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_30b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,688128000.000000,0.344064,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_30b,cam_llm_s,total_tpot,combined,tpot_ms,1250.979692,1250.979692,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_30b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,5093.644473,415.735028,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_30b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,36845.881093,415.735028,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_30b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,415.735028,415.735028,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_30b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,688128000.000000,17.203200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_30b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,688128000.000000,0.344064,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_30b,cam_llm_m,total_tpot,combined,tpot_ms,433.282292,433.282292,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_30b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,1277.818310,131.014861,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_30b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,9193.841508,131.014861,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_30b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,131.014861,131.014861,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_30b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,688128000.000000,17.203200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_30b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,688128000.000000,0.344064,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_30b,cam_llm_l,total_tpot,combined,tpot_ms,148.562125,148.562125,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_66b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,44716.774423,2823.628578,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_66b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,324672.941372,2823.628578,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_66b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,2823.628578,2823.628578,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_66b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,1179648000.000000,29.491200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_66b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,1179648000.000000,0.589824,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_66b,cam_llm_s,total_tpot,combined,tpot_ms,2853.709602,2853.709602,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_66b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,11206.017840,914.617062,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_66b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,81060.938405,914.617062,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_66b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,914.617062,914.617062,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_66b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,1179648000.000000,29.491200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_66b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,1179648000.000000,0.589824,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_66b,cam_llm_m,total_tpot,combined,tpot_ms,944.698086,944.698086,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+opt_66b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,2811.200281,322.581338,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+opt_66b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,20226.451318,322.581338,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+opt_66b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,322.581338,322.581338,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+opt_66b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,1179648000.000000,29.491200,sequential_tail,DRAM traffic term for decode-time attention state access
+opt_66b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,1179648000.000000,0.589824,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+opt_66b,cam_llm_l,total_tpot,combined,tpot_ms,352.662362,352.662362,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_7b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,4566.531206,267.720306,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_7b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,33155.994316,267.720306,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_7b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,267.720306,267.720306,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_7b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_7b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_7b,cam_llm_s,total_tpot,combined,tpot_ms,274.404978,274.404978,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_7b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,1144.372125,93.401803,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_7b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,8278.041286,93.401803,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_7b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,93.401803,93.401803,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_7b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_7b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_7b,cam_llm_m,total_tpot,combined,tpot_ms,100.086475,100.086475,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_7b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,287.083180,25.616489,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_7b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,2065.549725,25.616489,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_7b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,25.616489,25.616489,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_7b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,262144000.000000,6.553600,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_7b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,262144000.000000,0.131072,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_7b,cam_llm_l,total_tpot,combined,tpot_ms,32.301161,32.301161,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_13b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,8807.849507,521.960615,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_13b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,63950.730876,521.960615,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_13b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,521.960615,521.960615,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_13b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_13b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_13b,cam_llm_s,total_tpot,combined,tpot_ms,532.405415,532.405415,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_13b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,2207.245938,180.151846,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_13b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,15966.548474,180.151846,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_13b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,180.151846,180.151846,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_13b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_13b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_13b,cam_llm_m,total_tpot,combined,tpot_ms,190.596646,190.596646,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_13b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,553.721267,51.988833,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_13b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,3983.997987,51.988833,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_13b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,51.988833,51.988833,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_13b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,409600000.000000,10.240000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_13b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,409600000.000000,0.204800,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_13b,cam_llm_l,total_tpot,combined,tpot_ms,62.433633,62.433633,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_70b,cam_llm_s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,46749.355078,2960.714539,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_70b,cam_llm_s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,339430.802343,2960.714539,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_70b,cam_llm_s,effective_weight_stage,controller_overlap,max_path_after_efficiency,2960.714539,2960.714539,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_70b,cam_llm_s,attention_state_memory,NPU_DRAM,attention_cache_bytes,163840000.000000,4.096000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_70b,cam_llm_s,attention_score_value_compute,NPU,attention_ops,1310720000.000000,0.655360,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_70b,cam_llm_s,total_tpot,combined,tpot_ms,2965.465899,2965.465899,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_70b,cam_llm_m,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,11715.382287,956.190565,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_70b,cam_llm_m,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,84745.526515,956.190565,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_70b,cam_llm_m,effective_weight_stage,controller_overlap,max_path_after_efficiency,956.190565,956.190565,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_70b,cam_llm_m,attention_state_memory,NPU_DRAM,attention_cache_bytes,163840000.000000,4.096000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_70b,cam_llm_m,attention_score_value_compute,NPU,attention_ops,1310720000.000000,0.655360,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_70b,cam_llm_m,total_tpot,combined,tpot_ms,960.941925,960.941925,total,effective_weight_stage + attention_state_memory + attention_score_value_compute
+llama2_70b,cam_llm_l,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,2938.982112,339.721307,overlapped_path,tiled weight GeMV handled by in-flash read-compute
+llama2_70b,cam_llm_l,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,21145.835469,339.721307,overlapped_path,sliced channel transfers for the non-read-compute weight fraction
+llama2_70b,cam_llm_l,effective_weight_stage,controller_overlap,max_path_after_efficiency,339.721307,339.721307,selected_path,max(read-compute path, sliced-read path) after platform efficiency
+llama2_70b,cam_llm_l,attention_state_memory,NPU_DRAM,attention_cache_bytes,163840000.000000,4.096000,sequential_tail,DRAM traffic term for decode-time attention state access
+llama2_70b,cam_llm_l,attention_score_value_compute,NPU,attention_ops,1310720000.000000,0.655360,sequential_tail,NPU arithmetic term for decode-time attention score/value work
+llama2_70b,cam_llm_l,total_tpot,combined,tpot_ms,344.472667,344.472667,total,effective_weight_stage + attention_state_memory + attention_score_value_compute

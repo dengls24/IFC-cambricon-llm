@@ -398,6 +398,62 @@ static int write_npu_timing(const char *path, const IfcSimulationRow rows[IFC_RO
     return fclose(file);
 }
 
+static int write_latency_breakdown(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,operator_group,mapped_engine,work_metric,work_value,latency_ms,"
+            "overlap_role,notes\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        fprintf(file,
+                "%s,%s,flash_weight_gemv,IFC_READ_COMPUTE,read_compute_requests,%.6f,%.6f,overlapped_path,"
+                "tiled weight GeMV handled by in-flash read-compute\n",
+                r->model,
+                r->platform,
+                r->read_compute_requests,
+                r->ifc_read_compute_path_ms);
+        fprintf(file,
+                "%s,%s,flash_weight_slice_transfer,NPU_READ_SLICE,read_slices,%.6f,%.6f,overlapped_path,"
+                "sliced channel transfers for the non-read-compute weight fraction\n",
+                r->model,
+                r->platform,
+                r->npu_read_slices,
+                r->npu_weight_read_path_ms);
+        fprintf(file,
+                "%s,%s,effective_weight_stage,controller_overlap,max_path_after_efficiency,%.6f,%.6f,selected_path,"
+                "max(read-compute path, sliced-read path) after platform efficiency\n",
+                r->model,
+                r->platform,
+                r->controller_weight_stage_ms,
+                r->controller_weight_stage_ms);
+        fprintf(file,
+                "%s,%s,attention_state_memory,NPU_DRAM,attention_cache_bytes,%.6f,%.6f,sequential_tail,"
+                "DRAM traffic term for decode-time attention state access\n",
+                r->model,
+                r->platform,
+                r->attention_cache_bytes,
+                r->attention_cache_ms);
+        fprintf(file,
+                "%s,%s,attention_score_value_compute,NPU,attention_ops,%.6f,%.6f,sequential_tail,"
+                "NPU arithmetic term for decode-time attention score/value work\n",
+                r->model,
+                r->platform,
+                r->attention_ops,
+                r->attention_compute_ms);
+        fprintf(file,
+                "%s,%s,total_tpot,combined,tpot_ms,%.6f,%.6f,total,"
+                "effective_weight_stage + attention_state_memory + attention_score_value_compute\n",
+                r->model,
+                r->platform,
+                r->tpot_ms,
+                r->tpot_ms);
+    }
+    return fclose(file);
+}
+
 static int write_figure12_read_slice_ablation(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
@@ -478,6 +534,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.\n");
     fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
     fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
+    fprintf(file, "- `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.\n");
     fprintf(file, "- `controller_schedule.csv` records one %s/%s sample schedule with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
@@ -515,6 +572,7 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     char ablation_summary_path[4096];
     char controller_timing_path[4096];
     char npu_timing_path[4096];
+    char latency_breakdown_path[4096];
     char figure12_path[4096];
     char figure14_path[4096];
 
@@ -529,6 +587,7 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     join_path(ablation_summary_path, sizeof(ablation_summary_path), output_dir, "ablation_summary.csv");
     join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
     join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
+    join_path(latency_breakdown_path, sizeof(latency_breakdown_path), output_dir, "latency_breakdown.csv");
     join_path(figure12_path, sizeof(figure12_path), output_dir, "figure12_read_slice_ablation.csv");
     join_path(figure14_path, sizeof(figure14_path), output_dir, "figure14_tiling_ablation.csv");
 
@@ -554,6 +613,9 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
         return -1;
     }
     if (write_npu_timing(npu_timing_path, rows) != 0) {
+        return -1;
+    }
+    if (write_latency_breakdown(latency_breakdown_path, rows) != 0) {
         return -1;
     }
     if (write_figure12_read_slice_ablation(figure12_path, config, rows) != 0) {

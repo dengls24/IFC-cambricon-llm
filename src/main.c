@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     printf("request_trace_csv: %s/request_trace.csv\n", options.output_dir);
     printf("controller_timing_csv: %s/controller_timing_summary.csv\n", options.output_dir);
     printf("npu_timing_csv: %s/npu_timing.csv\n", options.output_dir);
+    printf("latency_breakdown_csv: %s/latency_breakdown.csv\n", options.output_dir);
     printf("controller_schedule_csv: %s/controller_schedule.csv\n", options.output_dir);
     printf("ablation_summary_csv: %s/ablation_summary.csv\n", options.output_dir);
     printf("figure12_read_slice_csv: %s/figure12_read_slice_ablation.csv\n", options.output_dir);

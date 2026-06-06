@@ -84,6 +84,7 @@ The simulator writes two controller artifacts:
 - `request_trace.csv`: aggregate `READ_COMPUTE` and `READ_SLICE` command counts for every Figure 9 row.
 - `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
+- `latency_breakdown.csv`: operator-group latency mapping that explains TPOT from flash weight GeMV, sliced transfer, attention memory, and attention arithmetic terms.
 - `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.

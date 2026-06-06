@@ -25,6 +25,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/controller_schedule.csv` | Concrete channel/chip/die/plane schedule for a representative Cambricon-LLM-S case. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |
 | `results/npu_timing.csv` | NPU arithmetic, DRAM attention traffic, and reconstructed TPOT. |
+| `results/latency_breakdown.csv` | Operator-group latency mapping used to reconstruct TPOT. |
 | `results/platform_summary.csv` | Per-platform throughput, error, ablation speedup, and command-count summary. |
 | `results/model_summary.csv` | Per-model throughput and error summary across platforms. |
 | `results/tile_profile.csv` | Derived tile dimensions, request timings, and channel occupancy. |
@@ -51,7 +52,7 @@ The implementation follows the paper's Figure 9 method path:
 
 The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks.
 
-Runtime configuration is documented in `docs/configuration.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
+Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
 
 ## Reliability Documentation
 
