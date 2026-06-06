@@ -1,0 +1,4 @@
+name,label,channels,chips_per_channel,dies_per_chip,planes_per_die,compute_cores_per_die,page_bytes,array_read_us,program_us,onfi_rate_MTps,onfi_bus_width_bits,ifc_frequency_MHz,ifc_ops_per_core_cycle,pipeline_efficiency,footprint_penalty,footprint_penalty_power,unsliced_blocking_factor,no_tiling_slowdown
+ifc_s_1600,IFC-S-ONFI1600,8,2,2,2,1,16384,30.0,750.0,1600.0,8,1200.0,64.0,0.525,0.10,0.75,0.85,1.35
+ifc_m_1600,IFC-M-ONFI1600,16,4,2,2,1,16384,30.0,750.0,1600.0,8,1200.0,64.0,0.372,0.0,0.5,0.85,1.35
+ifc_l_1600,IFC-L-ONFI1600,32,8,2,2,1,16384,30.0,750.0,1600.0,8,1200.0,64.0,0.395,0.50,0.5,0.85,1.35

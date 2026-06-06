@@ -1,4 +1,4 @@
-platform,platform_label,channels,compute_cores_per_channel,page_bytes,tile_height,tile_width,tile_payload_bytes,read_compute_request_us,sliced_read_request_us,alpha_read_compute,read_compute_channel_rate_pct
-cam_llm_s,Cambricon-LLM-S,8,4,16384,256.000000,2048.000000,524288.000000,30.256000,16.668475,0.355219,1.706667
-cam_llm_m,Cambricon-LLM-M,16,8,16384,362.038672,5792.618751,2097152.000000,30.362039,16.789223,0.356072,2.413591
-cam_llm_l,Cambricon-LLM-L,32,16,16384,512.000000,16384.000000,8388608.000000,30.512000,16.963004,0.357304,3.413333
+platform,platform_label,channels,compute_cores_per_channel,page_bytes,onfi_rate_MTps,onfi_bus_width_bits,ifc_frequency_MHz,ifc_ops_per_core_cycle,channel_bandwidth_Bps,tile_height,tile_width,tile_payload_bytes,read_compute_request_us,ifc_compute_time_us,sliced_read_request_us,alpha_read_compute,read_compute_channel_rate_pct
+cam_llm_s,Cambricon-LLM-S,8,4,16384,1000.000000,8,1000.000000,64.000000,1000000000.000000,256.000000,2048.000000,524288.000000,30.256000,0.256000,16.668475,0.355219,1.706667
+cam_llm_m,Cambricon-LLM-M,16,8,16384,1000.000000,8,1000.000000,64.000000,1000000000.000000,362.038672,5792.618751,2097152.000000,30.362039,0.256000,16.789223,0.356072,2.413591
+cam_llm_l,Cambricon-LLM-L,32,16,16384,1000.000000,8,1000.000000,64.000000,1000000000.000000,512.000000,16384.000000,8388608.000000,30.512000,0.256000,16.963004,0.357304,3.413333

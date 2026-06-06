@@ -14,6 +14,8 @@ The hardware profile follows Table II:
 
 The NPU profile is the paper's 16x16 systolic array at 1 GHz, modeled as 2 TOPS INT8 peak with 40 GB/s DRAM bandwidth.
 
+These defaults can be overridden at runtime through CSV files. Configurable fields include flash scale, ONFI transfer rate, IFC core frequency and operations per cycle, NPU frequency and peak throughput, DRAM bandwidth, context length, and model structural parameters. See `docs/configuration.md`.
+
 ## C Timing Components
 
 The implementation has two timing paths:
@@ -84,6 +86,7 @@ The simulator writes two controller artifacts:
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
+- `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
 - `figures/controller_schedule_timeline.svg`: visual schedule check for the sample Cambricon-LLM-S controller trace.
 

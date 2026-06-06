@@ -40,11 +40,12 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.
 - `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.
 - `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.
-- `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.
+- `controller_schedule.csv` records one OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.
 - `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.
 - `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
 - `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.
 - `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.
+- `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.
 - `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.
 
@@ -53,12 +54,12 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.
 - `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15% reproduction bounds.
 - `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.
-- `figures/controller_schedule_timeline.svg` visualizes a Cambricon-LLM-S sample controller schedule.
-- `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.
-- `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.
+- `figures/controller_schedule_timeline.svg` visualizes the first configured platform's sample controller schedule.
+- `figures/figure12_read_slice_ablation.svg` plots the first configured platform's read-slicing ablation.
+- `figures/figure14_tiling_ablation.svg` plots the first configured platform's hardware-aware tiling ablation.
 
 ## Sanity Checks
 
-- Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.
-- The read-compute workload fraction is about 0.355 across the three Table II platforms.
+- First configured platform `cam_llm_s` derives a 256x2048 tile.
+- Read-compute workload fraction and channel occupancy are emitted for every model/platform row.
 - No-read-slicing and no-tiling rows are produced as controlled ablations from the same C model path.

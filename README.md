@@ -43,6 +43,7 @@ The command writes:
 - `results/platform_summary.csv`
 - `results/model_summary.csv`
 - `results/tile_profile.csv`
+- `results/system_profile.csv`
 - `results/reproduction_checks.csv`
 - `results/figures/figure9_decode_speed.svg`
 - `results/figures/figure9_relative_error.svg`
@@ -84,7 +85,23 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+More detail is in [docs/method.md](docs/method.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+
+## Configurable Experiments
+
+The default run uses the built-in paper profile. Design-space runs can override flash scale, ONFI bandwidth, IFC frequency/throughput, NPU frequency/throughput, DRAM bandwidth, context length, and model parameters:
+
+```bash
+make all
+bin/ifc_cambricon_llm \
+  --output-dir results_scaled \
+  --models-csv configs/example_models_mixed.csv \
+  --platforms-csv configs/example_scaled_platforms.csv \
+  --system-csv configs/example_system_fast_npu.csv \
+  --reference-csv configs/default_references.csv
+```
+
+When custom hardware or model profiles are used with default references, token/s values are design-space estimates; relative-error metrics are only reproduction claims when the reference CSV matches the configured setup.
 
 ## Repository Layout
 
@@ -95,6 +112,7 @@ include/      Public C header
 src/main.c    CLI entry point
 src/profiles.c
              Model/platform/reference profile tables
+src/config.c  Runtime CSV configuration loader
 src/simulator.c
              Tile model, timing model, CSV/JSON/Markdown outputs
 src/analysis.c

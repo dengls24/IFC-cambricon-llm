@@ -1,0 +1,8 @@
+key,value
+name,paper_npu
+label,16x16 1GHz INT8 NPU
+context_tokens,1000
+npu_frequency_MHz,1000
+npu_ops_per_cycle,2000
+npu_peak_TOPS,2.0
+dram_bandwidth_GBps,40.0

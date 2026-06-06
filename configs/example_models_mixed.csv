@@ -1,0 +1,8 @@
+name,label,parameters_billion,layers,hidden_size,attention_heads,cache_heads,head_dim
+small_7b,Small-7B,7.0,32,4096,32,32,128
+dense_13b,Dense-13B,13.0,40,5120,40,40,128
+dense_34b,Dense-34B,34.0,60,8192,64,64,128
+dense_70b,Dense-70B,70.0,80,8192,64,64,128
+gqa_7b,GQA-7B,7.0,32,4096,32,8,128
+gqa_13b,GQA-13B,13.0,40,5120,40,8,128
+gqa_70b,GQA-70B,70.0,80,8192,64,8,128

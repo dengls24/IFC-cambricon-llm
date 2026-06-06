@@ -80,9 +80,35 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figure9_reproduction.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/platform_summary.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_relative_error.svg");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_schedule_timeline.svg");
+
+    IfcConfig custom_config;
+    IfcSimulationRow custom_rows[IFC_ROW_COUNT];
+    char config_error[256];
+    ifc_config_init_default(&custom_config);
+    require_true(
+        ifc_config_load_platforms_csv(&custom_config, "configs/example_scaled_platforms.csv", config_error, sizeof(config_error)) == 0,
+        "load scaled platform CSV");
+    require_true(
+        ifc_config_load_system_csv(&custom_config, "configs/example_system_fast_npu.csv", config_error, sizeof(config_error)) == 0,
+        "load system CSV");
+    require_true(
+        ifc_config_load_models_csv(&custom_config, "configs/example_models_mixed.csv", config_error, sizeof(config_error)) == 0,
+        "load model CSV");
+    IfcSummary custom_summary = ifc_simulate_config(&custom_config, custom_rows);
+    require_true(custom_summary.row_count == 21, "custom config row count");
+    require_true(strcmp(custom_rows[0].platform, "ifc_s_1600") == 0, "custom platform name");
+    require_true(strcmp(custom_rows[0].model, "small_7b") == 0, "custom model name");
+    require_true(fabs(custom_rows[0].simulated_tokens_per_s - rows[0].simulated_tokens_per_s) > 1e-4, "custom config changes throughput");
+    require_true(ifc_write_outputs_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom outputs");
+    require_true(ifc_write_analysis_outputs_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom analysis outputs");
+    require_true(ifc_write_plots_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom plot outputs");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/tile_profile.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 
     printf("passed: C simulator tests\n");
     return 0;

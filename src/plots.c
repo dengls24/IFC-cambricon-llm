@@ -144,7 +144,7 @@ static int write_error_svg(const char *path, const IfcSimulationRow rows[IFC_ROW
     return fclose(file);
 }
 
-static int write_platform_summary_svg(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+static int write_platform_summary_svg(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
         return -1;
@@ -164,7 +164,7 @@ static int write_platform_summary_svg(const char *path, const IfcSimulationRow r
         int count = 0;
         max_abs[platform_id] = 0.0;
         for (int i = 0; i < IFC_ROW_COUNT; ++i) {
-            if (strcmp(rows[i].platform, IFC_PLATFORMS[platform_id].name) != 0) {
+            if (strcmp(rows[i].platform, config->platforms[platform_id].name) != 0) {
                 continue;
             }
             double abs_error = fabs(rows[i].relative_error_pct);
@@ -196,7 +196,7 @@ static int write_platform_summary_svg(const char *path, const IfcSimulationRow r
         double max_h = max_abs[platform_id] / max_y * (double)plot_h;
         fprintf(file, "<rect x=\"%.2f\" y=\"%.2f\" width=\"32\" height=\"%.2f\" fill=\"#2f9c74\"/>\n", x_center - 42.0, (double)(plot_y + plot_h) - mean_h, mean_h);
         fprintf(file, "<rect x=\"%.2f\" y=\"%.2f\" width=\"32\" height=\"%.2f\" fill=\"#4b5563\"/>\n", x_center + 10.0, (double)(plot_y + plot_h) - max_h, max_h);
-        fprintf(file, "<text x=\"%.2f\" y=\"%d\" text-anchor=\"middle\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"12\" fill=\"#374151\">%s</text>\n", x_center, plot_y + plot_h + 28, IFC_PLATFORMS[platform_id].label);
+        fprintf(file, "<text x=\"%.2f\" y=\"%d\" text-anchor=\"middle\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"12\" fill=\"#374151\">%s</text>\n", x_center, plot_y + plot_h + 28, config->platforms[platform_id].label);
         fprintf(file, "<text x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"11\" fill=\"#202124\">%.2f%%</text>\n", x_center - 26.0, (double)(plot_y + plot_h) - mean_h - 8.0, mean_abs[platform_id]);
     }
     fprintf(file, "<rect x=\"%d\" y=\"%d\" width=\"14\" height=\"14\" fill=\"#2f9c74\"/><text x=\"%d\" y=\"%d\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"13\" fill=\"#202124\">Mean abs error</text>\n", plot_x, 462, plot_x + 20, 474);
@@ -209,12 +209,12 @@ static double timeline_x(double start_us, double total_us, int plot_x, int plot_
     return (double)plot_x + start_us / total_us * (double)plot_w;
 }
 
-static int write_controller_timeline_svg(const char *path) {
+static int write_controller_timeline_svg(const char *path, const IfcConfig *config) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
         return -1;
     }
-    const IfcPlatformProfile *platform = &IFC_PLATFORMS[0];
+    const IfcPlatformProfile *platform = &config->platforms[0];
     IfcTileModel tile = ifc_derive_tile_model(platform);
     const int width = 1120;
     const int height = 540;
@@ -222,12 +222,13 @@ static int write_controller_timeline_svg(const char *path) {
     const int plot_y = 80;
     const int plot_w = 940;
     const int row_h = 34;
-    const double channel_transfer_us = tile.tile_width / (double)platform->channels / platform->channel_bandwidth_Bps * 1e6;
+    const double channel_bandwidth_Bps = ifc_platform_channel_bandwidth_Bps(platform);
+    const double channel_transfer_us = tile.tile_width / (double)platform->channels / channel_bandwidth_Bps * 1e6;
     const double read_compute_us = platform->array_read_us + channel_transfer_us;
-    const double slice_us = ((double)platform->page_bytes / (double)IFC_READ_SLICES_PER_REQUEST) / platform->channel_bandwidth_Bps * 1e6;
+    const double slice_us = ((double)platform->page_bytes / (double)IFC_READ_SLICES_PER_REQUEST) / channel_bandwidth_Bps * 1e6;
     const double total_us = read_compute_us * 8.0;
 
-    svg_header(file, width, height, "Sample Cambricon-LLM-S Controller Timeline");
+    svg_header(file, width, height, "Sample Controller Timeline");
     fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"#202124\" stroke-width=\"1\"/>\n", plot_x, plot_y + row_h * platform->channels + 8, plot_x + plot_w, plot_y + row_h * platform->channels + 8);
     for (int tick = 0; tick <= 4; ++tick) {
         double t_us = total_us * (double)tick / 4.0;
@@ -256,13 +257,14 @@ static int write_controller_timeline_svg(const char *path) {
     }
     fprintf(file, "<rect x=\"%d\" y=\"%d\" width=\"14\" height=\"14\" fill=\"#2f9c74\" opacity=\"0.75\"/><text x=\"%d\" y=\"%d\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"13\" fill=\"#202124\">READ_COMPUTE service window</text>\n", plot_x, 448, plot_x + 20, 460);
     fprintf(file, "<rect x=\"%d\" y=\"%d\" width=\"14\" height=\"8\" fill=\"#4b5563\" opacity=\"0.82\"/><text x=\"%d\" y=\"%d\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"13\" fill=\"#202124\">READ_SLICE channel transfers inserted after each four tiled requests</text>\n", plot_x, 478, plot_x + 20, 486);
-    fprintf(file, "<text x=\"%d\" y=\"%d\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"12\" fill=\"#4b5563\">Sample uses OPT-6.7B/Cambricon-LLM-S schedule dimensions: %.0fx%.0f tile, %.3f us channel transfer, %.3f us slice transfer.</text>\n", plot_x, 514, tile.tile_height, tile.tile_width, channel_transfer_us, slice_us);
+    fprintf(file, "<text x=\"%d\" y=\"%d\" font-family=\"Arial,Helvetica,sans-serif\" font-size=\"12\" fill=\"#4b5563\">Sample uses %s/%s dimensions: %.0fx%.0f tile, %.3f us channel transfer, %.3f us slice transfer.</text>\n", plot_x, 514, config->models[0].label, platform->label, tile.tile_height, tile.tile_width, channel_transfer_us, slice_us);
     svg_footer(file);
     return fclose(file);
 }
 
 static int write_ablation_svg(
     const char *path,
+    const IfcConfig *config,
     const IfcSimulationRow rows[IFC_ROW_COUNT],
     int tiling,
     const char *title,
@@ -282,7 +284,7 @@ static int write_ablation_svg(
     double max_speed = 0.0;
 
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
-        if (strcmp(rows[i].platform, "cam_llm_s") != 0) {
+        if (strcmp(rows[i].platform, config->platforms[0].name) != 0) {
             continue;
         }
         double baseline = tiling ? rows[i].no_tiling_tokens_per_s : rows[i].no_read_slicing_tokens_per_s;
@@ -300,7 +302,7 @@ static int write_ablation_svg(
     fprintf(file, "<line x1=\"%d\" y1=\"%d\" x2=\"%d\" y2=\"%d\" stroke=\"#202124\" stroke-width=\"1\"/>\n", plot_x, plot_y, plot_x, plot_y + plot_h);
     int out_i = 0;
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
-        if (strcmp(rows[i].platform, "cam_llm_s") != 0) {
+        if (strcmp(rows[i].platform, config->platforms[0].name) != 0) {
             continue;
         }
         double baseline = tiling ? rows[i].no_tiling_tokens_per_s : rows[i].no_read_slicing_tokens_per_s;
@@ -321,6 +323,12 @@ static int write_ablation_svg(
 }
 
 int ifc_write_plots(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
+    IfcConfig config;
+    ifc_config_init_default(&config);
+    return ifc_write_plots_config(output_dir, &config, rows, summary);
+}
+
+int ifc_write_plots_config(const char *output_dir, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     char figures_dir[4096];
     char figure9_path[4096];
     char error_path[4096];
@@ -346,16 +354,16 @@ int ifc_write_plots(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_
     if (write_error_svg(error_path, rows) != 0) {
         return -1;
     }
-    if (write_platform_summary_svg(platform_path, rows) != 0) {
+    if (write_platform_summary_svg(platform_path, config, rows) != 0) {
         return -1;
     }
-    if (write_controller_timeline_svg(timeline_path) != 0) {
+    if (write_controller_timeline_svg(timeline_path, config) != 0) {
         return -1;
     }
-    if (write_ablation_svg(figure12_path, rows, 0, "Figure 12-Style Read-Slicing Ablation", "Without read slicing", "1.6x-1.8x") != 0) {
+    if (write_ablation_svg(figure12_path, config, rows, 0, "Figure 12-Style Read-Slicing Ablation", "Without read slicing", "1.6x-1.8x") != 0) {
         return -1;
     }
-    if (write_ablation_svg(figure14_path, rows, 1, "Figure 14-Style Hardware-Aware Tiling Ablation", "Without tiling", "1.3x-1.4x") != 0) {
+    if (write_ablation_svg(figure14_path, config, rows, 1, "Figure 14-Style Hardware-Aware Tiling Ablation", "Without tiling", "1.3x-1.4x") != 0) {
         return -1;
     }
     return 0;

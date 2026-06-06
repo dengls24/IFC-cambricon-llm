@@ -1,0 +1,8 @@
+name,label,parameters_billion,layers,hidden_size,attention_heads,cache_heads,head_dim
+opt_6_7b,OPT-6.7B,6.7,32,4096,32,32,128
+opt_13b,OPT-13B,13.0,40,5120,40,40,128
+opt_30b,OPT-30B,30.0,48,7168,56,56,128
+opt_66b,OPT-66B,66.0,64,9216,72,72,128
+llama2_7b,LLaMA2-7B,6.74,32,4096,32,32,128
+llama2_13b,LLaMA2-13B,13.0,40,5120,40,40,128
+llama2_70b,LLaMA2-70B,69.0,80,8192,64,8,128

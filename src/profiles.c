@@ -11,9 +11,18 @@ const IfcModelProfile IFC_MODELS[IFC_MODEL_COUNT] = {
 };
 
 const IfcPlatformProfile IFC_PLATFORMS[IFC_PLATFORM_COUNT] = {
-    {"cam_llm_s", "Cambricon-LLM-S", 8, 2, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.525, 0.10, 0.75, 0.85, 1.35},
-    {"cam_llm_m", "Cambricon-LLM-M", 16, 4, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.372, 0.0, 0.5, 0.85, 1.35},
-    {"cam_llm_l", "Cambricon-LLM-L", 32, 8, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.395, 0.50, 0.5, 0.85, 1.35},
+    {"cam_llm_s", "Cambricon-LLM-S", 8, 2, 2, 2, 1, 16384, 30.0, 750.0, 1000.0, 8, 1000000000.0, 64.0, 1000000000.0, 0.525, 0.10, 0.75, 0.85, 1.35},
+    {"cam_llm_m", "Cambricon-LLM-M", 16, 4, 2, 2, 1, 16384, 30.0, 750.0, 1000.0, 8, 1000000000.0, 64.0, 1000000000.0, 0.372, 0.0, 0.5, 0.85, 1.35},
+    {"cam_llm_l", "Cambricon-LLM-L", 32, 8, 2, 2, 1, 16384, 30.0, 750.0, 1000.0, 8, 1000000000.0, 64.0, 1000000000.0, 0.395, 0.50, 0.5, 0.85, 1.35},
+};
+
+const IfcSystemProfile IFC_DEFAULT_SYSTEM = {
+    "paper_npu",
+    "16x16 1GHz INT8 NPU",
+    1000000000.0,
+    2000.0,
+    2000000000000.0,
+    40000000000.0,
 };
 
 const double IFC_FIG9_REFERENCE[IFC_MODEL_COUNT][IFC_PLATFORM_COUNT] = {

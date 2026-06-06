@@ -45,7 +45,7 @@ static void controller_init(IfcController *controller, const IfcPlatformProfile 
     controller->page_bytes = platform->page_bytes;
     controller->read_ns = platform->array_read_us * 1000.0;
     controller->program_ns = platform->program_us * 1000.0;
-    controller->channel_bandwidth_Bps = platform->channel_bandwidth_Bps;
+    controller->channel_bandwidth_Bps = ifc_platform_channel_bandwidth_Bps(platform);
 }
 
 static IfcScheduledCommand controller_submit(
@@ -111,7 +111,10 @@ static double controller_max_complete_ns(const IfcController *controller) {
 }
 
 int ifc_write_sample_controller_schedule(const char *path) {
-    const IfcPlatformProfile *platform = &IFC_PLATFORMS[0];
+    return ifc_write_sample_controller_schedule_for_platform(path, &IFC_PLATFORMS[0]);
+}
+
+int ifc_write_sample_controller_schedule_for_platform(const char *path, const IfcPlatformProfile *platform) {
     IfcTileModel tile = ifc_derive_tile_model(platform);
     IfcController controller;
     FILE *file = fopen(path, "w");

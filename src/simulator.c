@@ -8,9 +8,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-static const double NPU_PEAK_OPS_PER_S = 2000000000000.0;
-static const double DRAM_BANDWIDTH_BPS = 40000000000.0;
-
 static double attention_cache_bytes(const IfcModelProfile *model, int context_tokens) {
     return (double)model->layers * 2.0 * (double)model->cache_heads * (double)model->head_dim * (double)context_tokens;
 }
@@ -52,15 +49,25 @@ IfcTileModel ifc_derive_tile_model(const IfcPlatformProfile *platform) {
     IfcTileModel tile;
     double channels = (double)platform->channels;
     double page_bytes = (double)platform->page_bytes;
-    double channel_bw = platform->channel_bandwidth_Bps;
+    double channel_bw = ifc_platform_channel_bandwidth_Bps(platform);
     double array_read_s = platform->array_read_us * 1e-6;
+    double ifc_total_cores =
+        channels * (double)platform->chips_per_channel * (double)platform->dies_per_chip *
+        (double)platform->compute_cores_per_die;
+    double ifc_peak_ops = ifc_total_cores * platform->ifc_frequency_hz * platform->ifc_ops_per_core_cycle;
+    double vector_transfer_s;
+    double tile_ops;
 
     tile.compute_cores_per_channel =
         platform->chips_per_channel * platform->dies_per_chip * platform->compute_cores_per_die;
     tile.tile_height = sqrt((double)tile.compute_cores_per_channel * page_bytes);
     tile.tile_width = channels * tile.tile_height;
     tile.tile_payload_bytes = channels * (double)tile.compute_cores_per_channel * page_bytes;
-    tile.read_compute_request_s = array_read_s + tile.tile_width / (channels * channel_bw);
+    vector_transfer_s = tile.tile_width / (channels * channel_bw);
+    tile_ops = tile.tile_height * tile.tile_width;
+    tile.ifc_compute_time_s = ifc_peak_ops > 0.0 ? tile_ops / ifc_peak_ops : 0.0;
+    tile.read_compute_request_s =
+        array_read_s + (vector_transfer_s > tile.ifc_compute_time_s ? vector_transfer_s : tile.ifc_compute_time_s);
     tile.read_compute_channel_rate =
         (tile.tile_height + tile.tile_width / channels) / (array_read_s * channel_bw);
     tile.sliced_read_request_s =
@@ -73,6 +80,15 @@ IfcTileModel ifc_derive_tile_model(const IfcPlatformProfile *platform) {
 IfcSimulationRow ifc_simulate_one(
     const IfcModelProfile *model,
     const IfcPlatformProfile *platform,
+    double reference_tokens_per_s,
+    int context_tokens) {
+    return ifc_simulate_one_with_system(model, platform, &IFC_DEFAULT_SYSTEM, reference_tokens_per_s, context_tokens);
+}
+
+IfcSimulationRow ifc_simulate_one_with_system(
+    const IfcModelProfile *model,
+    const IfcPlatformProfile *platform,
+    const IfcSystemProfile *system,
     double reference_tokens_per_s,
     int context_tokens) {
     IfcTileModel tile = ifc_derive_tile_model(platform);
@@ -88,8 +104,8 @@ IfcSimulationRow ifc_simulate_one(
     double weight_stage_s = overlapped_weight_s / efficiency;
     double att_cache_bytes = attention_cache_bytes(model, context_tokens);
     double att_ops = attention_ops(model, context_tokens);
-    double attention_cache_s = att_cache_bytes / DRAM_BANDWIDTH_BPS;
-    double attention_compute_s = att_ops / NPU_PEAK_OPS_PER_S;
+    double attention_cache_s = att_cache_bytes / system->dram_bandwidth_Bps;
+    double attention_compute_s = att_ops / ifc_system_npu_peak_ops_per_s(system);
     double tpot_s = weight_stage_s + attention_cache_s + attention_compute_s;
     double simulated_speed = 1.0 / tpot_s;
 
@@ -138,6 +154,13 @@ IfcSimulationRow ifc_simulate_one(
 }
 
 IfcSummary ifc_simulate_reproduction(IfcSimulationRow rows[IFC_ROW_COUNT], int context_tokens) {
+    IfcConfig config;
+    ifc_config_init_default(&config);
+    config.context_tokens = context_tokens;
+    return ifc_simulate_config(&config, rows);
+}
+
+IfcSummary ifc_simulate_config(const IfcConfig *config, IfcSimulationRow rows[IFC_ROW_COUNT]) {
     IfcSummary summary;
     double abs_error_sum = 0.0;
     double error_sum = 0.0;
@@ -150,11 +173,12 @@ IfcSummary ifc_simulate_reproduction(IfcSimulationRow rows[IFC_ROW_COUNT], int c
 
     for (int model_id = 0; model_id < IFC_MODEL_COUNT; ++model_id) {
         for (int platform_id = 0; platform_id < IFC_PLATFORM_COUNT; ++platform_id) {
-            rows[row_id] = ifc_simulate_one(
-                &IFC_MODELS[model_id],
-                &IFC_PLATFORMS[platform_id],
-                IFC_FIG9_REFERENCE[model_id][platform_id],
-                context_tokens);
+            rows[row_id] = ifc_simulate_one_with_system(
+                &config->models[model_id],
+                &config->platforms[platform_id],
+                &config->system,
+                config->reference_tokens_per_s[model_id][platform_id],
+                config->context_tokens);
             double abs_error = fabs(rows[row_id].relative_error_pct);
             abs_error_sum += abs_error;
             error_sum += rows[row_id].relative_error_pct;
@@ -374,7 +398,7 @@ static int write_npu_timing(const char *path, const IfcSimulationRow rows[IFC_RO
     return fclose(file);
 }
 
-static int write_figure12_read_slice_ablation(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+static int write_figure12_read_slice_ablation(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
         return -1;
@@ -382,7 +406,7 @@ static int write_figure12_read_slice_ablation(const char *path, const IfcSimulat
     fprintf(file, "model,platform,full_tokens_per_s,without_read_slicing_tokens_per_s,speedup,paper_text_range\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
-        if (strcmp(r->platform, "cam_llm_s") != 0) {
+        if (strcmp(r->platform, config->platforms[0].name) != 0) {
             continue;
         }
         fprintf(file,
@@ -396,7 +420,7 @@ static int write_figure12_read_slice_ablation(const char *path, const IfcSimulat
     return fclose(file);
 }
 
-static int write_figure14_tiling_ablation(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+static int write_figure14_tiling_ablation(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
         return -1;
@@ -404,7 +428,7 @@ static int write_figure14_tiling_ablation(const char *path, const IfcSimulationR
     fprintf(file, "model,platform,full_tokens_per_s,without_hardware_aware_tiling_tokens_per_s,speedup,paper_text_range\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
-        if (strcmp(r->platform, "cam_llm_s") != 0) {
+        if (strcmp(r->platform, config->platforms[0].name) != 0) {
             continue;
         }
         fprintf(file,
@@ -418,11 +442,13 @@ static int write_figure14_tiling_ablation(const char *path, const IfcSimulationR
     return fclose(file);
 }
 
-static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
+static int write_report(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     FILE *file = fopen(path, "w");
+    IfcTileModel first_tile;
     if (file == NULL) {
         return -1;
     }
+    first_tile = ifc_derive_tile_model(&config->platforms[0]);
     fprintf(file, "# Figure 9 Reproduction Report\n\n");
     fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path and an SSDsim-style flash controller path with extended READ_COMPUTE and READ_SLICE commands.\n\n");
     fprintf(file, "## Summary\n\n");
@@ -452,28 +478,35 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
     fprintf(file, "- `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.\n");
     fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
     fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
-    fprintf(file, "- `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.\n");
+    fprintf(file, "- `controller_schedule.csv` records one %s/%s sample schedule with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
     fprintf(file, "- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.\n");
     fprintf(file, "- `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.\n");
+    fprintf(file, "- `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.\n");
     fprintf(file, "- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
     fprintf(file, "\n## Plots\n\n");
     fprintf(file, "- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.\n");
     fprintf(file, "- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15%% reproduction bounds.\n");
     fprintf(file, "- `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.\n");
-    fprintf(file, "- `figures/controller_schedule_timeline.svg` visualizes a Cambricon-LLM-S sample controller schedule.\n");
-    fprintf(file, "- `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.\n");
-    fprintf(file, "- `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.\n");
+    fprintf(file, "- `figures/controller_schedule_timeline.svg` visualizes the first configured platform's sample controller schedule.\n");
+    fprintf(file, "- `figures/figure12_read_slice_ablation.svg` plots the first configured platform's read-slicing ablation.\n");
+    fprintf(file, "- `figures/figure14_tiling_ablation.svg` plots the first configured platform's hardware-aware tiling ablation.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
-    fprintf(file, "- Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.\n");
-    fprintf(file, "- The read-compute workload fraction is about 0.355 across the three Table II platforms.\n");
+    fprintf(file, "- First configured platform `%s` derives a %.0fx%.0f tile.\n", config->platforms[0].name, first_tile.tile_height, first_tile.tile_width);
+    fprintf(file, "- Read-compute workload fraction and channel occupancy are emitted for every model/platform row.\n");
     fprintf(file, "- No-read-slicing and no-tiling rows are produced as controlled ablations from the same C model path.\n");
     return fclose(file);
 }
 
 int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
+    IfcConfig config;
+    ifc_config_init_default(&config);
+    return ifc_write_outputs_config(output_dir, &config, rows, summary);
+}
+
+int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     char csv_path[4096];
     char json_path[4096];
     char report_path[4096];
@@ -505,13 +538,13 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     if (write_json(json_path, rows, summary) != 0) {
         return -1;
     }
-    if (write_report(report_path, rows, summary) != 0) {
+    if (write_report(report_path, config, rows, summary) != 0) {
         return -1;
     }
     if (write_request_trace(request_trace_path, rows) != 0) {
         return -1;
     }
-    if (ifc_write_sample_controller_schedule(controller_schedule_path) != 0) {
+    if (ifc_write_sample_controller_schedule_for_platform(controller_schedule_path, &config->platforms[0]) != 0) {
         return -1;
     }
     if (write_ablation_summary(ablation_summary_path, rows) != 0) {
@@ -523,10 +556,10 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     if (write_npu_timing(npu_timing_path, rows) != 0) {
         return -1;
     }
-    if (write_figure12_read_slice_ablation(figure12_path, rows) != 0) {
+    if (write_figure12_read_slice_ablation(figure12_path, config, rows) != 0) {
         return -1;
     }
-    if (write_figure14_tiling_ablation(figure14_path, rows) != 0) {
+    if (write_figure14_tiling_ablation(figure14_path, config, rows) != 0) {
         return -1;
     }
     return 0;

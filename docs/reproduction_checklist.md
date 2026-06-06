@@ -9,6 +9,7 @@ This checklist records what is covered by the current C reproduction and where e
 | Table II S/M/L flash platform dimensions | `results/tile_profile.csv` | PASS |
 | Section V tile shape derivation | `results/tile_profile.csv` | PASS |
 | 16x16 1 GHz INT8 NPU timing path | `results/npu_timing.csv` | PASS |
+| Effective system profile emission | `results/system_profile.csv` | PASS |
 | DRAM attention-cache traffic timing | `results/npu_timing.csv` | PASS |
 | Extended `READ_COMPUTE` command accounting | `results/request_trace.csv` | PASS |
 | Sliced read command accounting | `results/request_trace.csv` | PASS |
@@ -42,3 +43,5 @@ make test
 ```
 
 The test binary validates formula bounds and writes a temporary artifact set under `/tmp/ifc_cambricon_llm_test_outputs` to verify that primary CSV and SVG outputs are produced.
+
+The same test binary also loads the example CSV configuration files and verifies that a custom hardware/model/system run changes throughput and emits nonempty configured artifacts.

@@ -8,6 +8,7 @@ This project is organized as a small C simulator rather than a single-file numer
 |---|---|
 | `src/main.c` | Parses `--output-dir`, runs the reproduction, and prints artifact paths. |
 | `src/profiles.c` | Holds model profiles, Cambricon-LLM-S/M/L platform profiles, Figure 9 reference points, and opcode names. |
+| `src/config.c` | Loads runtime CSV overrides for model, platform, system, and reference profiles. |
 | `src/simulator.c` | Implements the tile-size equations, per-token timing model, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
 | `src/controller.c` | Implements the SSDsim-style channel/chip/die/plane busy timeline and emits a sample schedule with `READ_COMPUTE` and `READ_SLICE`. |
@@ -27,6 +28,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/platform_summary.csv` | Per-platform throughput, error, ablation speedup, and command-count summary. |
 | `results/model_summary.csv` | Per-model throughput and error summary across platforms. |
 | `results/tile_profile.csv` | Derived tile dimensions, request timings, and channel occupancy. |
+| `results/system_profile.csv` | Effective NPU, DRAM, and context profile used by the run. |
 | `results/reproduction_checks.csv` | Pass/fail reproduction checks used by the result documentation. |
 | `results/figures/figure9_relative_error.svg` | Signed Figure 9 error diagnostic with +/-15% bounds. |
 | `results/figures/platform_error_summary.svg` | Mean and max absolute error by platform. |
@@ -48,6 +50,8 @@ The implementation follows the paper's Figure 9 method path:
 - one platform-level calibration term for command packing and pipeline effects.
 
 The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks.
+
+Runtime configuration is documented in `docs/configuration.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
 
 ## Reliability Documentation
 

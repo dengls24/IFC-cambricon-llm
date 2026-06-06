@@ -34,6 +34,7 @@
 - 每个 Figure 9 点没有单独的 per-row hidden correction。
 - 校准项是 per-platform efficiency，而不是 per-model 或 per-point fitting。
 - `results/reproduction_checks.csv` 给出可机器检查的 pass/fail 条件。
+- Runtime CSV 配置可替换 hardware/model/system/reference profile；默认配置是论文复现模式，自定义配置是 design-space mode，除非 reference CSV 与自定义设置匹配，否则不把 relative-error 当作复现误差声明。
 
 这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、controller schedule 一直追到最终 TPOT 和 token/s。
 

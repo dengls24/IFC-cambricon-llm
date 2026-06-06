@@ -52,6 +52,7 @@ Additional summary and validation artifacts:
 - `results/platform_summary.csv`: per-platform throughput, error, ablation speedup, and command-count summary.
 - `results/model_summary.csv`: per-model throughput and error summary across S/M/L platforms.
 - `results/tile_profile.csv`: derived tile dimensions, payload, request timing, and read-compute channel occupancy.
+- `results/system_profile.csv`: effective context length, NPU frequency/throughput, and DRAM bandwidth.
 - `results/reproduction_checks.csv`: pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 
 SVG comparison plots:
