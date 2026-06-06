@@ -48,3 +48,7 @@ The implementation follows the paper's Figure 9 method path:
 - one platform-level calibration term for command packing and pipeline effects.
 
 The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks.
+
+## Reliability Documentation
+
+The simulator's reliability argument is documented in `docs/simulator_reliability.md`. That document explains the modeling level, parameter transparency, calibration discipline, validation evidence, artifact reproducibility, and boundaries that should be stated when presenting the simulator as a paper-grade architecture reproduction artifact.
