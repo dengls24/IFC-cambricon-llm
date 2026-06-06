@@ -7,6 +7,8 @@ The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hyb
 - Table II flash configurations for Cambricon-LLM-S/M/L.
 - A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
 - Section V hardware-aware tiling and read-compute/read-request workload split.
+- SSDsim-style C flash controller state with channel/chip/die/plane busy timelines.
+- Extended flash opcodes: `READ`, `WRITE`, `READ_COMPUTE`, and `READ_SLICE`.
 - Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
 
 It intentionally keeps the scope narrow: model weights are flash-resident, in-flash computing handles the tiled weight stage, and the attention cache remains in DRAM as in the Cambricon-LLM setup.
@@ -31,6 +33,9 @@ The command writes:
 - `results/figure9_reproduction.csv`
 - `results/summary.json`
 - `results/report.md`
+- `results/request_trace.csv`
+- `results/controller_schedule.csv`
+- `results/ablation_summary.csv`
 
 ## Current Reproduction Quality
 

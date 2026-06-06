@@ -32,6 +32,13 @@ The report in `results/report.md` includes:
 - relative error;
 - TPOT;
 - derived tile shape;
-- read-compute workload fraction.
+- read-compute workload fraction;
+- aggregate controller command count.
 
 The CSV in `results/figure9_reproduction.csv` additionally includes the no-read-slicing and no-tiling ablation outputs from the same model path.
+
+Additional controller artifacts:
+
+- `results/request_trace.csv`: per-row aggregate `READ_COMPUTE` and `READ_SLICE` requests.
+- `results/controller_schedule.csv`: sample channel/chip/die/plane schedule for OPT-6.7B on Cambricon-LLM-S.
+- `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.

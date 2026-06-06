@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static void require_true(int condition, const char *message) {
     if (!condition) {
@@ -23,6 +24,10 @@ int main(void) {
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
     require_close(tile.tile_width, 2048.0, 1e-9, "Cambricon-LLM-S tile width");
     require_true(tile.alpha_read_compute > 0.35 && tile.alpha_read_compute < 0.36, "alpha range");
+    require_true(strcmp(ifc_opcode_name(IFC_OP_READ), "READ") == 0, "READ opcode");
+    require_true(strcmp(ifc_opcode_name(IFC_OP_WRITE), "WRITE") == 0, "WRITE opcode");
+    require_true(strcmp(ifc_opcode_name(IFC_OP_READ_COMPUTE), "READ_COMPUTE") == 0, "READ_COMPUTE opcode");
+    require_true(strcmp(ifc_opcode_name(IFC_OP_READ_SLICE), "READ_SLICE") == 0, "READ_SLICE opcode");
 
     IfcSimulationRow rows[IFC_ROW_COUNT];
     IfcSummary summary = ifc_simulate_reproduction(rows, 1000);
@@ -31,6 +36,19 @@ int main(void) {
     require_true(summary.mean_abs_relative_error_pct <= 9.0, "mean reproduction error");
 
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        require_true(rows[i].read_compute_requests > 0.0, "read-compute command count");
+        require_true(rows[i].npu_read_requests > 0.0, "sliced read logical count");
+        require_close(
+            rows[i].npu_read_slices,
+            rows[i].npu_read_requests * (double)IFC_READ_SLICES_PER_REQUEST,
+            1e-6,
+            "read slice expansion");
+        require_close(
+            rows[i].controller_commands,
+            rows[i].read_compute_requests + rows[i].npu_read_slices,
+            1e-6,
+            "controller command total");
+        require_true(rows[i].controller_weight_stage_ms > 0.0, "controller stage time");
         require_true(rows[i].speedup_vs_no_read_slicing > 1.55, "read slicing lower speedup bound");
         require_true(rows[i].speedup_vs_no_read_slicing < 1.75, "read slicing upper speedup bound");
         require_true(rows[i].speedup_vs_no_tiling > 1.25, "tiling lower speedup bound");
@@ -40,4 +58,3 @@ int main(void) {
     printf("passed: C simulator tests\n");
     return 0;
 }
-

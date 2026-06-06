@@ -37,9 +37,11 @@ int main(int argc, char **argv) {
     printf("metrics_csv: %s/figure9_reproduction.csv\n", output_dir);
     printf("summary_json: %s/summary.json\n", output_dir);
     printf("report_md: %s/report.md\n", output_dir);
+    printf("request_trace_csv: %s/request_trace.csv\n", output_dir);
+    printf("controller_schedule_csv: %s/controller_schedule.csv\n", output_dir);
+    printf("ablation_summary_csv: %s/ablation_summary.csv\n", output_dir);
     printf("rows: %d\n", summary.row_count);
     printf("mean_abs_relative_error_pct: %.3f\n", summary.mean_abs_relative_error_pct);
     printf("max_abs_relative_error_pct: %.3f\n", summary.max_abs_relative_error_pct);
     return 0;
 }
-

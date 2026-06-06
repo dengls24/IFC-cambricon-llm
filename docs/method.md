@@ -14,6 +14,22 @@ The hardware profile follows Table II:
 
 The NPU profile is the paper's 16x16 systolic array at 1 GHz, modeled as 2 TOPS INT8 peak with 40 GB/s DRAM bandwidth.
 
+## C Timing Components
+
+The implementation has two timing paths:
+
+- NPU timing: attention arithmetic is timed by the 2 TOPS INT8 profile, and attention-cache traffic is timed by 40 GB/s DRAM bandwidth.
+- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines and schedules flash-side commands.
+
+The controller exposes four opcodes:
+
+| Opcode | Role |
+|---|---|
+| `READ` | Normal unsliced page read support path. |
+| `WRITE` | Program opcode retained for controller completeness. |
+| `READ_COMPUTE` | Extended in-flash command used for tiled weight GeMV. |
+| `READ_SLICE` | Sliced normal read transfer interposed into channel gaps. |
+
 ## Tile Shape
 
 The C simulator uses the Section V transfer-minimizing tile:
@@ -61,6 +77,11 @@ alpha = t_read / (t_read + t_rc)
 
 The tiled weight stage uses the max of the read-compute and sliced-read paths, then applies one platform-level pipeline efficiency term. The efficiency term absorbs startup, imperfect command packing, and controller effects that are not visible in the high-level equations. It is calibrated per S/M/L platform, not per model.
 
+The simulator writes two controller artifacts:
+
+- `request_trace.csv`: aggregate `READ_COMPUTE` and `READ_SLICE` command counts for every Figure 9 row.
+- `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
+
 ## Token Time
 
 The final per-token latency is:
@@ -77,7 +98,7 @@ This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-r
 
 This simulator does not model:
 
-- full SSDsim queue internals;
+- the original authors' private SSDsim fork internals;
 - ECC area/power and bit-error behavior;
 - prefill latency;
 - FlexGen or MLC-LLM baselines;

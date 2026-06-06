@@ -94,6 +94,7 @@
       "compute_cores_per_die": 1,
       "page_bytes": 16384,
       "array_read_us": 30.0,
+      "program_us": 750.0,
       "channel_bandwidth_bytes_per_s": 1000000000.0,
       "pipeline_efficiency": 0.525,
       "footprint_penalty": 0.10,
@@ -110,6 +111,7 @@
       "compute_cores_per_die": 1,
       "page_bytes": 16384,
       "array_read_us": 30.0,
+      "program_us": 750.0,
       "channel_bandwidth_bytes_per_s": 1000000000.0,
       "pipeline_efficiency": 0.372,
       "footprint_penalty": 0.0,
@@ -126,6 +128,7 @@
       "compute_cores_per_die": 1,
       "page_bytes": 16384,
       "array_read_us": 30.0,
+      "program_us": 750.0,
       "channel_bandwidth_bytes_per_s": 1000000000.0,
       "pipeline_efficiency": 0.395,
       "footprint_penalty": 0.50,
@@ -135,4 +138,3 @@
     }
   }
 }
-

@@ -22,9 +22,9 @@ const IfcModelProfile IFC_MODELS[IFC_MODEL_COUNT] = {
 };
 
 const IfcPlatformProfile IFC_PLATFORMS[IFC_PLATFORM_COUNT] = {
-    {"cam_llm_s", "Cambricon-LLM-S", 8, 2, 2, 2, 1, 16384, 30.0, 1000000000.0, 0.525, 0.10, 0.75, 0.85, 1.35},
-    {"cam_llm_m", "Cambricon-LLM-M", 16, 4, 2, 2, 1, 16384, 30.0, 1000000000.0, 0.372, 0.0, 0.5, 0.85, 1.35},
-    {"cam_llm_l", "Cambricon-LLM-L", 32, 8, 2, 2, 1, 16384, 30.0, 1000000000.0, 0.395, 0.50, 0.5, 0.85, 1.35},
+    {"cam_llm_s", "Cambricon-LLM-S", 8, 2, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.525, 0.10, 0.75, 0.85, 1.35},
+    {"cam_llm_m", "Cambricon-LLM-M", 16, 4, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.372, 0.0, 0.5, 0.85, 1.35},
+    {"cam_llm_l", "Cambricon-LLM-L", 32, 8, 2, 2, 1, 16384, 30.0, 750.0, 1000000000.0, 0.395, 0.50, 0.5, 0.85, 1.35},
 };
 
 const double IFC_FIG9_REFERENCE[IFC_MODEL_COUNT][IFC_PLATFORM_COUNT] = {
@@ -36,6 +36,50 @@ const double IFC_FIG9_REFERENCE[IFC_MODEL_COUNT][IFC_PLATFORM_COUNT] = {
     {1.9, 4.7, 14.0},
     {0.3, 1.0, 3.4},
 };
+
+typedef struct {
+    double channel_busy_until_ns[64];
+    double plane_busy_until_ns[64][128][2][2];
+    int channels;
+    int chips_per_channel;
+    int dies_per_chip;
+    int planes_per_die;
+    int page_bytes;
+    double read_ns;
+    double program_ns;
+    double channel_bandwidth_Bps;
+} IfcController;
+
+typedef struct {
+    IfcCommandOpcode opcode;
+    int logical_id;
+    int slice_id;
+    int channel;
+    int chip;
+    int die;
+    int plane;
+    double issue_ns;
+    double channel_start_ns;
+    double channel_end_ns;
+    double array_start_ns;
+    double array_end_ns;
+    double complete_ns;
+} IfcScheduledCommand;
+
+const char *ifc_opcode_name(IfcCommandOpcode opcode) {
+    switch (opcode) {
+    case IFC_OP_READ:
+        return "READ";
+    case IFC_OP_WRITE:
+        return "WRITE";
+    case IFC_OP_READ_COMPUTE:
+        return "READ_COMPUTE";
+    case IFC_OP_READ_SLICE:
+        return "READ_SLICE";
+    default:
+        return "UNKNOWN";
+    }
+}
 
 static double attention_cache_bytes(const IfcModelProfile *model, int context_tokens) {
     return (double)model->layers * 2.0 * (double)model->cache_heads * (double)model->head_dim * (double)context_tokens;
@@ -70,6 +114,84 @@ static int ensure_dir(const char *path) {
     return -1;
 }
 
+static double max2(double lhs, double rhs) {
+    return lhs > rhs ? lhs : rhs;
+}
+
+static void controller_init(IfcController *controller, const IfcPlatformProfile *platform) {
+    memset(controller, 0, sizeof(*controller));
+    controller->channels = platform->channels;
+    controller->chips_per_channel = platform->chips_per_channel;
+    controller->dies_per_chip = platform->dies_per_chip;
+    controller->planes_per_die = platform->planes_per_die;
+    controller->page_bytes = platform->page_bytes;
+    controller->read_ns = platform->array_read_us * 1000.0;
+    controller->program_ns = platform->program_us * 1000.0;
+    controller->channel_bandwidth_Bps = platform->channel_bandwidth_Bps;
+}
+
+static IfcScheduledCommand controller_submit(
+    IfcController *controller,
+    IfcCommandOpcode opcode,
+    int logical_id,
+    int slice_id,
+    int channel,
+    int chip,
+    int die,
+    int plane,
+    double issue_ns,
+    double channel_bytes) {
+    IfcScheduledCommand scheduled;
+    double channel_service_ns = channel_bytes / controller->channel_bandwidth_Bps * 1e9;
+    double array_service_ns = 0.0;
+    double *plane_busy = &controller->plane_busy_until_ns[channel][chip][die][plane];
+
+    if (opcode == IFC_OP_READ || opcode == IFC_OP_READ_COMPUTE) {
+        array_service_ns = controller->read_ns;
+    } else if (opcode == IFC_OP_WRITE) {
+        array_service_ns = controller->program_ns;
+    }
+
+    scheduled.opcode = opcode;
+    scheduled.logical_id = logical_id;
+    scheduled.slice_id = slice_id;
+    scheduled.channel = channel;
+    scheduled.chip = chip;
+    scheduled.die = die;
+    scheduled.plane = plane;
+    scheduled.issue_ns = issue_ns;
+    scheduled.channel_start_ns = max2(issue_ns, controller->channel_busy_until_ns[channel]);
+    scheduled.channel_end_ns = scheduled.channel_start_ns + channel_service_ns;
+
+    if (opcode == IFC_OP_READ_SLICE) {
+        scheduled.array_start_ns = -1.0;
+        scheduled.array_end_ns = -1.0;
+        scheduled.complete_ns = scheduled.channel_end_ns;
+    } else {
+        scheduled.array_start_ns = max2(scheduled.channel_end_ns, *plane_busy);
+        scheduled.array_end_ns = scheduled.array_start_ns + array_service_ns;
+        scheduled.complete_ns = scheduled.array_end_ns;
+        *plane_busy = scheduled.array_end_ns;
+    }
+    controller->channel_busy_until_ns[channel] = scheduled.channel_end_ns;
+    return scheduled;
+}
+
+static double controller_max_complete_ns(const IfcController *controller) {
+    double max_ns = 0.0;
+    for (int channel = 0; channel < controller->channels; ++channel) {
+        max_ns = max2(max_ns, controller->channel_busy_until_ns[channel]);
+        for (int chip = 0; chip < controller->chips_per_channel; ++chip) {
+            for (int die = 0; die < controller->dies_per_chip; ++die) {
+                for (int plane = 0; plane < controller->planes_per_die; ++plane) {
+                    max_ns = max2(max_ns, controller->plane_busy_until_ns[channel][chip][die][plane]);
+                }
+            }
+        }
+    }
+    return max_ns;
+}
+
 IfcTileModel ifc_derive_tile_model(const IfcPlatformProfile *platform) {
     IfcTileModel tile;
     double channels = (double)platform->channels;
@@ -101,8 +223,10 @@ IfcSimulationRow ifc_simulate_one(
     double weight_bytes = model->parameters_billion * 1e9;
     double request_units = weight_bytes / tile.tile_payload_bytes;
     double read_compute_requests = request_units * tile.alpha_read_compute;
+    double npu_read_requests = request_units * (1.0 - tile.alpha_read_compute);
+    double npu_read_slices = npu_read_requests * (double)IFC_READ_SLICES_PER_REQUEST;
     double read_compute_s = read_compute_requests * tile.read_compute_request_s;
-    double sliced_read_s = request_units * (1.0 - tile.alpha_read_compute) * tile.sliced_read_request_s;
+    double sliced_read_s = npu_read_requests * tile.sliced_read_request_s;
     double overlapped_weight_s = read_compute_s > sliced_read_s ? read_compute_s : sliced_read_s;
     double efficiency = effective_efficiency(model, platform);
     double weight_stage_s = overlapped_weight_s / efficiency;
@@ -135,7 +259,13 @@ IfcSimulationRow ifc_simulate_one(
     row.alpha_read_compute = tile.alpha_read_compute;
     row.effective_pipeline_efficiency = efficiency;
     row.read_compute_requests = read_compute_requests;
+    row.npu_read_requests = npu_read_requests;
+    row.npu_read_slices = npu_read_slices;
+    row.controller_commands = read_compute_requests + npu_read_slices;
     row.read_compute_channel_rate_pct = tile.read_compute_channel_rate * 100.0;
+    row.ifc_read_compute_path_ms = read_compute_s / efficiency * 1e3;
+    row.npu_weight_read_path_ms = sliced_read_s / efficiency * 1e3;
+    row.controller_weight_stage_ms = weight_stage_s * 1e3;
     row.no_read_slicing_tokens_per_s = 1.0 / no_slice_tpot_s;
     row.no_tiling_tokens_per_s = 1.0 / no_tiling_tpot_s;
     row.speedup_vs_no_read_slicing = no_slice_tpot_s / tpot_s;
@@ -188,13 +318,16 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
             "model,model_label,platform,platform_label,context_tokens,reference_tokens_per_s,"
             "simulated_tokens_per_s,relative_error_pct,tpot_ms,weight_stage_ms,attention_cache_ms,"
             "attention_compute_ms,tile_height,tile_width,alpha_read_compute,effective_pipeline_efficiency,"
-            "read_compute_requests,read_compute_channel_rate_pct,no_read_slicing_tokens_per_s,"
+            "read_compute_requests,npu_read_requests,npu_read_slices,controller_commands,"
+            "read_compute_channel_rate_pct,ifc_read_compute_path_ms,npu_weight_read_path_ms,"
+            "controller_weight_stage_ms,no_read_slicing_tokens_per_s,"
             "no_tiling_tokens_per_s,speedup_vs_no_read_slicing,speedup_vs_no_tiling\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
         fprintf(file,
                 "%s,%s,%s,%s,%d,%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
                 r->model,
                 r->model_label,
                 r->platform,
@@ -212,7 +345,13 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 r->alpha_read_compute,
                 r->effective_pipeline_efficiency,
                 r->read_compute_requests,
+                r->npu_read_requests,
+                r->npu_read_slices,
+                r->controller_commands,
                 r->read_compute_channel_rate_pct,
+                r->ifc_read_compute_path_ms,
+                r->npu_weight_read_path_ms,
+                r->controller_weight_stage_ms,
                 r->no_read_slicing_tokens_per_s,
                 r->no_tiling_tokens_per_s,
                 r->speedup_vs_no_read_slicing,
@@ -242,7 +381,7 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
                 "    {\"model\": \"%s\", \"platform\": \"%s\", \"reference_tokens_per_s\": %.6f, "
                 "\"simulated_tokens_per_s\": %.6f, \"relative_error_pct\": %.3f, "
                 "\"tpot_ms\": %.6f, \"tile_height\": %.6f, \"tile_width\": %.6f, "
-                "\"alpha_read_compute\": %.6f}%s\n",
+                "\"alpha_read_compute\": %.6f, \"controller_commands\": %.6f}%s\n",
                 r->model,
                 r->platform,
                 r->reference_tokens_per_s,
@@ -252,10 +391,150 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
                 r->tile_height,
                 r->tile_width,
                 r->alpha_read_compute,
+                r->controller_commands,
                 i == IFC_ROW_COUNT - 1 ? "" : ",");
     }
     fprintf(file, "  ]\n");
     fprintf(file, "}\n");
+    return fclose(file);
+}
+
+static int write_request_trace(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file, "model,platform,opcode,logical_requests,slices,total_commands,path_ms,notes\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        fprintf(file,
+                "%s,%s,%s,%.6f,0,%.6f,%.6f,flash-side tiled weight read-compute\n",
+                r->model,
+                r->platform,
+                ifc_opcode_name(IFC_OP_READ_COMPUTE),
+                r->read_compute_requests,
+                r->read_compute_requests,
+                r->ifc_read_compute_path_ms);
+        fprintf(file,
+                "%s,%s,%s,%.6f,%.6f,%.6f,%.6f,NPU-side weight reads carried as sliced channel transfers\n",
+                r->model,
+                r->platform,
+                ifc_opcode_name(IFC_OP_READ_SLICE),
+                r->npu_read_requests,
+                r->npu_read_slices,
+                r->npu_read_slices,
+                r->npu_weight_read_path_ms);
+    }
+    return fclose(file);
+}
+
+static int write_controller_schedule(const char *path) {
+    const IfcPlatformProfile *platform = &IFC_PLATFORMS[0];
+    IfcTileModel tile = ifc_derive_tile_model(platform);
+    IfcController controller;
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+
+    controller_init(&controller, platform);
+    fprintf(file,
+            "sample_model,sample_platform,opcode,logical_id,slice_id,channel,chip,die,plane,"
+            "issue_ns,channel_start_ns,channel_end_ns,array_start_ns,array_end_ns,complete_ns\n");
+    for (int tile_id = 0; tile_id < IFC_SAMPLE_TILES; ++tile_id) {
+        double issue_ns = controller_max_complete_ns(&controller);
+        int chip = tile_id % platform->chips_per_channel;
+        int die = (tile_id / platform->chips_per_channel) % platform->dies_per_chip;
+        int plane = (tile_id / (platform->chips_per_channel * platform->dies_per_chip)) % platform->planes_per_die;
+        for (int channel = 0; channel < platform->channels; ++channel) {
+            IfcScheduledCommand scheduled = controller_submit(
+                &controller,
+                IFC_OP_READ_COMPUTE,
+                tile_id,
+                -1,
+                channel,
+                chip,
+                die,
+                plane,
+                issue_ns,
+                tile.tile_width / (double)platform->channels);
+            fprintf(file,
+                    "opt_6_7b,%s,%s,%d,%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                    platform->name,
+                    ifc_opcode_name(scheduled.opcode),
+                    scheduled.logical_id,
+                    scheduled.slice_id,
+                    scheduled.channel,
+                    scheduled.chip,
+                    scheduled.die,
+                    scheduled.plane,
+                    scheduled.issue_ns,
+                    scheduled.channel_start_ns,
+                    scheduled.channel_end_ns,
+                    scheduled.array_start_ns,
+                    scheduled.array_end_ns,
+                    scheduled.complete_ns);
+        }
+
+        if ((tile_id + 1) % IFC_READ_SLICES_PER_REQUEST == 0) {
+            double slice_bytes = (double)platform->page_bytes / (double)IFC_READ_SLICES_PER_REQUEST;
+            for (int slice_id = 0; slice_id < IFC_READ_SLICES_PER_REQUEST; ++slice_id) {
+                for (int channel = 0; channel < platform->channels; ++channel) {
+                    int read_plane = (plane + 1) % platform->planes_per_die;
+                    IfcScheduledCommand scheduled = controller_submit(
+                        &controller,
+                        IFC_OP_READ_SLICE,
+                        tile_id / IFC_READ_SLICES_PER_REQUEST,
+                        slice_id,
+                        channel,
+                        chip,
+                        die,
+                        read_plane,
+                        issue_ns,
+                        slice_bytes);
+                    fprintf(file,
+                            "opt_6_7b,%s,%s,%d,%d,%d,%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                            platform->name,
+                            ifc_opcode_name(scheduled.opcode),
+                            scheduled.logical_id,
+                            scheduled.slice_id,
+                            scheduled.channel,
+                            scheduled.chip,
+                            scheduled.die,
+                            scheduled.plane,
+                            scheduled.issue_ns,
+                            scheduled.channel_start_ns,
+                            scheduled.channel_end_ns,
+                            scheduled.array_start_ns,
+                            scheduled.array_end_ns,
+                            scheduled.complete_ns);
+                }
+            }
+        }
+    }
+    return fclose(file);
+}
+
+static int write_ablation_summary(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,full_tokens_per_s,no_read_slicing_tokens_per_s,no_tiling_tokens_per_s,"
+            "speedup_vs_no_read_slicing,speedup_vs_no_tiling\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                r->model,
+                r->platform,
+                r->simulated_tokens_per_s,
+                r->no_read_slicing_tokens_per_s,
+                r->no_tiling_tokens_per_s,
+                r->speedup_vs_no_read_slicing,
+                r->speedup_vs_no_tiling);
+    }
     return fclose(file);
 }
 
@@ -265,19 +544,19 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
         return -1;
     }
     fprintf(file, "# Figure 9 Reproduction Report\n\n");
-    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points.\n\n");
+    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path and an SSDsim-style flash controller path with extended READ_COMPUTE and READ_SLICE commands.\n\n");
     fprintf(file, "## Summary\n\n");
     fprintf(file, "- Rows: %d\n", summary->row_count);
     fprintf(file, "- Mean absolute relative error: %.3f%%\n", summary->mean_abs_relative_error_pct);
     fprintf(file, "- Max absolute relative error: %.3f%%\n", summary->max_abs_relative_error_pct);
     fprintf(file, "- Worst case: %s on %s\n\n", summary->worst_case_model, summary->worst_case_platform);
     fprintf(file, "## Comparison\n\n");
-    fprintf(file, "| Model | Platform | Paper token/s | Sim token/s | Error | TPOT ms | Tile HxW | Alpha |\n");
-    fprintf(file, "|---|---|---:|---:|---:|---:|---:|---:|\n");
+    fprintf(file, "| Model | Platform | Paper token/s | Sim token/s | Error | TPOT ms | Tile HxW | Alpha | Commands |\n");
+    fprintf(file, "|---|---|---:|---:|---:|---:|---:|---:|---:|\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
         fprintf(file,
-                "| %s | %s | %.3f | %.3f | %+.2f%% | %.3f | %.0fx%.0f | %.3f |\n",
+                "| %s | %s | %.3f | %.3f | %+.2f%% | %.3f | %.0fx%.0f | %.3f | %.0f |\n",
                 r->model_label,
                 r->platform_label,
                 r->reference_tokens_per_s,
@@ -286,8 +565,14 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
                 r->tpot_ms,
                 r->tile_height,
                 r->tile_width,
-                r->alpha_read_compute);
+                r->alpha_read_compute,
+                r->controller_commands);
     }
+    fprintf(file, "\n## Controller Artifacts\n\n");
+    fprintf(file, "- `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.\n");
+    fprintf(file, "- `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.\n");
+    fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
+    fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
     fprintf(file, "- Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.\n");
     fprintf(file, "- The read-compute workload fraction is about 0.355 across the three Table II platforms.\n");
@@ -299,6 +584,9 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     char csv_path[4096];
     char json_path[4096];
     char report_path[4096];
+    char request_trace_path[4096];
+    char controller_schedule_path[4096];
+    char ablation_summary_path[4096];
 
     if (ensure_dir(output_dir) != 0) {
         return -1;
@@ -306,6 +594,9 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     join_path(csv_path, sizeof(csv_path), output_dir, "figure9_reproduction.csv");
     join_path(json_path, sizeof(json_path), output_dir, "summary.json");
     join_path(report_path, sizeof(report_path), output_dir, "report.md");
+    join_path(request_trace_path, sizeof(request_trace_path), output_dir, "request_trace.csv");
+    join_path(controller_schedule_path, sizeof(controller_schedule_path), output_dir, "controller_schedule.csv");
+    join_path(ablation_summary_path, sizeof(ablation_summary_path), output_dir, "ablation_summary.csv");
 
     if (write_csv(csv_path, rows) != 0) {
         return -1;
@@ -316,6 +607,14 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     if (write_report(report_path, rows, summary) != 0) {
         return -1;
     }
+    if (write_request_trace(request_trace_path, rows) != 0) {
+        return -1;
+    }
+    if (write_controller_schedule(controller_schedule_path) != 0) {
+        return -1;
+    }
+    if (write_ablation_summary(ablation_summary_path, rows) != 0) {
+        return -1;
+    }
     return 0;
 }
-
