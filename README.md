@@ -40,7 +40,14 @@ The command writes:
 - `results/ablation_summary.csv`
 - `results/figure12_read_slice_ablation.csv`
 - `results/figure14_tiling_ablation.csv`
+- `results/platform_summary.csv`
+- `results/model_summary.csv`
+- `results/tile_profile.csv`
+- `results/reproduction_checks.csv`
 - `results/figures/figure9_decode_speed.svg`
+- `results/figures/figure9_relative_error.svg`
+- `results/figures/platform_error_summary.svg`
+- `results/figures/controller_schedule_timeline.svg`
 - `results/figures/figure12_read_slice_ablation.svg`
 - `results/figures/figure14_tiling_ablation.svg`
 
@@ -77,7 +84,7 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md).
+More detail is in [docs/method.md](docs/method.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md).
 
 ## Repository Layout
 
@@ -90,6 +97,8 @@ src/profiles.c
              Model/platform/reference profile tables
 src/simulator.c
              Tile model, timing model, CSV/JSON/Markdown outputs
+src/analysis.c
+             Platform/model summaries, tile profile, reproduction checks
 src/controller.c
              SSDsim-style flash-controller schedule and extended opcodes
 src/plots.c   SVG comparison plot writer

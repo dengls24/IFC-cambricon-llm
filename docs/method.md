@@ -83,6 +83,9 @@ The simulator writes two controller artifacts:
 - `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
+- `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
+- `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
+- `figures/controller_schedule_timeline.svg`: visual schedule check for the sample Cambricon-LLM-S controller trace.
 
 ## Token Time
 

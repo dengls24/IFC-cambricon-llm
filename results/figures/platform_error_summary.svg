@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="540" viewBox="0 0 980 540">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="490" y="34" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#202124">Platform-Level Figure 9 Error Summary</text>
+<line x1="90" y1="400" x2="850" y2="400" stroke="#202124" stroke-width="1"/>
+<line x1="90" y1="80" x2="90" y2="400" stroke="#202124" stroke-width="1"/>
+<line x1="90" y1="400.00" x2="850" y2="400.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="404.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">0.0%</text>
+<line x1="90" y1="336.00" x2="850" y2="336.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="340.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">3.7%</text>
+<line x1="90" y1="272.00" x2="850" y2="272.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="276.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">7.3%</text>
+<line x1="90" y1="208.00" x2="850" y2="208.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="212.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">11.0%</text>
+<line x1="90" y1="144.00" x2="850" y2="144.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="148.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">14.6%</text>
+<line x1="90" y1="80.00" x2="850" y2="80.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="82" y="84.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">18.3%</text>
+<rect x="174.67" y="324.39" width="32" height="75.61" fill="#2f9c74"/>
+<rect x="226.67" y="182.75" width="32" height="217.25" fill="#4b5563"/>
+<text x="216.67" y="428" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="12" fill="#374151">Cambricon-LLM-S</text>
+<text x="190.67" y="316.39" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">4.32%</text>
+<rect x="428.00" y="251.42" width="32" height="148.58" fill="#2f9c74"/>
+<rect x="480.00" y="193.55" width="32" height="206.45" fill="#4b5563"/>
+<text x="470.00" y="428" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="12" fill="#374151">Cambricon-LLM-M</text>
+<text x="444.00" y="243.42" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">8.48%</text>
+<rect x="681.33" y="185.99" width="32" height="214.01" fill="#2f9c74"/>
+<rect x="733.33" y="144.00" width="32" height="256.00" fill="#4b5563"/>
+<text x="723.33" y="428" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="12" fill="#374151">Cambricon-LLM-L</text>
+<text x="697.33" y="177.99" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#202124">12.22%</text>
+<rect x="90" y="462" width="14" height="14" fill="#2f9c74"/><text x="110" y="474" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Mean abs error</text>
+<rect x="260" y="462" width="14" height="14" fill="#4b5563"/><text x="280" y="474" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Max abs error</text>
+</svg>

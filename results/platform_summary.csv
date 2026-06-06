@@ -1,0 +1,4 @@
+platform,platform_label,channels,chips_per_channel,dies_per_chip,planes_per_die,tile_height,tile_width,mean_reference_tokens_per_s,mean_simulated_tokens_per_s,mean_abs_relative_error_pct,max_abs_relative_error_pct,mean_speedup_vs_no_read_slicing,mean_speedup_vs_no_tiling,mean_read_compute_channel_rate_pct,max_controller_commands
+cam_llm_s,Cambricon-LLM-S,8,2,2,2,256.000000,2048.000000,1.785714,1.793362,4.317287,12.405047,1.688573,1.344286,1.706667,386180.157422
+cam_llm_m,Cambricon-LLM-M,16,4,2,2,362.038672,5792.618751,5.071429,4.991268,8.484327,11.788396,1.667916,1.333958,2.413591,96460.908802
+cam_llm_l,Cambricon-LLM-L,32,8,2,2,512.000000,16384.000000,16.014286,15.225326,12.220360,14.618002,1.603327,1.301663,3.413333,24084.817580

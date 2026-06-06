@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="700" viewBox="0 0 1320 700">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="660" y="34" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#202124">Figure 9 Relative Error Diagnostics</text>
+<line x1="80" y1="290.00" x2="1240" y2="290.00" stroke="#202124" stroke-width="1.2"/>
+<line x1="80" y1="80" x2="80" y2="500" stroke="#202124" stroke-width="1"/>
+<line x1="80" y1="500.00" x2="1240" y2="500.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="72" y="504.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">-18%</text>
+<line x1="80" y1="395.00" x2="1240" y2="395.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="72" y="399.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">-9%</text>
+<line x1="80" y1="290.00" x2="1240" y2="290.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="72" y="294.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">0%</text>
+<line x1="80" y1="185.00" x2="1240" y2="185.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="72" y="189.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">9%</text>
+<line x1="80" y1="80.00" x2="1240" y2="80.00" stroke="#d0d5dd" stroke-width="1"/>
+<text x="72" y="84.00" text-anchor="end" font-family="Arial,Helvetica,sans-serif" font-size="11" fill="#4b5563">18%</text>
+<line x1="80" y1="465.00" x2="1240" y2="465.00" stroke="#b91c1c" stroke-width="1" stroke-dasharray="6 5"/>
+<line x1="80" y1="115.00" x2="1240" y2="115.00" stroke="#b91c1c" stroke-width="1" stroke-dasharray="6 5"/>
+<rect x="98.50" y="268.69" width="18" height="21.31" fill="#2f9c74"/>
+<text x="111.50" y="576" text-anchor="end" transform="rotate(-60 111.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-6.7B/cam_llm_s</text>
+<rect x="153.50" y="290.00" width="18" height="101.08" fill="#4b5563"/>
+<text x="166.50" y="576" text-anchor="end" transform="rotate(-60 166.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-6.7B/cam_llm_m</text>
+<rect x="208.50" y="290.00" width="18" height="166.65" fill="#4b5563"/>
+<text x="221.50" y="576" text-anchor="end" transform="rotate(-60 221.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-6.7B/cam_llm_l</text>
+<rect x="263.50" y="290.00" width="18" height="13.34" fill="#4b5563"/>
+<text x="276.50" y="576" text-anchor="end" transform="rotate(-60 276.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-13B/cam_llm_s</text>
+<rect x="318.50" y="154.30" width="18" height="135.70" fill="#2f9c74"/>
+<text x="331.50" y="576" text-anchor="end" transform="rotate(-60 331.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-13B/cam_llm_m</text>
+<rect x="373.50" y="140.72" width="18" height="149.28" fill="#2f9c74"/>
+<text x="386.50" y="576" text-anchor="end" transform="rotate(-60 386.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-13B/cam_llm_l</text>
+<rect x="428.50" y="290.00" width="18" height="0.91" fill="#4b5563"/>
+<text x="441.50" y="576" text-anchor="end" transform="rotate(-60 441.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-30B/cam_llm_s</text>
+<rect x="483.50" y="290.00" width="18" height="89.62" fill="#4b5563"/>
+<text x="496.50" y="576" text-anchor="end" transform="rotate(-60 496.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-30B/cam_llm_m</text>
+<rect x="538.50" y="290.00" width="18" height="133.37" fill="#4b5563"/>
+<text x="551.50" y="576" text-anchor="end" transform="rotate(-60 551.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-30B/cam_llm_l</text>
+<rect x="593.50" y="290.00" width="18" height="144.61" fill="#4b5563"/>
+<text x="606.50" y="576" text-anchor="end" transform="rotate(-60 606.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-66B/cam_llm_s</text>
+<rect x="648.50" y="290.00" width="18" height="137.53" fill="#4b5563"/>
+<text x="661.50" y="576" text-anchor="end" transform="rotate(-60 661.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-66B/cam_llm_m</text>
+<rect x="703.50" y="184.29" width="18" height="105.71" fill="#2f9c74"/>
+<text x="716.50" y="576" text-anchor="end" transform="rotate(-60 716.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">OPT-66B/cam_llm_l</text>
+<rect x="758.50" y="275.66" width="18" height="14.34" fill="#2f9c74"/>
+<text x="771.50" y="576" text-anchor="end" transform="rotate(-60 771.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-7B/cam_llm_s</text>
+<rect x="813.50" y="290.00" width="18" height="45.84" fill="#4b5563"/>
+<text x="826.50" y="576" text-anchor="end" transform="rotate(-60 826.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-7B/cam_llm_m</text>
+<rect x="868.50" y="290.00" width="18" height="104.36" fill="#4b5563"/>
+<text x="881.50" y="576" text-anchor="end" transform="rotate(-60 881.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-7B/cam_llm_l</text>
+<rect x="923.50" y="290.00" width="18" height="13.34" fill="#4b5563"/>
+<text x="936.50" y="576" text-anchor="end" transform="rotate(-60 936.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-13B/cam_llm_s</text>
+<rect x="978.50" y="154.30" width="18" height="135.70" fill="#2f9c74"/>
+<text x="991.50" y="576" text-anchor="end" transform="rotate(-60 991.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-13B/cam_llm_m</text>
+<rect x="1033.50" y="121.92" width="18" height="168.08" fill="#2f9c74"/>
+<text x="1046.50" y="576" text-anchor="end" transform="rotate(-60 1046.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-13B/cam_llm_l</text>
+<rect x="1088.50" y="145.27" width="18" height="144.73" fill="#2f9c74"/>
+<text x="1101.50" y="576" text-anchor="end" transform="rotate(-60 1101.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-70B/cam_llm_s</text>
+<rect x="1143.50" y="242.58" width="18" height="47.42" fill="#2f9c74"/>
+<text x="1156.50" y="576" text-anchor="end" transform="rotate(-60 1156.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-70B/cam_llm_m</text>
+<rect x="1198.50" y="290.00" width="18" height="170.54" fill="#4b5563"/>
+<text x="1211.50" y="576" text-anchor="end" transform="rotate(-60 1211.50 576)" font-family="Arial,Helvetica,sans-serif" font-size="10" fill="#374151">LLaMA2-70B/cam_llm_l</text>
+<text x="80" y="640" font-family="Arial,Helvetica,sans-serif" font-size="13" fill="#202124">Dashed red lines mark +/-15% reproduction bound.</text>
+</svg>

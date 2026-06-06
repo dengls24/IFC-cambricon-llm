@@ -1,0 +1,11 @@
+check,value,target,status
+figure9_row_count,21.000000,21,PASS
+figure9_mean_abs_error_pct,8.340658,<=9,PASS
+figure9_max_abs_error_pct,14.618002,<=15,PASS
+cam_llm_s_tile_height,256.000000,256,PASS
+cam_llm_s_tile_width,2048.000000,2048,PASS
+cam_llm_s_read_slicing_speedup_min,1.682847,>=1.6,PASS
+cam_llm_s_read_slicing_speedup_max,1.698878,<=1.8,PASS
+cam_llm_s_tiling_speedup_min,1.341423,>=1.3,PASS
+cam_llm_s_tiling_speedup_max,1.349439,<=1.4,PASS
+controller_balance_delta_max_pct,0.000000,<=1e-6,PASS

@@ -455,9 +455,15 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
     fprintf(file, "- `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.\n");
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
+    fprintf(file, "- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.\n");
+    fprintf(file, "- `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.\n");
+    fprintf(file, "- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
     fprintf(file, "\n## Plots\n\n");
     fprintf(file, "- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.\n");
+    fprintf(file, "- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15%% reproduction bounds.\n");
+    fprintf(file, "- `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.\n");
+    fprintf(file, "- `figures/controller_schedule_timeline.svg` visualizes a Cambricon-LLM-S sample controller schedule.\n");
     fprintf(file, "- `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.\n");
     fprintf(file, "- `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.\n");
     fprintf(file, "\n## Sanity Checks\n\n");

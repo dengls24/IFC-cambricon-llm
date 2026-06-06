@@ -32,6 +32,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "error: failed to write outputs to %s\n", output_dir);
         return 1;
     }
+    if (ifc_write_analysis_outputs(output_dir, rows, &summary) != 0) {
+        fprintf(stderr, "error: failed to write analysis outputs to %s\n", output_dir);
+        return 1;
+    }
     if (ifc_write_plots(output_dir, rows, &summary) != 0) {
         fprintf(stderr, "error: failed to write plots to %s\n", output_dir);
         return 1;
@@ -48,7 +52,14 @@ int main(int argc, char **argv) {
     printf("ablation_summary_csv: %s/ablation_summary.csv\n", output_dir);
     printf("figure12_read_slice_csv: %s/figure12_read_slice_ablation.csv\n", output_dir);
     printf("figure14_tiling_csv: %s/figure14_tiling_ablation.csv\n", output_dir);
+    printf("platform_summary_csv: %s/platform_summary.csv\n", output_dir);
+    printf("model_summary_csv: %s/model_summary.csv\n", output_dir);
+    printf("tile_profile_csv: %s/tile_profile.csv\n", output_dir);
+    printf("reproduction_checks_csv: %s/reproduction_checks.csv\n", output_dir);
     printf("figure9_svg: %s/figures/figure9_decode_speed.svg\n", output_dir);
+    printf("figure9_error_svg: %s/figures/figure9_relative_error.svg\n", output_dir);
+    printf("platform_summary_svg: %s/figures/platform_error_summary.svg\n", output_dir);
+    printf("controller_timeline_svg: %s/figures/controller_schedule_timeline.svg\n", output_dir);
     printf("figure12_svg: %s/figures/figure12_read_slice_ablation.svg\n", output_dir);
     printf("figure14_svg: %s/figures/figure14_tiling_ablation.svg\n", output_dir);
     printf("rows: %d\n", summary.row_count);

@@ -115,6 +115,7 @@ IfcSimulationRow ifc_simulate_one(
 IfcSummary ifc_simulate_reproduction(IfcSimulationRow rows[IFC_ROW_COUNT], int context_tokens);
 int ifc_write_sample_controller_schedule(const char *path);
 int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
+int ifc_write_analysis_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 int ifc_write_plots(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 
 #endif

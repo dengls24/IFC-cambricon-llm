@@ -43,11 +43,17 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.
 - `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.
 - `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
+- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.
+- `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.
+- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.
 
 ## Plots
 
 - `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.
+- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15% reproduction bounds.
+- `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.
+- `figures/controller_schedule_timeline.svg` visualizes a Cambricon-LLM-S sample controller schedule.
 - `figures/figure12_read_slice_ablation.svg` plots the Cambricon-LLM-S read-slicing ablation.
 - `figures/figure14_tiling_ablation.svg` plots the Cambricon-LLM-S hardware-aware tiling ablation.
 

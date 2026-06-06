@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static void require_true(int condition, const char *message) {
     if (!condition) {
@@ -15,6 +16,14 @@ static void require_true(int condition, const char *message) {
 static void require_close(double actual, double expected, double tolerance, const char *message) {
     if (fabs(actual - expected) > tolerance) {
         fprintf(stderr, "failed: %s actual=%.9f expected=%.9f tolerance=%.9f\n", message, actual, expected, tolerance);
+        exit(1);
+    }
+}
+
+static void require_nonempty_file(const char *path) {
+    struct stat info;
+    if (stat(path, &info) != 0 || info.st_size <= 0) {
+        fprintf(stderr, "failed: expected nonempty file %s\n", path);
         exit(1);
     }
 }
@@ -63,6 +72,17 @@ int main(void) {
         require_true(rows[i].speedup_vs_no_tiling > 1.25, "tiling lower speedup bound");
         require_true(rows[i].speedup_vs_no_tiling < 1.36, "tiling upper speedup bound");
     }
+
+    const char *artifact_dir = "/tmp/ifc_cambricon_llm_test_outputs";
+    require_true(ifc_write_outputs(artifact_dir, rows, &summary) == 0, "write primary outputs");
+    require_true(ifc_write_analysis_outputs(artifact_dir, rows, &summary) == 0, "write analysis outputs");
+    require_true(ifc_write_plots(artifact_dir, rows, &summary) == 0, "write plot outputs");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figure9_reproduction.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/platform_summary.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_relative_error.svg");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_schedule_timeline.svg");
 
     printf("passed: C simulator tests\n");
     return 0;
