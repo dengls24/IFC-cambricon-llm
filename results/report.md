@@ -38,8 +38,11 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 ## Controller Artifacts
 
 - `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.
+- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.
+- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.
 - `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.
 - `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.
+- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.
 
 ## Sanity Checks

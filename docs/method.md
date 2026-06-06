@@ -80,6 +80,8 @@ The tiled weight stage uses the max of the read-compute and sliced-read paths, t
 The simulator writes two controller artifacts:
 
 - `request_trace.csv`: aggregate `READ_COMPUTE` and `READ_SLICE` command counts for every Figure 9 row.
+- `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
+- `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
 
 ## Token Time

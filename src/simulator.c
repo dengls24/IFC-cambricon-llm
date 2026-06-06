@@ -230,8 +230,10 @@ IfcSimulationRow ifc_simulate_one(
     double overlapped_weight_s = read_compute_s > sliced_read_s ? read_compute_s : sliced_read_s;
     double efficiency = effective_efficiency(model, platform);
     double weight_stage_s = overlapped_weight_s / efficiency;
-    double attention_cache_s = attention_cache_bytes(model, context_tokens) / DRAM_BANDWIDTH_BPS;
-    double attention_compute_s = attention_ops(model, context_tokens) / NPU_PEAK_OPS_PER_S;
+    double att_cache_bytes = attention_cache_bytes(model, context_tokens);
+    double att_ops = attention_ops(model, context_tokens);
+    double attention_cache_s = att_cache_bytes / DRAM_BANDWIDTH_BPS;
+    double attention_compute_s = att_ops / NPU_PEAK_OPS_PER_S;
     double tpot_s = weight_stage_s + attention_cache_s + attention_compute_s;
     double simulated_speed = 1.0 / tpot_s;
 
@@ -250,6 +252,9 @@ IfcSimulationRow ifc_simulate_one(
     row.reference_tokens_per_s = reference_tokens_per_s;
     row.simulated_tokens_per_s = simulated_speed;
     row.relative_error_pct = (simulated_speed - reference_tokens_per_s) / reference_tokens_per_s * 100.0;
+    row.weight_bytes = weight_bytes;
+    row.attention_cache_bytes = att_cache_bytes;
+    row.attention_ops = att_ops;
     row.tpot_ms = tpot_s * 1e3;
     row.weight_stage_ms = weight_stage_s * 1e3;
     row.attention_cache_ms = attention_cache_s * 1e3;
@@ -266,6 +271,9 @@ IfcSimulationRow ifc_simulate_one(
     row.ifc_read_compute_path_ms = read_compute_s / efficiency * 1e3;
     row.npu_weight_read_path_ms = sliced_read_s / efficiency * 1e3;
     row.controller_weight_stage_ms = weight_stage_s * 1e3;
+    row.controller_balance_delta_pct =
+        fabs(row.ifc_read_compute_path_ms - row.npu_weight_read_path_ms) /
+        max2(row.controller_weight_stage_ms, 1e-12) * 100.0;
     row.no_read_slicing_tokens_per_s = 1.0 / no_slice_tpot_s;
     row.no_tiling_tokens_per_s = 1.0 / no_tiling_tpot_s;
     row.speedup_vs_no_read_slicing = no_slice_tpot_s / tpot_s;
@@ -316,18 +324,20 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
     }
     fprintf(file,
             "model,model_label,platform,platform_label,context_tokens,reference_tokens_per_s,"
-            "simulated_tokens_per_s,relative_error_pct,tpot_ms,weight_stage_ms,attention_cache_ms,"
-            "attention_compute_ms,tile_height,tile_width,alpha_read_compute,effective_pipeline_efficiency,"
+            "simulated_tokens_per_s,relative_error_pct,weight_bytes,attention_cache_bytes,attention_ops,"
+            "tpot_ms,weight_stage_ms,attention_cache_ms,attention_compute_ms,tile_height,tile_width,"
+            "alpha_read_compute,effective_pipeline_efficiency,"
             "read_compute_requests,npu_read_requests,npu_read_slices,controller_commands,"
             "read_compute_channel_rate_pct,ifc_read_compute_path_ms,npu_weight_read_path_ms,"
-            "controller_weight_stage_ms,no_read_slicing_tokens_per_s,"
+            "controller_weight_stage_ms,controller_balance_delta_pct,no_read_slicing_tokens_per_s,"
             "no_tiling_tokens_per_s,speedup_vs_no_read_slicing,speedup_vs_no_tiling\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
         fprintf(file,
-                "%s,%s,%s,%s,%d,%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,%.6f,"
+                "%s,%s,%s,%s,%d,%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
                 "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                "%.6f,%.6f\n",
                 r->model,
                 r->model_label,
                 r->platform,
@@ -336,6 +346,9 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 r->reference_tokens_per_s,
                 r->simulated_tokens_per_s,
                 r->relative_error_pct,
+                r->weight_bytes,
+                r->attention_cache_bytes,
+                r->attention_ops,
                 r->tpot_ms,
                 r->weight_stage_ms,
                 r->attention_cache_ms,
@@ -352,6 +365,7 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 r->ifc_read_compute_path_ms,
                 r->npu_weight_read_path_ms,
                 r->controller_weight_stage_ms,
+                r->controller_balance_delta_pct,
                 r->no_read_slicing_tokens_per_s,
                 r->no_tiling_tokens_per_s,
                 r->speedup_vs_no_read_slicing,
@@ -538,6 +552,103 @@ static int write_ablation_summary(const char *path, const IfcSimulationRow rows[
     return fclose(file);
 }
 
+static int write_controller_timing_summary(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,read_compute_requests,npu_read_requests,npu_read_slices,total_controller_commands,"
+            "read_compute_path_ms,read_slice_path_ms,controller_stage_ms,balance_delta_pct,read_compute_channel_rate_pct\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                r->model,
+                r->platform,
+                r->read_compute_requests,
+                r->npu_read_requests,
+                r->npu_read_slices,
+                r->controller_commands,
+                r->ifc_read_compute_path_ms,
+                r->npu_weight_read_path_ms,
+                r->controller_weight_stage_ms,
+                r->controller_balance_delta_pct,
+                r->read_compute_channel_rate_pct);
+    }
+    return fclose(file);
+}
+
+static int write_npu_timing(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,attention_cache_bytes,attention_ops,dram_attention_ms,npu_attention_compute_ms,"
+            "controller_weight_stage_ms,tpot_ms,tpot_reconstructed_ms\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        double reconstructed = r->controller_weight_stage_ms + r->attention_cache_ms + r->attention_compute_ms;
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                r->model,
+                r->platform,
+                r->attention_cache_bytes,
+                r->attention_ops,
+                r->attention_cache_ms,
+                r->attention_compute_ms,
+                r->controller_weight_stage_ms,
+                r->tpot_ms,
+                reconstructed);
+    }
+    return fclose(file);
+}
+
+static int write_figure12_read_slice_ablation(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file, "model,platform,full_tokens_per_s,without_read_slicing_tokens_per_s,speedup,paper_text_range\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        if (strcmp(r->platform, "cam_llm_s") != 0) {
+            continue;
+        }
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,1.6x-1.8x\n",
+                r->model,
+                r->platform,
+                r->simulated_tokens_per_s,
+                r->no_read_slicing_tokens_per_s,
+                r->speedup_vs_no_read_slicing);
+    }
+    return fclose(file);
+}
+
+static int write_figure14_tiling_ablation(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file, "model,platform,full_tokens_per_s,without_hardware_aware_tiling_tokens_per_s,speedup,paper_text_range\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        if (strcmp(r->platform, "cam_llm_s") != 0) {
+            continue;
+        }
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,1.3x-1.4x\n",
+                r->model,
+                r->platform,
+                r->simulated_tokens_per_s,
+                r->no_tiling_tokens_per_s,
+                r->speedup_vs_no_tiling);
+    }
+    return fclose(file);
+}
+
 static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
@@ -570,8 +681,11 @@ static int write_report(const char *path, const IfcSimulationRow rows[IFC_ROW_CO
     }
     fprintf(file, "\n## Controller Artifacts\n\n");
     fprintf(file, "- `request_trace.csv` records aggregate READ_COMPUTE and READ_SLICE command counts for every Figure 9 row.\n");
+    fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
+    fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
     fprintf(file, "- `controller_schedule.csv` records an OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.\n");
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
+    fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
     fprintf(file, "- Cambricon-LLM-S derives a 256x2048 tile, matching the paper's tile-size study.\n");
@@ -587,6 +701,10 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     char request_trace_path[4096];
     char controller_schedule_path[4096];
     char ablation_summary_path[4096];
+    char controller_timing_path[4096];
+    char npu_timing_path[4096];
+    char figure12_path[4096];
+    char figure14_path[4096];
 
     if (ensure_dir(output_dir) != 0) {
         return -1;
@@ -597,6 +715,10 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
     join_path(request_trace_path, sizeof(request_trace_path), output_dir, "request_trace.csv");
     join_path(controller_schedule_path, sizeof(controller_schedule_path), output_dir, "controller_schedule.csv");
     join_path(ablation_summary_path, sizeof(ablation_summary_path), output_dir, "ablation_summary.csv");
+    join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
+    join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
+    join_path(figure12_path, sizeof(figure12_path), output_dir, "figure12_read_slice_ablation.csv");
+    join_path(figure14_path, sizeof(figure14_path), output_dir, "figure14_tiling_ablation.csv");
 
     if (write_csv(csv_path, rows) != 0) {
         return -1;
@@ -614,6 +736,18 @@ int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_RO
         return -1;
     }
     if (write_ablation_summary(ablation_summary_path, rows) != 0) {
+        return -1;
+    }
+    if (write_controller_timing_summary(controller_timing_path, rows) != 0) {
+        return -1;
+    }
+    if (write_npu_timing(npu_timing_path, rows) != 0) {
+        return -1;
+    }
+    if (write_figure12_read_slice_ablation(figure12_path, rows) != 0) {
+        return -1;
+    }
+    if (write_figure14_tiling_ablation(figure14_path, rows) != 0) {
         return -1;
     }
     return 0;

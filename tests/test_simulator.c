@@ -49,6 +49,15 @@ int main(void) {
             1e-6,
             "controller command total");
         require_true(rows[i].controller_weight_stage_ms > 0.0, "controller stage time");
+        require_true(rows[i].weight_bytes > 0.0, "weight bytes");
+        require_true(rows[i].attention_cache_bytes > 0.0, "attention cache bytes");
+        require_true(rows[i].attention_ops > 0.0, "attention ops");
+        require_true(rows[i].controller_balance_delta_pct < 1e-6, "controller read-compute/read-slice balance");
+        require_close(
+            rows[i].tpot_ms,
+            rows[i].controller_weight_stage_ms + rows[i].attention_cache_ms + rows[i].attention_compute_ms,
+            1e-6,
+            "TPOT decomposition");
         require_true(rows[i].speedup_vs_no_read_slicing > 1.55, "read slicing lower speedup bound");
         require_true(rows[i].speedup_vs_no_read_slicing < 1.75, "read slicing upper speedup bound");
         require_true(rows[i].speedup_vs_no_tiling > 1.25, "tiling lower speedup bound");

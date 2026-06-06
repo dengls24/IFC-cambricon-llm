@@ -66,6 +66,9 @@ typedef struct {
     double reference_tokens_per_s;
     double simulated_tokens_per_s;
     double relative_error_pct;
+    double weight_bytes;
+    double attention_cache_bytes;
+    double attention_ops;
     double tpot_ms;
     double weight_stage_ms;
     double attention_cache_ms;
@@ -82,6 +85,7 @@ typedef struct {
     double ifc_read_compute_path_ms;
     double npu_weight_read_path_ms;
     double controller_weight_stage_ms;
+    double controller_balance_delta_pct;
     double no_read_slicing_tokens_per_s;
     double no_tiling_tokens_per_s;
     double speedup_vs_no_read_slicing;

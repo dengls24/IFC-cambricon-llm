@@ -1,0 +1,8 @@
+model,platform,full_tokens_per_s,without_read_slicing_tokens_per_s,speedup,paper_text_range
+opt_6_7b,cam_llm_s,3.665743,2.178298,1.682847,1.6x-1.8x
+opt_13b,cam_llm_s,1.878268,1.113861,1.686267,1.6x-1.8x
+opt_30b,cam_llm_s,0.799373,0.472951,1.690181,1.6x-1.8x
+opt_66b,cam_llm_s,0.350421,0.207029,1.692621,1.6x-1.8x
+llama2_7b,cam_llm_s,3.644249,2.165396,1.682948,1.6x-1.8x
+llama2_13b,cam_llm_s,1.878268,1.113861,1.686267,1.6x-1.8x
+llama2_70b,cam_llm_s,0.337215,0.198493,1.698878,1.6x-1.8x

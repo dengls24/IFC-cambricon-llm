@@ -34,8 +34,12 @@ The command writes:
 - `results/summary.json`
 - `results/report.md`
 - `results/request_trace.csv`
+- `results/controller_timing_summary.csv`
+- `results/npu_timing.csv`
 - `results/controller_schedule.csv`
 - `results/ablation_summary.csv`
+- `results/figure12_read_slice_ablation.csv`
+- `results/figure14_tiling_ablation.csv`
 
 ## Current Reproduction Quality
 
