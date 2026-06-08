@@ -46,6 +46,8 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `cycle_controller_stats.csv` records cycle-level resource statistics for the same command stream.
 - `ssdsim_ifc_trace.csv` records SSDsim-derived C/A transfer, vector-transfer, array-read, data-transfer, and IFC-compute stages for extended commands.
 - `ssdsim_ifc_stats.csv` records summary statistics for the SSDsim-derived command backend.
+- `ssdsim_ifc_event_trace.csv` records ISSUE/COMPLETE events from the SSDsim-derived event loop.
+- `ssdsim_ifc_event_stats.csv` records event-loop completion and resource-concurrency statistics.
 - `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.
 - `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
 - `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.

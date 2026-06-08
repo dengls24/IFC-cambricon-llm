@@ -21,7 +21,7 @@ These defaults can be overridden at runtime through CSV files. Configurable fiel
 The implementation has two timing paths:
 
 - NPU timing: attention arithmetic is timed by the 2 TOPS INT8 profile, and attention-cache traffic is timed by 40 GB/s DRAM bandwidth.
-- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, emits a cycle-stepped trace, and emits an SSDsim-derived command-stage trace for a representative command stream.
+- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, emits a cycle-stepped trace, emits an SSDsim-derived command-stage trace, and runs an SSDsim-derived event loop for a representative command stream.
 
 The controller exposes four opcodes:
 
@@ -90,6 +90,8 @@ The simulator writes these controller and timing artifacts:
 - `cycle_controller_stats.csv`: cycle-level command/resource statistics for that trace.
 - `ssdsim_ifc_trace.csv`: SSDsim-derived C/A transfer, vector-transfer, array-read, data-transfer, and IFC-compute stages for extended commands.
 - `ssdsim_ifc_stats.csv`: summary statistics for the SSDsim-derived backend.
+- `ssdsim_ifc_event_trace.csv`: ISSUE/COMPLETE event trace from the SSDsim-derived event loop.
+- `ssdsim_ifc_event_stats.csv`: event-loop completion and resource-concurrency statistics.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
@@ -107,7 +109,7 @@ TPOT = tiled_weight_stage
 
 This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-resident weights, in-flash read-compute, sliced read requests for NPU-side work, and DRAM-resident attention cache.
 
-The final TPOT uses the architecture timing model above. The cycle-stepped controller trace and SSDsim-derived command-stage trace are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, but they are not a claim that this repository contains the authors' private SSDsim fork.
+The final TPOT uses the architecture timing model above. The cycle-stepped controller trace, SSDsim-derived command-stage trace, and SSDsim-derived event trace are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names and event-loop execution, but they are not a claim that this repository contains the authors' private SSDsim fork.
 
 ## Boundaries
 

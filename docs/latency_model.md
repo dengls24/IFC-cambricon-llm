@@ -142,6 +142,8 @@ The simulator writes both final and decomposed values:
 - `results/cycle_controller_stats.csv`
 - `results/ssdsim_ifc_trace.csv`
 - `results/ssdsim_ifc_stats.csv`
+- `results/ssdsim_ifc_event_trace.csv`
+- `results/ssdsim_ifc_event_stats.csv`
 
 The first four artifacts are the primary TPOT reconstruction path. The controller trace artifacts are emitted from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
 
@@ -183,6 +185,8 @@ READ_SLICE:   C/A transfer, data transfer
 ```
 
 This trace is checked by `make test` for stage coverage and state-name consistency. See `docs/ssdsim_ifc_backend.md`.
+
+`results/ssdsim_ifc_event_trace.csv` records the same extended command stream through an event loop. Each stage has an `ISSUE` event and a `COMPLETE` event, and the loop advances to the nearest pending event cycle. This is still an audit path rather than the direct TPOT source.
 
 ## What Changes With Configuration
 

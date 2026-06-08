@@ -168,6 +168,10 @@ int ifc_write_ssdsim_ifc_trace_for_platform(
     const char *trace_path,
     const char *stats_path,
     const IfcPlatformProfile *platform);
+int ifc_write_ssdsim_ifc_event_trace_for_platform(
+    const char *trace_path,
+    const char *stats_path,
+    const IfcPlatformProfile *platform);
 int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 int ifc_write_analysis_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);

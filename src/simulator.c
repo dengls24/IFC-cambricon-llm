@@ -540,6 +540,8 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `cycle_controller_stats.csv` records cycle-level resource statistics for the same command stream.\n");
     fprintf(file, "- `ssdsim_ifc_trace.csv` records SSDsim-derived C/A transfer, vector-transfer, array-read, data-transfer, and IFC-compute stages for extended commands.\n");
     fprintf(file, "- `ssdsim_ifc_stats.csv` records summary statistics for the SSDsim-derived command backend.\n");
+    fprintf(file, "- `ssdsim_ifc_event_trace.csv` records ISSUE/COMPLETE events from the SSDsim-derived event loop.\n");
+    fprintf(file, "- `ssdsim_ifc_event_stats.csv` records event-loop completion and resource-concurrency statistics.\n");
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
     fprintf(file, "- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.\n");
@@ -577,6 +579,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     char cycle_controller_stats_path[4096];
     char ssdsim_ifc_trace_path[4096];
     char ssdsim_ifc_stats_path[4096];
+    char ssdsim_ifc_event_trace_path[4096];
+    char ssdsim_ifc_event_stats_path[4096];
     char ablation_summary_path[4096];
     char controller_timing_path[4096];
     char npu_timing_path[4096];
@@ -596,6 +600,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     join_path(cycle_controller_stats_path, sizeof(cycle_controller_stats_path), output_dir, "cycle_controller_stats.csv");
     join_path(ssdsim_ifc_trace_path, sizeof(ssdsim_ifc_trace_path), output_dir, "ssdsim_ifc_trace.csv");
     join_path(ssdsim_ifc_stats_path, sizeof(ssdsim_ifc_stats_path), output_dir, "ssdsim_ifc_stats.csv");
+    join_path(ssdsim_ifc_event_trace_path, sizeof(ssdsim_ifc_event_trace_path), output_dir, "ssdsim_ifc_event_trace.csv");
+    join_path(ssdsim_ifc_event_stats_path, sizeof(ssdsim_ifc_event_stats_path), output_dir, "ssdsim_ifc_event_stats.csv");
     join_path(ablation_summary_path, sizeof(ablation_summary_path), output_dir, "ablation_summary.csv");
     join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
     join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
@@ -627,6 +633,12 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     if (ifc_write_ssdsim_ifc_trace_for_platform(
             ssdsim_ifc_trace_path,
             ssdsim_ifc_stats_path,
+            &config->platforms[0]) != 0) {
+        return -1;
+    }
+    if (ifc_write_ssdsim_ifc_event_trace_for_platform(
+            ssdsim_ifc_event_trace_path,
+            ssdsim_ifc_event_stats_path,
             &config->platforms[0]) != 0) {
         return -1;
     }

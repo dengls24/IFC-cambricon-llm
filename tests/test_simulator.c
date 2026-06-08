@@ -200,6 +200,104 @@ static void require_ssdsim_ifc_trace_consistent(const char *path) {
     require_true(read_slice_data_seen, "SSDsim IFC READ_SLICE data stage");
 }
 
+static void require_ssdsim_ifc_event_trace_consistent(const char *path) {
+    FILE *file = fopen(path, "r");
+    char line[1024];
+    long long previous_cycle = -1;
+    int issue_events = 0;
+    int complete_events = 0;
+    int read_compute_compute_issue_seen = 0;
+    int read_compute_array_complete_seen = 0;
+    int read_slice_data_complete_seen = 0;
+    require_true(file != NULL, "open SSDsim IFC event trace");
+    require_true(fgets(line, sizeof(line), file) != NULL, "SSDsim IFC event trace header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int event_id;
+        long long event_cycle;
+        char event_type[32];
+        int command_id;
+        char opcode[32];
+        int logical_id;
+        int slice_id;
+        char stage[48];
+        char subrequest_state[48];
+        char channel_state[48];
+        char chip_state[48];
+        char plane_state[48];
+        int channel;
+        int chip;
+        int die;
+        int plane;
+        long long stage_start_cycle;
+        long long stage_end_cycle;
+        long long duration_cycles;
+        int active_commands;
+        int parsed = sscanf(
+            line,
+            "%d,%lld,%31[^,],%d,%31[^,],%d,%d,%47[^,],%47[^,],%47[^,],%47[^,],%47[^,],%d,%d,%d,%d,%lld,%lld,%lld,%d",
+            &event_id,
+            &event_cycle,
+            event_type,
+            &command_id,
+            opcode,
+            &logical_id,
+            &slice_id,
+            stage,
+            subrequest_state,
+            channel_state,
+            chip_state,
+            plane_state,
+            &channel,
+            &chip,
+            &die,
+            &plane,
+            &stage_start_cycle,
+            &stage_end_cycle,
+            &duration_cycles,
+            &active_commands);
+        require_true(parsed == 20, "parse SSDsim IFC event row");
+        require_true(event_id >= 0, "SSDsim IFC event id");
+        require_true(command_id >= 0, "SSDsim IFC event command id");
+        require_true(event_cycle >= previous_cycle, "SSDsim IFC event monotonic time");
+        require_true(stage_end_cycle - stage_start_cycle == duration_cycles, "SSDsim IFC event duration");
+        require_true(duration_cycles > 0, "SSDsim IFC event positive duration");
+        require_true(active_commands >= 1, "SSDsim IFC active command count");
+        require_true(channel >= 0 && chip >= 0 && die >= 0 && plane >= 0, "SSDsim IFC event placement");
+        if (strcmp(event_type, "ISSUE") == 0) {
+            ++issue_events;
+            require_true(event_cycle == stage_start_cycle, "SSDsim IFC issue cycle");
+        } else if (strcmp(event_type, "COMPLETE") == 0) {
+            ++complete_events;
+            require_true(event_cycle == stage_end_cycle, "SSDsim IFC complete cycle");
+        } else {
+            require_true(0, "unexpected SSDsim IFC event type");
+        }
+        if (strcmp(opcode, "READ_COMPUTE") == 0 && strcmp(stage, "IFC_COMPUTE") == 0 &&
+            strcmp(event_type, "ISSUE") == 0) {
+            read_compute_compute_issue_seen = 1;
+            require_true(strcmp(chip_state, "CHIP_IFC_COMPUTE") == 0, "event IFC compute chip state");
+        }
+        if (strcmp(opcode, "READ_COMPUTE") == 0 && strcmp(stage, "SSDSIM_ARRAY_READ") == 0 &&
+            strcmp(event_type, "COMPLETE") == 0) {
+            read_compute_array_complete_seen = 1;
+            require_true(strcmp(subrequest_state, "SR_R_READ") == 0, "event array subrequest state");
+        }
+        if (strcmp(opcode, "READ_SLICE") == 0 && strcmp(stage, "SSDSIM_DATA_TRANSFER") == 0 &&
+            strcmp(event_type, "COMPLETE") == 0) {
+            read_slice_data_complete_seen = 1;
+            require_true(slice_id >= 0, "event read-slice slice id");
+        }
+        previous_cycle = event_cycle;
+    }
+    fclose(file);
+    require_true(issue_events > 0, "SSDsim IFC issue events");
+    require_true(complete_events > 0, "SSDsim IFC complete events");
+    require_true(issue_events == complete_events, "SSDsim IFC issue/complete balance");
+    require_true(read_compute_compute_issue_seen, "SSDsim IFC event READ_COMPUTE compute issue");
+    require_true(read_compute_array_complete_seen, "SSDsim IFC event READ_COMPUTE array complete");
+    require_true(read_slice_data_complete_seen, "SSDsim IFC event READ_SLICE data complete");
+}
+
 int main(void) {
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
@@ -258,6 +356,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_stats.csv");
     require_ssdsim_ifc_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_event_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_event_stats.csv");
+    require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
@@ -293,6 +394,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_stats.csv");
     require_ssdsim_ifc_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_stats.csv");
+    require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 

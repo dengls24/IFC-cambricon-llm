@@ -2,7 +2,7 @@
 
 This document describes the SSDsim-derived backend added for the IFC extended commands.
 
-The backend is implemented in `src/ssdsim_ifc.c`. It is intentionally narrower than a full SSDsim distribution: it focuses on the flash command stages needed by the Cambricon-LLM decode path and emits a clean C trace that can be checked by tests. It does not include SSDsim's full FTL, garbage collection, wear, host trace reader, or statistics package.
+The backend is implemented in `src/ssdsim_ifc.c`. It is intentionally narrower than a full SSDsim distribution: it focuses on the flash command stages needed by the Cambricon-LLM decode path and emits clean C traces that can be checked by tests. It does not include SSDsim's full FTL, garbage collection, wear, host trace reader, or statistics package.
 
 ## Integration Level
 
@@ -34,6 +34,8 @@ The simulator writes:
 
 - `results/ssdsim_ifc_trace.csv`
 - `results/ssdsim_ifc_stats.csv`
+- `results/ssdsim_ifc_event_trace.csv`
+- `results/ssdsim_ifc_event_stats.csv`
 
 The trace columns are:
 
@@ -61,6 +63,24 @@ The state names intentionally mirror SSDsim-style terminology:
 | `channel_state` | `CHANNEL_C_A_TRANSFER`, `CHANNEL_DATA_TRANSFER`, `CHANNEL_IDLE` |
 | `chip_state` | `CHIP_C_A_TRANSFER`, `CHIP_READ_BUSY`, `CHIP_DATA_TRANSFER`, `CHIP_IFC_COMPUTE` |
 | `plane_state` | `PLANE_CMD_LATCH`, `PLANE_ARRAY_BUSY`, `PLANE_DATA_REGISTER`, `PLANE_IFC_COMPUTE` |
+
+The event trace records the same stages through a next-event loop:
+
+```text
+event_id
+event_cycle
+event_type: ISSUE or COMPLETE
+command_id
+opcode
+stage
+resource placement
+stage_start_cycle
+stage_end_cycle
+duration_cycles
+active_commands
+```
+
+The loop completes ready stages, releases resources, issues waiting stages whose resources are free, and then advances to the nearest pending completion event.
 
 ## Timing Sources
 
@@ -101,8 +121,17 @@ data_cycles =
 - `READ_SLICE` includes C/A transfer and data transfer stages;
 - stage names match the expected SSDsim-style channel/chip/subrequest states.
 
+It also parses `ssdsim_ifc_event_trace.csv` and checks that:
+
+- event cycles are monotonic;
+- every stage has balanced ISSUE and COMPLETE events;
+- ISSUE events occur at `stage_start_cycle`;
+- COMPLETE events occur at `stage_end_cycle`;
+- `READ_COMPUTE` reaches array-read completion and IFC-compute issue;
+- `READ_SLICE` reaches data-transfer completion.
+
 ## Boundary
 
-This backend closes an important gap between a pure formula model and a controller trace: the extended commands now pass through an SSDsim-derived state sequence with explicit channel/chip/plane resource updates.
+This backend closes an important gap between a pure formula model and a controller trace: the extended commands now pass through an SSDsim-derived state sequence with explicit channel/chip/plane resource updates and a next-event execution loop.
 
 It still should not be described as a full reproduction of the private Cambricon-LLM SSDsim fork. A full fork would need the original SSDsim event loop, FTL mapping, queue management, garbage collection, normal read/write compatibility tests, and validation against the authors' private traces.

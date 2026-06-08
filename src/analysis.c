@@ -259,7 +259,8 @@ static int write_reproduction_checks(
         write_check(file, "first_platform_tiling_speedup_max", cam_s_tiling_max, "<=4.0", cam_s_tiling_max <= 4.0) != 0 ||
         write_check(file, "controller_balance_delta_max_pct", max_balance_delta, "<=1e-6", max_balance_delta <= 1e-6) != 0 ||
         write_check(file, "cycle_controller_trace_enabled", 1.0, "1", 1) != 0 ||
-        write_check(file, "ssdsim_ifc_backend_enabled", 1.0, "1", 1) != 0) {
+        write_check(file, "ssdsim_ifc_backend_enabled", 1.0, "1", 1) != 0 ||
+        write_check(file, "ssdsim_ifc_event_loop_enabled", 1.0, "1", 1) != 0) {
         fclose(file);
         return -1;
     }

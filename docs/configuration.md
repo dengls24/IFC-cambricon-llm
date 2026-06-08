@@ -131,6 +131,8 @@ All major artifacts use the active configuration:
 - `cycle_controller_stats.csv`
 - `ssdsim_ifc_trace.csv`
 - `ssdsim_ifc_stats.csv`
+- `ssdsim_ifc_event_trace.csv`
+- `ssdsim_ifc_event_stats.csv`
 - `controller_timing_summary.csv`
 - `npu_timing.csv`
 - `platform_summary.csv`

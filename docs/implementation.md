@@ -12,7 +12,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/simulator.c` | Implements the tile-size equations, per-token timing model, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
 | `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
-| `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend for `READ_COMPUTE` and `READ_SLICE`. |
+| `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
 | `src/plots.c` | Writes standalone SVG plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
 | `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, SSDsim-derived stage consistency, ablation speedup bounds, and nonempty output artifacts. |
 
@@ -28,6 +28,8 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/cycle_controller_stats.csv` | Cycle-level resource and command statistics for the controller trace. |
 | `results/ssdsim_ifc_trace.csv` | SSDsim-derived C/A, vector-transfer, array-read, data-transfer, and IFC-compute stage trace. |
 | `results/ssdsim_ifc_stats.csv` | Summary statistics for the SSDsim-derived command backend. |
+| `results/ssdsim_ifc_event_trace.csv` | ISSUE/COMPLETE event trace from the SSDsim-derived event loop. |
+| `results/ssdsim_ifc_event_stats.csv` | Event-loop completion, event-count, and concurrency statistics. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |
 | `results/npu_timing.csv` | NPU arithmetic, DRAM attention traffic, and reconstructed TPOT. |
 | `results/latency_breakdown.csv` | Operator-group latency mapping used to reconstruct TPOT. |
@@ -53,6 +55,7 @@ The implementation follows the paper's Figure 9 method path:
 - extended flash-controller commands for tiled read-compute and sliced reads;
 - command-level cycle trace generation for controller resource ordering;
 - SSDsim-derived command-stage trace generation for extended commands;
+- SSDsim-derived event-loop execution for extended commands;
 - a 16x16, 1 GHz, 2 TOPS INT8 NPU timing path;
 - 40 GB/s DRAM timing for attention-cache traffic;
 - one platform-level calibration term for command packing and pipeline effects.

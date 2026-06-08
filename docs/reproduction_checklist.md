@@ -18,6 +18,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Cycle-level controller resource statistics | `results/cycle_controller_stats.csv` | PASS |
 | SSDsim-derived IFC command-stage trace | `results/ssdsim_ifc_trace.csv` | PASS |
 | SSDsim-derived IFC backend statistics | `results/ssdsim_ifc_stats.csv` | PASS |
+| SSDsim-derived IFC event-loop trace | `results/ssdsim_ifc_event_trace.csv` | PASS |
+| SSDsim-derived IFC event-loop statistics | `results/ssdsim_ifc_event_stats.csv` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
 | Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |
@@ -38,6 +40,7 @@ This checklist records what is covered by the current C reproduction and where e
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
 | Cycle controller trace enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |
+| SSDsim-derived IFC event loop enabled | 1 | 1 | PASS |
 
 ## Build Checks
 

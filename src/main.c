@@ -121,6 +121,8 @@ int main(int argc, char **argv) {
     printf("cycle_controller_stats_csv: %s/cycle_controller_stats.csv\n", options.output_dir);
     printf("ssdsim_ifc_trace_csv: %s/ssdsim_ifc_trace.csv\n", options.output_dir);
     printf("ssdsim_ifc_stats_csv: %s/ssdsim_ifc_stats.csv\n", options.output_dir);
+    printf("ssdsim_ifc_event_trace_csv: %s/ssdsim_ifc_event_trace.csv\n", options.output_dir);
+    printf("ssdsim_ifc_event_stats_csv: %s/ssdsim_ifc_event_stats.csv\n", options.output_dir);
     printf("ablation_summary_csv: %s/ablation_summary.csv\n", options.output_dir);
     printf("figure12_read_slice_csv: %s/figure12_read_slice_ablation.csv\n", options.output_dir);
     printf("figure14_tiling_csv: %s/figure14_tiling_ablation.csv\n", options.output_dir);

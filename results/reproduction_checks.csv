@@ -11,3 +11,4 @@ first_platform_tiling_speedup_max,1.349439,<=4.0,PASS
 controller_balance_delta_max_pct,0.000000,<=1e-6,PASS
 cycle_controller_trace_enabled,1.000000,1,PASS
 ssdsim_ifc_backend_enabled,1.000000,1,PASS
+ssdsim_ifc_event_loop_enabled,1.000000,1,PASS
