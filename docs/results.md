@@ -50,6 +50,9 @@ Additional controller artifacts:
 - `results/ssdsim_ifc_stats.csv`: summary statistics for the SSDsim-derived backend.
 - `results/ssdsim_ifc_event_trace.csv`: ISSUE/COMPLETE event-loop trace for extended IFC commands.
 - `results/ssdsim_ifc_event_stats.csv`: event-loop event count, completion, and concurrency statistics.
+- `results/hw_cycle_trace.csv`: optional hardware-cycle model event trace from `make hw-cycle`.
+- `results/hw_cycle_stats.csv`: optional hardware-cycle model statistics.
+- `results/hw_cycle_compare.csv`: C backend versus hardware-cycle cross-check.
 - `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.
 - `results/figure12_read_slice_ablation.csv`: Cambricon-LLM-S read-slicing ablation against the paper's reported 1.6x-1.8x range.
 - `results/figure14_tiling_ablation.csv`: Cambricon-LLM-S hardware-aware tiling ablation against the paper's reported 1.3x-1.4x range.
@@ -86,3 +89,4 @@ Current pass/fail checks:
 | Cycle controller trace enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC event loop enabled | 1 | 1 | PASS |
+| Hardware-cycle cross-check | PASS | PASS | PASS |

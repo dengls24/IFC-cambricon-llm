@@ -298,6 +298,27 @@ static void require_ssdsim_ifc_event_trace_consistent(const char *path) {
     require_true(read_slice_data_complete_seen, "SSDsim IFC event READ_SLICE data complete");
 }
 
+static void require_compare_passes(const char *path) {
+    FILE *file = fopen(path, "r");
+    char line[512];
+    int pass_count = 0;
+    require_true(file != NULL, "open hardware compare");
+    require_true(fgets(line, sizeof(line), file) != NULL, "hardware compare header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        char metric[64];
+        char c_backend[64];
+        char hw_cycle[64];
+        char delta[64];
+        char status[32];
+        int parsed = sscanf(line, "%63[^,],%63[^,],%63[^,],%63[^,],%31[^\n\r]", metric, c_backend, hw_cycle, delta, status);
+        require_true(parsed == 5, "parse hardware compare row");
+        require_true(strcmp(status, "PASS") == 0, "hardware compare pass");
+        ++pass_count;
+    }
+    fclose(file);
+    require_true(pass_count >= 3, "hardware compare row count");
+}
+
 int main(void) {
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
@@ -399,6 +420,13 @@ int main(void) {
     require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
+
+    require_true(system("make hw-cycle >/tmp/ifc_cambricon_llm_hw_cycle_test.log 2>&1") == 0, "run hardware cycle target");
+    require_nonempty_file("results/hw_cycle_trace.csv");
+    require_nonempty_file("results/hw_cycle_stats.csv");
+    require_nonempty_file("results/hw_cycle_compare.csv");
+    require_ssdsim_ifc_event_trace_consistent("results/hw_cycle_trace.csv");
+    require_compare_passes("results/hw_cycle_compare.csv");
 
     printf("passed: C simulator tests\n");
     return 0;

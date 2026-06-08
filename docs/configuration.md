@@ -143,3 +143,11 @@ All major artifacts use the active configuration:
 - all SVG plots under `results/figures/`
 
 The default command remains the canonical Figure 9 reproduction. Configured runs are design-space experiments unless their reference CSV corresponds to the configured hardware and model setup.
+
+`make hw-cycle` also accepts the active platform CSV through:
+
+```bash
+bin/ifc_hw_cycle_model --platforms-csv configs/default_platforms.csv
+```
+
+The hardware-cycle model currently uses the first platform row and emits `hw_cycle_trace.csv`, `hw_cycle_stats.csv`, and `hw_cycle_compare.csv`.

@@ -74,6 +74,14 @@ Run tests:
 make test
 ```
 
+Run the optional hardware-cycle cross-check:
+
+```bash
+make hw-cycle
+```
+
+This builds `systemc/ifc_hw_cycle_model.cpp` and writes `results/hw_cycle_trace.csv`, `results/hw_cycle_stats.csv`, and `results/hw_cycle_compare.csv`. The current local target is a SystemC-ready C++ cycle model because the repository does not require an installed SystemC library.
+
 ## Method
 
 The simulator derives the optimal tile shape from the paper's Section V formulation:
@@ -92,7 +100,7 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). The hardware-cycle path is documented in [systemc/README.md](systemc/README.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
 
 ## Configurable Experiments
 
@@ -128,6 +136,7 @@ src/controller.c
              SSDsim-inspired flash-controller schedule, cycle trace, and extended opcodes
 src/ssdsim_ifc.c
              SSDsim-derived IFC command-stage backend
+systemc/     Hardware-cycle model and SystemC migration notes
 src/plots.c   SVG comparison plot writer
 tests/        C smoke tests for formulas and reproduction bounds
 results/      Reproduction outputs and SVG figures

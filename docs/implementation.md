@@ -14,7 +14,8 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
 | `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
 | `src/plots.c` | Writes standalone SVG plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
-| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, SSDsim-derived stage consistency, ablation speedup bounds, and nonempty output artifacts. |
+| `systemc/ifc_hw_cycle_model.cpp` | Implements the optional SystemC-ready C++ hardware-cycle cross-check model. |
+| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, SSDsim-derived stage consistency, hardware-cycle cross-check output, ablation speedup bounds, and nonempty output artifacts. |
 
 ## Artifact Mapping
 
@@ -30,6 +31,9 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/ssdsim_ifc_stats.csv` | Summary statistics for the SSDsim-derived command backend. |
 | `results/ssdsim_ifc_event_trace.csv` | ISSUE/COMPLETE event trace from the SSDsim-derived event loop. |
 | `results/ssdsim_ifc_event_stats.csv` | Event-loop completion, event-count, and concurrency statistics. |
+| `results/hw_cycle_trace.csv` | Optional hardware-cycle model event trace from `make hw-cycle`. |
+| `results/hw_cycle_stats.csv` | Optional hardware-cycle model statistics. |
+| `results/hw_cycle_compare.csv` | Cross-check between C SSDsim-derived event backend and hardware-cycle model. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |
 | `results/npu_timing.csv` | NPU arithmetic, DRAM attention traffic, and reconstructed TPOT. |
 | `results/latency_breakdown.csv` | Operator-group latency mapping used to reconstruct TPOT. |
@@ -56,6 +60,7 @@ The implementation follows the paper's Figure 9 method path:
 - command-level cycle trace generation for controller resource ordering;
 - SSDsim-derived command-stage trace generation for extended commands;
 - SSDsim-derived event-loop execution for extended commands;
+- optional hardware-cycle model cross-check for the same event stream;
 - a 16x16, 1 GHz, 2 TOPS INT8 NPU timing path;
 - 40 GB/s DRAM timing for attention-cache traffic;
 - one platform-level calibration term for command packing and pipeline effects.
