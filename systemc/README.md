@@ -1,41 +1,63 @@
-# Hardware Cycle Model
+# Hardware Cycle Models
 
-This directory contains the hardware-cycle modeling path for the IFC controller.
+This directory contains two hardware-cycle audit paths for the IFC controller command stream.
 
-The current implementation is `ifc_hw_cycle_model.cpp`. It is a C++17 hardware-cycle model that mirrors the SSDsim-derived event loop and is intentionally written so it can be migrated to SystemC modules when a SystemC library is available.
-
-The local build does not require SystemC:
+## Dependency-free C++ checker
 
 ```bash
 make hw-cycle
 ```
 
-The target writes:
+This target builds `ifc_hw_cycle_model.cpp`. It mirrors the SSDsim-derived C event loop and writes:
 
 - `results/hw_cycle_trace.csv`
 - `results/hw_cycle_stats.csv`
 - `results/hw_cycle_compare.csv`
 
-`hw_cycle_compare.csv` checks the hardware-cycle model against the C SSDsim-derived event backend for:
+## SystemC kernel checker
+
+```bash
+make systemc-cycle
+```
+
+This target builds `ifc_hw_cycle_systemc.cpp` against `libsystemc`. The model uses an `sc_module` with an `SC_THREAD`; each stage transition advances SystemC time with `wait(sc_time(delta_cycles * cycle_ns, SC_NS))`.
+
+It writes:
+
+- `results/systemc_cycle_trace.csv`
+- `results/systemc_cycle_stats.csv`
+- `results/systemc_cycle_compare.csv`
+
+The local default assumes:
+
+```bash
+SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
+```
+
+Use `SYSTEMC_HOME=/usr` when `libsystemc-dev` is installed system-wide. Without root access, install a local copy with:
+
+```bash
+tools/setup_systemc_local.sh
+```
+
+## What Is Compared
+
+Both hardware-cycle paths compare against `results/ssdsim_ifc_event_stats.csv` for:
 
 - total event count;
 - completed command count;
 - last event cycle.
 
-## SystemC Migration Point
+For the checked default run, the SystemC path currently reports:
 
-The C++ model is structured around the same concepts a SystemC model would expose as modules and processes:
+```text
+events: 1536
+completed_commands: 256
+last_event_cycle: 316207
+```
 
-| Current C++ concept | SystemC mapping |
-|---|---|
-| command vector | input command FIFO |
-| `ResourceState` | channel/chip/plane/IFC resource modules |
-| event loop | `SC_METHOD` or `SC_THREAD` driven by `sc_clock` |
-| stage issue/complete | valid/ready handshake or event notification |
-| CSV trace | CSV plus optional VCD trace |
+and `results/systemc_cycle_compare.csv` reports `PASS` for all three metrics.
 
-When SystemC is installed, the next step is to add `ifc_hw_cycle_systemc.cpp` using `sc_module`, `sc_clock`, and optional VCD tracing while keeping the CSV schema compatible with `ifc_hw_cycle_model.cpp`.
+## Modeling Boundary
 
-## Boundary
-
-This model is a hardware-cycle audit path. It strengthens the simulator by providing an independently compiled cycle model that cross-checks the C SSDsim-derived backend. It is not a replacement for the Figure 9 timing path and does not claim equivalence with the private Cambricon-LLM simulator.
+The SystemC model strengthens the artifact by running the IFC command stream through a true SystemC simulation kernel. It is still a command-level cycle model. It does not claim RTL equivalence, full SSD firmware behavior, or line-by-line equivalence with the authors' private SSDsim fork.

@@ -188,7 +188,7 @@ This trace is checked by `make test` for stage coverage and state-name consisten
 
 `results/ssdsim_ifc_event_trace.csv` records the same extended command stream through an event loop. Each stage has an `ISSUE` event and a `COMPLETE` event, and the loop advances to the nearest pending event cycle. This is still an audit path rather than the direct TPOT source.
 
-`make hw-cycle` builds `systemc/ifc_hw_cycle_model.cpp` and cross-checks the hardware-cycle model against `results/ssdsim_ifc_event_stats.csv`. The comparison is written to `results/hw_cycle_compare.csv`. Matching event count, completed command count, and last event cycle indicate that the C backend and the independent hardware-cycle path agree on the representative command stream.
+`make hw-cycle` builds `systemc/ifc_hw_cycle_model.cpp` and cross-checks the dependency-free hardware-cycle model against `results/ssdsim_ifc_event_stats.csv`. `make systemc-cycle` builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and repeats the same check through a SystemC `SC_THREAD`. Matching event count, completed command count, and last event cycle indicate that the C backend and the independent cycle paths agree on the representative command stream.
 
 ## What Changes With Configuration
 

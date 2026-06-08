@@ -53,6 +53,9 @@ Additional controller artifacts:
 - `results/hw_cycle_trace.csv`: optional hardware-cycle model event trace from `make hw-cycle`.
 - `results/hw_cycle_stats.csv`: optional hardware-cycle model statistics.
 - `results/hw_cycle_compare.csv`: C backend versus hardware-cycle cross-check.
+- `results/systemc_cycle_trace.csv`: optional SystemC kernel event trace from `make systemc-cycle`.
+- `results/systemc_cycle_stats.csv`: optional SystemC kernel statistics.
+- `results/systemc_cycle_compare.csv`: C backend versus SystemC cycle cross-check.
 - `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.
 - `results/figure12_read_slice_ablation.csv`: Cambricon-LLM-S read-slicing ablation against the paper's reported 1.6x-1.8x range.
 - `results/figure14_tiling_ablation.csv`: Cambricon-LLM-S hardware-aware tiling ablation against the paper's reported 1.3x-1.4x range.

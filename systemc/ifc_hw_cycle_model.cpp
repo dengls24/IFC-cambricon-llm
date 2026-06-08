@@ -447,6 +447,7 @@ bool write_event(
     return true;
 }
 
+#ifndef IFC_HW_CYCLE_NO_MAIN
 bool run_event_loop(
     const Platform &platform,
     const Timing &timing,
@@ -540,14 +541,20 @@ bool run_event_loop(
     }
     return stats->completed_commands == stats->commands;
 }
+#endif
 
-bool write_stats(const char *path, const Platform &platform, const Timing &timing, const Stats &stats) {
+bool write_stats_named(
+    const char *path,
+    const char *backend_name,
+    const Platform &platform,
+    const Timing &timing,
+    const Stats &stats) {
     FILE *file = std::fopen(path, "w");
     if (file == nullptr) {
         return false;
     }
     std::fprintf(file, "metric,value\n");
-    std::fprintf(file, "backend,cpp_hw_cycle\n");
+    std::fprintf(file, "backend,%s\n", backend_name);
     std::fprintf(file, "platform,%s\n", platform.name.c_str());
     std::fprintf(file, "cycle_ns,%.6f\n", timing.cycle_ns);
     std::fprintf(file, "commands,%d\n", stats.commands);
@@ -570,6 +577,12 @@ bool write_stats(const char *path, const Platform &platform, const Timing &timin
     return std::fclose(file) == 0;
 }
 
+#ifndef IFC_HW_CYCLE_NO_MAIN
+bool write_stats(const char *path, const Platform &platform, const Timing &timing, const Stats &stats) {
+    return write_stats_named(path, "cpp_hw_cycle", platform, timing, stats);
+}
+#endif
+
 long long read_metric_ll(const char *path, const char *metric) {
     FILE *file = std::fopen(path, "r");
     if (file == nullptr) {
@@ -590,7 +603,7 @@ long long read_metric_ll(const char *path, const char *metric) {
     return value;
 }
 
-bool write_compare(const char *path, const char *c_stats_path, const Stats &stats) {
+bool write_compare_named(const char *path, const char *cycle_label, const char *c_stats_path, const Stats &stats) {
     long long c_events = read_metric_ll(c_stats_path, "events");
     long long c_completed = read_metric_ll(c_stats_path, "completed_commands");
     long long c_last = read_metric_ll(c_stats_path, "last_event_cycle");
@@ -598,7 +611,7 @@ bool write_compare(const char *path, const char *c_stats_path, const Stats &stat
     if (file == nullptr) {
         return false;
     }
-    std::fprintf(file, "metric,c_backend,hw_cycle,delta,status\n");
+    std::fprintf(file, "metric,c_backend,%s,delta,status\n", cycle_label);
     std::fprintf(
         file,
         "events,%lld,%d,%lld,%s\n",
@@ -623,8 +636,15 @@ bool write_compare(const char *path, const char *c_stats_path, const Stats &stat
     return std::fclose(file) == 0;
 }
 
+#ifndef IFC_HW_CYCLE_NO_MAIN
+bool write_compare(const char *path, const char *c_stats_path, const Stats &stats) {
+    return write_compare_named(path, "hw_cycle", c_stats_path, stats);
+}
+#endif
+
 }  // namespace
 
+#ifndef IFC_HW_CYCLE_NO_MAIN
 int main(int argc, char **argv) {
     const char *platform_csv = "configs/default_platforms.csv";
     const char *trace_path = "results/hw_cycle_trace.csv";
@@ -682,3 +702,4 @@ int main(int argc, char **argv) {
     std::printf("last_event_cycle: %lld\n", stats.last_event_cycle);
     return 0;
 }
+#endif

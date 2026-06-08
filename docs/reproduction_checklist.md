@@ -22,6 +22,8 @@ This checklist records what is covered by the current C reproduction and where e
 | SSDsim-derived IFC event-loop statistics | `results/ssdsim_ifc_event_stats.csv` | PASS |
 | Optional hardware-cycle model trace | `results/hw_cycle_trace.csv` | PASS |
 | Optional hardware-cycle cross-check | `results/hw_cycle_compare.csv` | PASS |
+| Optional SystemC kernel trace | `results/systemc_cycle_trace.csv` | PASS |
+| Optional SystemC kernel cross-check | `results/systemc_cycle_compare.csv` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
 | Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |

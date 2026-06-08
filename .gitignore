@@ -3,3 +3,7 @@ bin/
 *.o
 .cache/
 .DS_Store
+core
+core.*
+*.deb
+third_party/

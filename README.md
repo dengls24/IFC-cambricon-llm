@@ -1,13 +1,13 @@
 # IFC Cambricon-LLM
 
-Standalone C simulator for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
+Standalone C simulator plus SystemC cycle checker for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
 
 The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM" for Figure 9:
 
 - Table II flash configurations for Cambricon-LLM-S/M/L.
 - A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
 - Section V hardware-aware tiling and read-compute/read-request workload split.
-- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend, and an event-loop trace.
+- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend, an event-loop trace, and an optional SystemC kernel cross-check.
 - Extended flash opcodes: `READ`, `WRITE`, `READ_COMPUTE`, and `READ_SLICE`.
 - Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
 
@@ -74,13 +74,35 @@ Run tests:
 make test
 ```
 
+Run all local checks, including the SystemC target when `libsystemc` is available:
+
+```bash
+make test-all
+```
+
 Run the optional hardware-cycle cross-check:
 
 ```bash
 make hw-cycle
 ```
 
-This builds `systemc/ifc_hw_cycle_model.cpp` and writes `results/hw_cycle_trace.csv`, `results/hw_cycle_stats.csv`, and `results/hw_cycle_compare.csv`. The current local target is a SystemC-ready C++ cycle model because the repository does not require an installed SystemC library.
+This builds the dependency-free C++ hardware-cycle checker in `systemc/ifc_hw_cycle_model.cpp` and writes `results/hw_cycle_trace.csv`, `results/hw_cycle_stats.csv`, and `results/hw_cycle_compare.csv`.
+
+Run the SystemC kernel cross-check:
+
+```bash
+make systemc-cycle
+```
+
+This builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and writes `results/systemc_cycle_trace.csv`, `results/systemc_cycle_stats.csv`, and `results/systemc_cycle_compare.csv`. On this machine, SystemC is installed locally at `../.ifc_systemc/systemc_sysroot/usr`; override with `SYSTEMC_HOME=/usr` for a system package install.
+
+If SystemC is not installed, run:
+
+```bash
+tools/setup_systemc_local.sh
+```
+
+The script downloads and extracts `libsystemc`/`libsystemc-dev` into `../.ifc_systemc` without root privileges.
 
 ## Method
 
@@ -136,7 +158,8 @@ src/controller.c
              SSDsim-inspired flash-controller schedule, cycle trace, and extended opcodes
 src/ssdsim_ifc.c
              SSDsim-derived IFC command-stage backend
-systemc/     Hardware-cycle model and SystemC migration notes
+systemc/     Hardware-cycle model and SystemC kernel cross-check
+tools/       Local SystemC setup helper
 src/plots.c   SVG comparison plot writer
 tests/        C smoke tests for formulas and reproduction bounds
 results/      Reproduction outputs and SVG figures
