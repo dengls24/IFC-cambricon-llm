@@ -67,7 +67,7 @@ The read-compute request time uses the slower of vector transfer and IFC compute
 t_read_compute = t_R + max(vector_transfer_s, ifc_compute_time_s)
 ```
 
-The cycle-controller audit path checks platform dimensions before emitting a trace. The current internal limits are 64 channels, 128 chips/channel, 8 dies/chip, and 8 planes/die. The analytic Figure 9 timing path and summaries still use the active CSV values, but a cycle trace is emitted only when the first configured platform is inside those checked limits.
+The controller audit paths check platform dimensions before emitting traces. The current internal limits are 64 channels, 128 chips/channel, 8 dies/chip, and 8 planes/die. The analytic Figure 9 timing path and summaries still use the active CSV values, but controller traces are emitted only when the first configured platform is inside those checked limits.
 
 ## NPU And System CSV
 
@@ -129,6 +129,8 @@ All major artifacts use the active configuration:
 - `controller_schedule.csv`
 - `cycle_controller_trace.csv`
 - `cycle_controller_stats.csv`
+- `ssdsim_ifc_trace.csv`
+- `ssdsim_ifc_stats.csv`
 - `controller_timing_summary.csv`
 - `npu_timing.csv`
 - `platform_summary.csv`

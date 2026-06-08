@@ -16,6 +16,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Channel/chip/die/plane sample schedule | `results/controller_schedule.csv` | PASS |
 | Cycle-stepped controller command trace | `results/cycle_controller_trace.csv` | PASS |
 | Cycle-level controller resource statistics | `results/cycle_controller_stats.csv` | PASS |
+| SSDsim-derived IFC command-stage trace | `results/ssdsim_ifc_trace.csv` | PASS |
+| SSDsim-derived IFC backend statistics | `results/ssdsim_ifc_stats.csv` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
 | Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |
@@ -34,6 +36,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Cambricon-LLM-S read-slicing speedup | 1.683x-1.699x | 1.6x-1.8x | PASS |
 | Cambricon-LLM-S tiling speedup | 1.341x-1.349x | 1.3x-1.4x | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
+| Cycle controller trace enabled | 1 | 1 | PASS |
+| SSDsim-derived IFC backend enabled | 1 | 1 | PASS |
 
 ## Build Checks
 

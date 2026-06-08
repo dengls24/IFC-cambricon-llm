@@ -101,6 +101,105 @@ static void require_cycle_trace_consistent(const char *path) {
     require_true(read_slice_seen, "cycle trace READ_SLICE commands");
 }
 
+static void require_ssdsim_ifc_trace_consistent(const char *path) {
+    FILE *file = fopen(path, "r");
+    char line[1024];
+    int read_compute_ca_seen = 0;
+    int read_compute_vector_seen = 0;
+    int read_compute_array_seen = 0;
+    int read_compute_compute_seen = 0;
+    int read_slice_ca_seen = 0;
+    int read_slice_data_seen = 0;
+    require_true(file != NULL, "open SSDsim IFC trace");
+    require_true(fgets(line, sizeof(line), file) != NULL, "SSDsim IFC trace header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int command_id;
+        char opcode[32];
+        int logical_id;
+        int slice_id;
+        int channel;
+        int chip;
+        int die;
+        int plane;
+        char stage[48];
+        char subrequest_state[48];
+        char channel_state[48];
+        char chip_state[48];
+        char plane_state[48];
+        long long start_cycle;
+        long long end_cycle;
+        long long duration_cycles;
+        int parsed = sscanf(
+            line,
+            "%d,%31[^,],%d,%d,%d,%d,%d,%d,%47[^,],%47[^,],%47[^,],%47[^,],%47[^,],%lld,%lld,%lld",
+            &command_id,
+            opcode,
+            &logical_id,
+            &slice_id,
+            &channel,
+            &chip,
+            &die,
+            &plane,
+            stage,
+            subrequest_state,
+            channel_state,
+            chip_state,
+            plane_state,
+            &start_cycle,
+            &end_cycle,
+            &duration_cycles);
+        require_true(parsed == 16, "parse SSDsim IFC trace row");
+        require_true(command_id >= 0, "SSDsim IFC command id");
+        require_true(channel >= 0 && chip >= 0 && die >= 0 && plane >= 0, "SSDsim IFC placement");
+        require_true(end_cycle - start_cycle == duration_cycles, "SSDsim IFC duration");
+        require_true(duration_cycles > 0, "SSDsim IFC positive duration");
+        require_true(subrequest_state[0] != '\0', "SSDsim IFC subrequest state");
+        require_true(channel_state[0] != '\0', "SSDsim IFC channel state");
+        require_true(chip_state[0] != '\0', "SSDsim IFC chip state");
+        require_true(plane_state[0] != '\0', "SSDsim IFC plane state");
+        if (strcmp(opcode, "READ_COMPUTE") == 0) {
+            require_true(slice_id == -1, "SSDsim IFC read-compute slice id");
+            if (strcmp(stage, "SSDSIM_CA_TRANSFER") == 0) {
+                read_compute_ca_seen = 1;
+                require_true(strcmp(channel_state, "CHANNEL_C_A_TRANSFER") == 0, "read-compute C/A channel state");
+                require_true(strcmp(chip_state, "CHIP_C_A_TRANSFER") == 0, "read-compute C/A chip state");
+            } else if (strcmp(stage, "IFC_VECTOR_TRANSFER") == 0) {
+                read_compute_vector_seen = 1;
+                require_true(strcmp(channel_state, "CHANNEL_DATA_TRANSFER") == 0, "read-compute vector channel state");
+            } else if (strcmp(stage, "SSDSIM_ARRAY_READ") == 0) {
+                read_compute_array_seen = 1;
+                require_true(strcmp(channel_state, "CHANNEL_IDLE") == 0, "read-compute array channel state");
+                require_true(strcmp(chip_state, "CHIP_READ_BUSY") == 0, "read-compute array chip state");
+            } else if (strcmp(stage, "IFC_COMPUTE") == 0) {
+                read_compute_compute_seen = 1;
+                require_true(strcmp(chip_state, "CHIP_IFC_COMPUTE") == 0, "read-compute IFC chip state");
+            } else {
+                require_true(0, "unexpected read-compute SSDsim IFC stage");
+            }
+        } else if (strcmp(opcode, "READ_SLICE") == 0) {
+            require_true(slice_id >= 0, "SSDsim IFC read-slice slice id");
+            if (strcmp(stage, "SSDSIM_CA_TRANSFER") == 0) {
+                read_slice_ca_seen = 1;
+            } else if (strcmp(stage, "SSDSIM_DATA_TRANSFER") == 0) {
+                read_slice_data_seen = 1;
+                require_true(strcmp(channel_state, "CHANNEL_DATA_TRANSFER") == 0, "read-slice data channel state");
+                require_true(strcmp(chip_state, "CHIP_DATA_TRANSFER") == 0, "read-slice data chip state");
+            } else {
+                require_true(0, "unexpected read-slice SSDsim IFC stage");
+            }
+        } else {
+            require_true(0, "unexpected SSDsim IFC opcode");
+        }
+    }
+    fclose(file);
+    require_true(read_compute_ca_seen, "SSDsim IFC READ_COMPUTE C/A stage");
+    require_true(read_compute_vector_seen, "SSDsim IFC READ_COMPUTE vector stage");
+    require_true(read_compute_array_seen, "SSDsim IFC READ_COMPUTE array stage");
+    require_true(read_compute_compute_seen, "SSDsim IFC READ_COMPUTE compute stage");
+    require_true(read_slice_ca_seen, "SSDsim IFC READ_SLICE C/A stage");
+    require_true(read_slice_data_seen, "SSDsim IFC READ_SLICE data stage");
+}
+
 int main(void) {
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
@@ -156,6 +255,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_stats.csv");
     require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_stats.csv");
+    require_ssdsim_ifc_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
@@ -188,6 +290,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_stats.csv");
     require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_stats.csv");
+    require_ssdsim_ifc_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 

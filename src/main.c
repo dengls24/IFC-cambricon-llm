@@ -119,6 +119,8 @@ int main(int argc, char **argv) {
     printf("controller_schedule_csv: %s/controller_schedule.csv\n", options.output_dir);
     printf("cycle_controller_trace_csv: %s/cycle_controller_trace.csv\n", options.output_dir);
     printf("cycle_controller_stats_csv: %s/cycle_controller_stats.csv\n", options.output_dir);
+    printf("ssdsim_ifc_trace_csv: %s/ssdsim_ifc_trace.csv\n", options.output_dir);
+    printf("ssdsim_ifc_stats_csv: %s/ssdsim_ifc_stats.csv\n", options.output_dir);
     printf("ablation_summary_csv: %s/ablation_summary.csv\n", options.output_dir);
     printf("figure12_read_slice_csv: %s/figure12_read_slice_ablation.csv\n", options.output_dir);
     printf("figure14_tiling_csv: %s/figure14_tiling_ablation.csv\n", options.output_dir);

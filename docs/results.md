@@ -46,6 +46,8 @@ Additional controller artifacts:
 - `results/controller_schedule.csv`: sample channel/chip/die/plane schedule for OPT-6.7B on Cambricon-LLM-S.
 - `results/cycle_controller_trace.csv`: cycle-stepped command trace for the first configured platform.
 - `results/cycle_controller_stats.csv`: cycle-level command and resource statistics for that trace.
+- `results/ssdsim_ifc_trace.csv`: SSDsim-derived command-stage trace for extended IFC commands.
+- `results/ssdsim_ifc_stats.csv`: summary statistics for the SSDsim-derived backend.
 - `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.
 - `results/figure12_read_slice_ablation.csv`: Cambricon-LLM-S read-slicing ablation against the paper's reported 1.6x-1.8x range.
 - `results/figure14_tiling_ablation.csv`: Cambricon-LLM-S hardware-aware tiling ablation against the paper's reported 1.3x-1.4x range.
@@ -79,3 +81,5 @@ Current pass/fail checks:
 | Read-slicing speedup range | 1.683x-1.699x | 1.6x-1.8x | PASS |
 | Tiling speedup range | 1.341x-1.349x | 1.3x-1.4x | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
+| Cycle controller trace enabled | 1 | 1 | PASS |
+| SSDsim-derived IFC backend enabled | 1 | 1 | PASS |

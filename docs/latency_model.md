@@ -140,8 +140,10 @@ The simulator writes both final and decomposed values:
 - `results/latency_breakdown.csv`
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
+- `results/ssdsim_ifc_trace.csv`
+- `results/ssdsim_ifc_stats.csv`
 
-The first four artifacts are the primary TPOT reconstruction path. The cycle-controller artifacts are generated from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
+The first four artifacts are the primary TPOT reconstruction path. The controller trace artifacts are emitted from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
 
 ## Latency Breakdown Artifact
 
@@ -172,6 +174,15 @@ complete_cycle
 ```
 
 `READ_COMPUTE` commands occupy a channel transfer stage and a plane array-read stage. `READ_SLICE` commands occupy only a channel transfer stage. The trace is checked by `make test` for cycle-count consistency. See `docs/controller_cycle_model.md` for the exact controller boundary.
+
+`results/ssdsim_ifc_trace.csv` adds a second audit path with SSDsim-derived stage names:
+
+```text
+READ_COMPUTE: C/A transfer, vector transfer, array read, IFC compute
+READ_SLICE:   C/A transfer, data transfer
+```
+
+This trace is checked by `make test` for stage coverage and state-name consistency. See `docs/ssdsim_ifc_backend.md`.
 
 ## What Changes With Configuration
 

@@ -15,6 +15,8 @@ The controller side adds two auditable traces:
 | `results/controller_schedule.csv` | Event timeline in ns for a representative command stream. |
 | `results/cycle_controller_trace.csv` | Cycle-stepped C controller trace for the same class of command stream. |
 | `results/cycle_controller_stats.csv` | Cycle-level aggregate statistics for that trace. |
+| `results/ssdsim_ifc_trace.csv` | SSDsim-derived command-stage trace for the extended command stream. |
+| `results/ssdsim_ifc_stats.csv` | Summary statistics for the SSDsim-derived backend. |
 
 The cycle trace is produced by `src/controller.c`, not by post-processing equations. Each command moves through explicit stages:
 
@@ -107,6 +109,7 @@ This separation is intentional:
 
 - the Figure 9 table uses the calibrated architecture timing model needed for the paper reproduction;
 - the controller trace proves that the extended command stream is representable as a C cycle-level resource schedule;
+- the SSDsim-derived trace proves that the same extended commands can be represented as C/A, array-read, data-transfer, and IFC-compute service stages;
 - `docs/latency_model.md` links the model operators to the final latency terms.
 
 ## What A Full SSDsim Fork Would Add
@@ -135,6 +138,8 @@ Then inspect:
 
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
+- `results/ssdsim_ifc_trace.csv`
+- `results/ssdsim_ifc_stats.csv`
 - `results/controller_schedule.csv`
 - `results/latency_breakdown.csv`
 

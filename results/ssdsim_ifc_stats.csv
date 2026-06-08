@@ -1,0 +1,17 @@
+metric,value
+cycle_ns,1.000000
+command_address_cycles,7
+read_compute_vector_cycles,256
+read_slice_data_cycles,4096
+array_read_cycles,30000
+ifc_compute_cycles,1024
+stage_events,768
+commands,256
+read_compute_commands,128
+read_slice_commands,128
+last_complete_cycle,316996
+last_complete_ns,316996.000000
+channels,8
+chips_per_channel,2
+dies_per_chip,2
+planes_per_die,2
