@@ -11,9 +11,9 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/config.c` | Loads runtime CSV overrides for model, platform, system, and reference profiles. |
 | `src/simulator.c` | Implements the tile-size equations, per-token timing model, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
-| `src/controller.c` | Implements the SSDsim-style channel/chip/die/plane busy timeline and emits a sample schedule with `READ_COMPUTE` and `READ_SLICE`. |
+| `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
 | `src/plots.c` | Writes standalone SVG plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
-| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, ablation speedup bounds, and nonempty output artifacts. |
+| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, ablation speedup bounds, and nonempty output artifacts. |
 
 ## Artifact Mapping
 
@@ -23,6 +23,8 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/figures/figure9_decode_speed.svg` | Visual paper-vs-simulator comparison for Figure 9. |
 | `results/request_trace.csv` | Aggregate read-compute and sliced-read command counts. |
 | `results/controller_schedule.csv` | Concrete channel/chip/die/plane schedule for a representative Cambricon-LLM-S case. |
+| `results/cycle_controller_trace.csv` | Cycle-stepped command trace with channel and array stage timing. |
+| `results/cycle_controller_stats.csv` | Cycle-level resource and command statistics for the controller trace. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |
 | `results/npu_timing.csv` | NPU arithmetic, DRAM attention traffic, and reconstructed TPOT. |
 | `results/latency_breakdown.csv` | Operator-group latency mapping used to reconstruct TPOT. |
@@ -46,13 +48,14 @@ The implementation follows the paper's Figure 9 method path:
 - flash-resident model weights;
 - Section V hardware-aware tile dimensions;
 - extended flash-controller commands for tiled read-compute and sliced reads;
+- command-level cycle trace generation for controller resource ordering;
 - a 16x16, 1 GHz, 2 TOPS INT8 NPU timing path;
 - 40 GB/s DRAM timing for attention-cache traffic;
 - one platform-level calibration term for command packing and pipeline effects.
 
-The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks.
+The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The cycle trace is a command-level controller audit, not a full SSD firmware or FTL model.
 
-Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
+Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
 
 ## Reliability Documentation
 

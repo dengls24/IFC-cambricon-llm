@@ -7,7 +7,7 @@ The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hyb
 - Table II flash configurations for Cambricon-LLM-S/M/L.
 - A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
 - Section V hardware-aware tiling and read-compute/read-request workload split.
-- SSDsim-style C flash controller state with channel/chip/die/plane busy timelines.
+- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines and a cycle-stepped command trace.
 - Extended flash opcodes: `READ`, `WRITE`, `READ_COMPUTE`, and `READ_SLICE`.
 - Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
 
@@ -38,6 +38,8 @@ The command writes:
 - `results/npu_timing.csv`
 - `results/latency_breakdown.csv`
 - `results/controller_schedule.csv`
+- `results/cycle_controller_trace.csv`
+- `results/cycle_controller_stats.csv`
 - `results/ablation_summary.csv`
 - `results/figure12_read_slice_ablation.csv`
 - `results/figure14_tiling_ablation.csv`
@@ -86,7 +88,7 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
 
 ## Configurable Experiments
 
@@ -119,7 +121,7 @@ src/simulator.c
 src/analysis.c
              Platform/model summaries, tile profile, reproduction checks
 src/controller.c
-             SSDsim-style flash-controller schedule and extended opcodes
+             SSDsim-inspired flash-controller schedule, cycle trace, and extended opcodes
 src/plots.c   SVG comparison plot writer
 tests/        C smoke tests for formulas and reproduction bounds
 results/      Reproduction outputs and SVG figures

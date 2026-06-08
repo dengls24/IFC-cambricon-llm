@@ -1,6 +1,6 @@
 # 仿真器建模与评测可靠性说明
 
-本文档说明本项目仿真器的建模层次、评测流程、可靠性证据与适用边界。核心结论是：在“复现 Cambricon-LLM Figure 9 解码吞吐，并给出 Figure 12/Figure 14 风格消融检查”的声明范围内，本项目具备顶级计算机体系结构论文应有的仿真器建模规范：参数公开、路径可审计、模块可拆解、结果可复跑、误差有边界、消融能自洽。
+本文档说明本项目仿真器的建模层次、评测流程、可靠性证据与适用边界。核心结论是：在“复现 Cambricon-LLM Figure 9 解码吞吐，并给出 Figure 12/Figure 14 风格消融检查”的声明范围内，本项目具备论文级 architecture simulator artifact 应有的基本规范：参数公开、路径可审计、模块可拆解、结果可复跑、误差有边界、消融能自洽。
 
 同时需要明确：本项目不是原作者私有 SSDsim fork 的逐行复刻，也不声称覆盖芯片签核、功耗签核或完整固件行为。这里的可靠性和真实性指公开论文方法路径上的可复现建模真实性，而不是对不可见私有实现的完全等价声明。
 
@@ -10,12 +10,12 @@
 
 - Flash-resident weight stage：模型权重驻留在 flash 侧，由 in-flash read-compute 处理主要权重 GeMV。
 - Hardware-aware tiling：按 Section V 的 tile 公式推导 `H_req` 和 `W_req`。
-- Flash controller path：维护 channel/chip/die/plane busy timeline，并生成样例调度轨迹。
+- Flash controller path：维护 channel/chip/die/plane busy timeline，并生成事件级调度轨迹和命令级 cycle trace。
 - Extended command path：显式区分 `READ_COMPUTE` 与 `READ_SLICE`。
 - NPU/DRAM path：NPU attention arithmetic 由 2 TOPS INT8 建模，attention-cache traffic 由 40 GB/s DRAM 建模。
 - Reproduction and ablation：输出 Figure 9 全 21 点复现、read-slicing 消融和 hardware-aware tiling 消融。
 
-这类分层时序模型是体系结构论文常用的仿真粒度：核心硬件时序由公式与结构参数决定，控制器行为由资源 busy timeline 约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
+这类分层时序模型是体系结构论文常用的仿真粒度：核心硬件时序由公式与结构参数决定，控制器行为由资源 timeline 和 cycle-stepped command state machine 约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
 
 ## 2. 参数真实性
 
@@ -36,7 +36,7 @@
 - `results/reproduction_checks.csv` 给出可机器检查的 pass/fail 条件。
 - Runtime CSV 配置可替换 hardware/model/system/reference profile；默认配置是论文复现模式，自定义配置是 design-space mode，除非 reference CSV 与自定义设置匹配，否则不把 relative-error 当作复现误差声明。
 
-这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、controller schedule 一直追到最终 TPOT 和 token/s。
+这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、controller schedule、cycle trace 一直追到最终 TPOT 和 token/s。
 
 ## 3. 时序建模层次
 
@@ -79,7 +79,9 @@ alpha = t_read / (t_read + t_rc)
 
 ### 3.3 Flash controller path
 
-控制器模块 `src/controller.c` 不是只输出 aggregate 计数，而是维护以下 busy state：
+控制器模块 `src/controller.c` 不是只输出 aggregate 计数，而是维护两种可检查的控制器轨迹。
+
+第一种是事件级 busy timeline：
 
 - channel busy interval；
 - chip/die/plane placement；
@@ -91,7 +93,14 @@ alpha = t_read / (t_read + t_rc)
 - `results/controller_schedule.csv`
 - `results/figures/controller_schedule_timeline.svg`
 
-该轨迹证明扩展 command path 是按 controller resource timeline 发出的，而不是只在最终 token/s 上调参。
+第二种是 cycle-stepped command trace：
+
+- `results/cycle_controller_trace.csv`
+- `results/cycle_controller_stats.csv`
+
+该 trace 使用 IFC clock 计算 `cycle_ns`，将 channel transfer 和 array read service 向上取整到控制器周期，并让每条命令经过 `QUEUED -> CHANNEL -> WAIT_ARRAY -> ARRAY -> DONE`。`READ_SLICE` 只占用 channel stage，不占用 array stage。`make test` 会解析该 trace 并检查 channel/array 周期数是否闭合。
+
+这些轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
 
 ### 3.4 NPU/DRAM path
 
@@ -166,6 +175,13 @@ controller_balance_delta_max_pct = 0.000000
 
 这说明 workload split 的两条路径在设计目标上完成了均衡，而不是一条路径被明显低估或高估。
 
+此外，`make test` 会检查 `cycle_controller_trace.csv`：
+
+- `READ_COMPUTE` 的 channel 和 array stage 周期长度与记录值一致；
+- `READ_SLICE` 不占用 array stage；
+- command completion cycle 与 stage ordering 一致；
+- 两类扩展 command 均出现在 trace 中。
+
 ### 5.4 Artifact 可复跑
 
 运行：
@@ -181,6 +197,7 @@ make test
 - summary JSON；
 - Markdown report；
 - controller trace；
+- cycle-level controller trace and stats；
 - NPU timing；
 - platform/model summary；
 - tile profile；
@@ -189,16 +206,16 @@ make test
 
 `make test` 不只检查公式，还会在 `/tmp/ifc_cambricon_llm_test_outputs` 写出一套临时 artifact，并确认关键 CSV/SVG 非空。
 
-## 6. 为什么符合顶级架构论文的仿真器建模水准
+## 6. 为什么符合声明范围内的论文级仿真器建模水准
 
-按顶级体系结构论文对 simulator artifact 的常见审查标准，本项目具备以下特征：
+按体系结构论文对 simulator artifact 的常见审查标准，本项目在声明范围内具备以下特征：
 
 | 审查维度 | 本项目状态 | 说明 |
 |---|---|---|
 | 参数透明 | 满足 | 平台、模型、参考点均在源码和 CSV 中公开。 |
 | 模块分层 | 满足 | profiles、simulator、controller、analysis、plots 独立。 |
 | 时序路径清晰 | 满足 | Flash weight stage、controller path、NPU compute、DRAM traffic 分开建模。 |
-| 资源约束显式 | 满足 | channel/chip/die/plane busy timeline 明确输出。 |
+| 资源约束显式 | 满足 | channel/chip/die/plane busy timeline 和 cycle-stepped command trace 明确输出。 |
 | 校准克制 | 满足 | 使用 platform-level efficiency，不做 per-point 拟合。 |
 | 多点验证 | 满足 | 21 个 Figure 9 点全部报告误差。 |
 | 消融验证 | 满足 | Read slicing 与 tiling 消融均在论文范围内。 |
@@ -206,7 +223,7 @@ make test
 | 自动检查 | 满足 | `make test` 和 `reproduction_checks.csv` 给出 pass/fail 约束。 |
 | 边界声明 | 满足 | 明确不覆盖私有 simulator、power、ECC、prefill、完整 baseline。 |
 
-因此，在声明范围内，本项目可以作为一个论文级、可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、controller schedule 和自动检查证明模型行为自洽。
+因此，在声明范围内，本项目可以作为一个可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、controller schedule、cycle trace 和自动检查证明模型行为自洽。
 
 ## 7. 边界与不应过度声明的内容
 
@@ -227,11 +244,11 @@ make test
 如果在论文、报告或 README 中描述本项目，建议使用以下表述：
 
 ```text
-We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-style channel/chip/die/plane controller timeline with READ_COMPUTE and READ_SLICE commands, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges.
+We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace with READ_COMPUTE and READ_SLICE commands, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork.
 ```
 
 如果需要更谨慎的中文表述：
 
 ```text
-本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、NPU timing、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合顶级体系结构论文 artifact 的基本要求。
+本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、NPU timing、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价。
 ```

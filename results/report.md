@@ -1,6 +1,6 @@
 # Figure 9 Reproduction Report
 
-This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path and an SSDsim-style flash controller path with extended READ_COMPUTE and READ_SLICE commands.
+This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.
 
 ## Summary
 
@@ -41,14 +41,16 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.
 - `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.
 - `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.
-- `controller_schedule.csv` records one OPT-6.7B/Cambricon-LLM-S sample schedule with channel/chip/die/plane placement and busy intervals.
+- `controller_schedule.csv` records one OPT-6.7B/Cambricon-LLM-S event-timeline sample with channel/chip/die/plane placement and busy intervals.
+- `cycle_controller_trace.csv` records a C cycle-stepped command trace for the first configured platform.
+- `cycle_controller_stats.csv` records cycle-level resource statistics for the same command stream.
 - `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.
 - `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.
 - `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.
 - `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.
 - `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.
 - `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
-- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.
+- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.
 
 ## Plots
 

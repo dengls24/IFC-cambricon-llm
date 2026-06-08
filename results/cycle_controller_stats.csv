@@ -1,0 +1,14 @@
+metric,value
+cycle_ns,1.000000
+last_cycle,83248
+last_cycle_ns,83248.000000
+commands,256
+read_compute_commands,128
+read_slice_commands,128
+channels,8
+chips_per_channel,2
+dies_per_chip,2
+planes_per_die,2
+read_compute_channel_cycles,32768
+read_slice_channel_cycles,524288
+array_cycles,3840000

@@ -138,6 +138,10 @@ The simulator writes both final and decomposed values:
 - `results/npu_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/latency_breakdown.csv`
+- `results/cycle_controller_trace.csv`
+- `results/cycle_controller_stats.csv`
+
+The first four artifacts are the primary TPOT reconstruction path. The cycle-controller artifacts are generated from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
 
 ## Latency Breakdown Artifact
 
@@ -153,6 +157,21 @@ The simulator writes both final and decomposed values:
 | `total_tpot` | Sum used for final token latency. |
 
 This artifact is the easiest way to audit how model parameters and hardware configuration combine into latency.
+
+## Controller Cycle Audit
+
+`results/cycle_controller_trace.csv` is emitted from a C state machine in `src/controller.c`. It records command stages in controller cycles:
+
+```text
+arrival_cycle
+channel_start_cycle
+channel_end_cycle
+array_start_cycle
+array_end_cycle
+complete_cycle
+```
+
+`READ_COMPUTE` commands occupy a channel transfer stage and a plane array-read stage. `READ_SLICE` commands occupy only a channel transfer stage. The trace is checked by `make test` for cycle-count consistency. See `docs/controller_cycle_model.md` for the exact controller boundary.
 
 ## What Changes With Configuration
 

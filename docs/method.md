@@ -21,7 +21,7 @@ These defaults can be overridden at runtime through CSV files. Configurable fiel
 The implementation has two timing paths:
 
 - NPU timing: attention arithmetic is timed by the 2 TOPS INT8 profile, and attention-cache traffic is timed by 40 GB/s DRAM bandwidth.
-- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines and schedules flash-side commands.
+- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, and emits a cycle-stepped trace for a representative command stream.
 
 The controller exposes four opcodes:
 
@@ -79,13 +79,15 @@ alpha = t_read / (t_read + t_rc)
 
 The tiled weight stage uses the max of the read-compute and sliced-read paths, then applies one platform-level pipeline efficiency term. The efficiency term absorbs startup, imperfect command packing, and controller effects that are not visible in the high-level equations. It is calibrated per S/M/L platform, not per model.
 
-The simulator writes two controller artifacts:
+The simulator writes these controller and timing artifacts:
 
 - `request_trace.csv`: aggregate `READ_COMPUTE` and `READ_SLICE` command counts for every Figure 9 row.
 - `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `latency_breakdown.csv`: operator-group latency mapping that explains TPOT from flash weight GeMV, sliced transfer, attention memory, and attention arithmetic terms.
-- `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane schedule showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
+- `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane event timeline showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
+- `cycle_controller_trace.csv`: cycle-stepped C controller trace for the first configured platform.
+- `cycle_controller_stats.csv`: cycle-level command/resource statistics for that trace.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
@@ -103,11 +105,14 @@ TPOT = tiled_weight_stage
 
 This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-resident weights, in-flash read-compute, sliced read requests for NPU-side work, and DRAM-resident attention cache.
 
+The final TPOT uses the architecture timing model above. The cycle-stepped controller trace is an audit artifact for command semantics and resource ordering. It proves that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as a C controller state machine, but it is not a claim that this repository contains the authors' private SSDsim fork.
+
 ## Boundaries
 
 This simulator does not model:
 
 - the original authors' private SSDsim fork internals;
+- full SSD firmware behavior, FTL, garbage collection, wear, and ECC effects;
 - ECC area/power and bit-error behavior;
 - prefill latency;
 - FlexGen or MLC-LLM baselines;

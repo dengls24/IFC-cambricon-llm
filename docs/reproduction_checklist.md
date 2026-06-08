@@ -14,6 +14,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Extended `READ_COMPUTE` command accounting | `results/request_trace.csv` | PASS |
 | Sliced read command accounting | `results/request_trace.csv` | PASS |
 | Channel/chip/die/plane sample schedule | `results/controller_schedule.csv` | PASS |
+| Cycle-stepped controller command trace | `results/cycle_controller_trace.csv` | PASS |
+| Cycle-level controller resource statistics | `results/cycle_controller_stats.csv` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
 | Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |

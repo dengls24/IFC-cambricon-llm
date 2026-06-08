@@ -28,6 +28,79 @@ static void require_nonempty_file(const char *path) {
     }
 }
 
+static void require_cycle_trace_consistent(const char *path) {
+    FILE *file = fopen(path, "r");
+    char line[1024];
+    int read_compute_seen = 0;
+    int read_slice_seen = 0;
+    require_true(file != NULL, "open cycle trace");
+    require_true(fgets(line, sizeof(line), file) != NULL, "cycle trace header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int command_id;
+        char opcode[32];
+        int logical_id;
+        int slice_id;
+        int channel;
+        int chip;
+        int die;
+        int plane;
+        long long arrival_cycle;
+        long long channel_start_cycle;
+        long long channel_end_cycle;
+        long long array_start_cycle;
+        long long array_end_cycle;
+        long long complete_cycle;
+        long long channel_cycles;
+        long long array_cycles;
+        double complete_ns;
+        int parsed = sscanf(
+            line,
+            "%d,%31[^,],%d,%d,%d,%d,%d,%d,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lf",
+            &command_id,
+            opcode,
+            &logical_id,
+            &slice_id,
+            &channel,
+            &chip,
+            &die,
+            &plane,
+            &arrival_cycle,
+            &channel_start_cycle,
+            &channel_end_cycle,
+            &array_start_cycle,
+            &array_end_cycle,
+            &complete_cycle,
+            &channel_cycles,
+            &array_cycles,
+            &complete_ns);
+        require_true(parsed == 17, "parse cycle trace row");
+        require_true(command_id >= 0, "cycle trace command id");
+        require_true(channel >= 0, "cycle trace channel");
+        require_true(chip >= 0 && die >= 0 && plane >= 0, "cycle trace placement");
+        require_true(arrival_cycle <= channel_start_cycle, "cycle trace arrival ordering");
+        require_true(channel_end_cycle - channel_start_cycle == channel_cycles, "cycle trace channel cycles");
+        require_true(complete_cycle >= channel_end_cycle, "cycle trace completion ordering");
+        require_true(complete_ns > 0.0, "cycle trace completion time");
+        if (strcmp(opcode, "READ_COMPUTE") == 0) {
+            read_compute_seen = 1;
+            require_true(array_start_cycle >= channel_end_cycle, "read-compute array ordering");
+            require_true(array_end_cycle - array_start_cycle == array_cycles, "read-compute array cycles");
+            require_true(complete_cycle == array_end_cycle, "read-compute completion");
+        } else if (strcmp(opcode, "READ_SLICE") == 0) {
+            read_slice_seen = 1;
+            require_true(slice_id >= 0, "read-slice slice id");
+            require_true(array_start_cycle == -1 && array_end_cycle == -1, "read-slice array bypass");
+            require_true(array_cycles == 0, "read-slice zero array cycles");
+            require_true(complete_cycle == channel_end_cycle, "read-slice completion");
+        } else {
+            require_true(0, "unexpected cycle trace opcode");
+        }
+    }
+    fclose(file);
+    require_true(read_compute_seen, "cycle trace READ_COMPUTE commands");
+    require_true(read_slice_seen, "cycle trace READ_SLICE commands");
+}
+
 int main(void) {
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
@@ -80,6 +153,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figure9_reproduction.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/platform_summary.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/latency_breakdown.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_stats.csv");
+    require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
@@ -109,6 +185,9 @@ int main(void) {
     require_true(ifc_write_plots_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom plot outputs");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/tile_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/latency_breakdown.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_stats.csv");
+    require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 

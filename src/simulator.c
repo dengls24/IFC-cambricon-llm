@@ -506,7 +506,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     }
     first_tile = ifc_derive_tile_model(&config->platforms[0]);
     fprintf(file, "# Figure 9 Reproduction Report\n\n");
-    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path and an SSDsim-style flash controller path with extended READ_COMPUTE and READ_SLICE commands.\n\n");
+    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.\n\n");
     fprintf(file, "## Summary\n\n");
     fprintf(file, "- Rows: %d\n", summary->row_count);
     fprintf(file, "- Mean absolute relative error: %.3f%%\n", summary->mean_abs_relative_error_pct);
@@ -535,14 +535,16 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
     fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
     fprintf(file, "- `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.\n");
-    fprintf(file, "- `controller_schedule.csv` records one %s/%s sample schedule with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
+    fprintf(file, "- `controller_schedule.csv` records one %s/%s event-timeline sample with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
+    fprintf(file, "- `cycle_controller_trace.csv` records a C cycle-stepped command trace for the first configured platform.\n");
+    fprintf(file, "- `cycle_controller_stats.csv` records cycle-level resource statistics for the same command stream.\n");
     fprintf(file, "- `ablation_summary.csv` records no-read-slicing and no-tiling speed comparisons for the Figure 12/Figure 14 style checks.\n");
     fprintf(file, "- `figure12_read_slice_ablation.csv` and `figure14_tiling_ablation.csv` expose Cambricon-LLM-S specific ablation checks against the paper text ranges.\n");
     fprintf(file, "- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.\n");
     fprintf(file, "- `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.\n");
     fprintf(file, "- `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.\n");
     fprintf(file, "- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.\n");
-    fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior.\n");
+    fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.\n");
     fprintf(file, "\n## Plots\n\n");
     fprintf(file, "- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.\n");
     fprintf(file, "- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15%% reproduction bounds.\n");
@@ -569,6 +571,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     char report_path[4096];
     char request_trace_path[4096];
     char controller_schedule_path[4096];
+    char cycle_controller_trace_path[4096];
+    char cycle_controller_stats_path[4096];
     char ablation_summary_path[4096];
     char controller_timing_path[4096];
     char npu_timing_path[4096];
@@ -584,6 +588,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     join_path(report_path, sizeof(report_path), output_dir, "report.md");
     join_path(request_trace_path, sizeof(request_trace_path), output_dir, "request_trace.csv");
     join_path(controller_schedule_path, sizeof(controller_schedule_path), output_dir, "controller_schedule.csv");
+    join_path(cycle_controller_trace_path, sizeof(cycle_controller_trace_path), output_dir, "cycle_controller_trace.csv");
+    join_path(cycle_controller_stats_path, sizeof(cycle_controller_stats_path), output_dir, "cycle_controller_stats.csv");
     join_path(ablation_summary_path, sizeof(ablation_summary_path), output_dir, "ablation_summary.csv");
     join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
     join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
@@ -604,6 +610,12 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
         return -1;
     }
     if (ifc_write_sample_controller_schedule_for_platform(controller_schedule_path, &config->platforms[0]) != 0) {
+        return -1;
+    }
+    if (ifc_write_cycle_controller_trace_for_platform(
+            cycle_controller_trace_path,
+            cycle_controller_stats_path,
+            &config->platforms[0]) != 0) {
         return -1;
     }
     if (write_ablation_summary(ablation_summary_path, rows) != 0) {

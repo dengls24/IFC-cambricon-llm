@@ -160,6 +160,10 @@ IfcSummary ifc_simulate_reproduction(IfcSimulationRow rows[IFC_ROW_COUNT], int c
 IfcSummary ifc_simulate_config(const IfcConfig *config, IfcSimulationRow rows[IFC_ROW_COUNT]);
 int ifc_write_sample_controller_schedule(const char *path);
 int ifc_write_sample_controller_schedule_for_platform(const char *path, const IfcPlatformProfile *platform);
+int ifc_write_cycle_controller_trace_for_platform(
+    const char *trace_path,
+    const char *stats_path,
+    const IfcPlatformProfile *platform);
 int ifc_write_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
 int ifc_write_analysis_outputs(const char *output_dir, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary);
