@@ -14,12 +14,18 @@ Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for
 | Mean absolute relative error | 8.341% | `results/summary.json` |
 | Max absolute relative error | 14.618% | `results/summary.json` |
 | Worst case | LLaMA2-70B on Cambricon-LLM-L | `results/summary.json` |
-| Read-slicing speedup range | 1.683x-1.699x | `results/figure12_read_slice_ablation.csv` |
-| Hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
+| Cambricon-LLM-S read-slicing speedup range | 1.683x-1.699x | `results/figure12_read_slice_ablation.csv` |
+| Cambricon-LLM-S hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
 | SystemC replay delta vs C event backend | 0 cycles | `results/systemc_cycle_compare.csv` |
 | SystemC component final-time delta vs C backend | +85.500000 ns, 0.027039% | `results/systemc_component_compare.csv` |
 
 The C simulator is the direct paper-facing Figure 9 reproduction path. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
+
+## Experimental Figures
+
+![IFC Cambricon-LLM experimental results dashboard](docs/figures/experiment_results_dashboard.svg)
+
+The dashboard summarizes the 21-point Figure 9 reproduction, paper-vs-simulator agreement, Cambricon-LLM-S ablation checks, and C/SystemC cross-validation. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
 
 ## Architecture
 
@@ -121,6 +127,7 @@ Main paper-facing outputs:
 - `results/simulator_scheme_comparison.csv`
 - `results/figures/figure9_decode_speed.svg`
 - `results/figures/figure9_relative_error.svg`
+- `docs/figures/experiment_results_dashboard.svg`
 
 Controller and IFC command-path audit outputs:
 
