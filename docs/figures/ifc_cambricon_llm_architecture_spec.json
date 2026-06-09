@@ -1,0 +1,43 @@
+{
+  "canvas": {"width": 1600, "height": 900},
+  "title": "IFC Cambricon-LLM simulator architecture",
+  "groups": [
+    {"id": "paper", "label": "Paper inputs", "x": 70, "y": 95, "w": 330, "h": 255},
+    {"id": "hardware", "label": "Reconstructed hardware timing path", "x": 440, "y": 95, "w": 930, "h": 390},
+    {"id": "sim", "label": "Simulator and validation backends", "x": 70, "y": 540, "w": 1300, "h": 250}
+  ],
+  "nodes": [
+    {"id": "paper_fig9", "label": "Cambricon-LLM paper\\nFigure 9 W8A8 points", "x": 105, "y": 145, "w": 270, "h": 78, "group": "paper", "kind": "input"},
+    {"id": "paper_table", "label": "Table II flash profiles\\nSection V tiling equations", "x": 105, "y": 250, "w": 270, "h": 78, "group": "paper", "kind": "input"},
+    {"id": "model_profiles", "label": "Model and system profiles\\nOPT / LLaMA2, 1K context", "x": 480, "y": 145, "w": 230, "h": 80, "group": "hardware", "kind": "input"},
+    {"id": "flash", "label": "NAND flash chiplet\\nchannels / chips / dies / planes", "x": 760, "y": 130, "w": 260, "h": 95, "group": "hardware", "kind": "storage"},
+    {"id": "ifc", "label": "In-flash compute path\\nREAD_COMPUTE + READ_SLICE", "x": 760, "y": 275, "w": 260, "h": 95, "group": "hardware", "kind": "compute"},
+    {"id": "npu", "label": "NPU path\\n2 TOPS INT8 PE array", "x": 1090, "y": 145, "w": 230, "h": 80, "group": "hardware", "kind": "compute"},
+    {"id": "dram", "label": "DRAM attention cache\\n40 GB/s path", "x": 1090, "y": 300, "w": 230, "h": 80, "group": "hardware", "kind": "storage"},
+    {"id": "c_backend", "label": "C timing simulator\\ntile model + TPOT + token/s", "x": 105, "y": 605, "w": 250, "h": 85, "group": "sim", "kind": "compute"},
+    {"id": "ssdsim", "label": "SSDsim-derived IFC backend\\ncommand-stage + event loop", "x": 430, "y": 605, "w": 270, "h": 85, "group": "sim", "kind": "compute"},
+    {"id": "systemc_replay", "label": "SystemC replay checker\\nexact event equivalence", "x": 775, "y": 590, "w": 250, "h": 70, "group": "sim", "kind": "verify"},
+    {"id": "systemc_component", "label": "SystemC component model\\ncontroller + execution fabric", "x": 775, "y": 695, "w": 250, "h": 70, "group": "sim", "kind": "verify"},
+    {"id": "outputs", "label": "Published artifacts\\nCSV / JSON / SVG / VCD", "x": 1110, "y": 620, "w": 245, "h": 95, "group": "sim", "kind": "output"}
+  ],
+  "edges": [
+    {"from": "paper_fig9", "to": "model_profiles", "label": "reference rows", "kind": "control"},
+    {"from": "paper_table", "to": "flash", "label": "platform params", "kind": "control"},
+    {"from": "model_profiles", "to": "flash", "label": "weight tiles", "kind": "data"},
+    {"from": "flash", "to": "ifc", "label": "page read + vector", "kind": "data"},
+    {"from": "ifc", "to": "npu", "label": "tiled weight stage", "kind": "data"},
+    {"from": "dram", "to": "npu", "label": "attention cache", "kind": "data"},
+    {"from": "model_profiles", "to": "c_backend", "label": "profiles", "kind": "control"},
+    {"from": "ifc", "to": "ssdsim", "label": "extended commands", "kind": "control"},
+    {"from": "c_backend", "to": "ssdsim", "label": "command stream", "kind": "control"},
+    {"from": "ssdsim", "to": "systemc_replay", "label": "event contract", "kind": "verify"},
+    {"from": "ssdsim", "to": "systemc_component", "label": "module split", "kind": "verify"},
+    {"from": "c_backend", "to": "outputs", "label": "Figure 9 results", "kind": "data"},
+    {"from": "systemc_replay", "to": "outputs", "label": "exact PASS", "kind": "verify"},
+    {"from": "systemc_component", "to": "outputs", "label": "bounded delta", "kind": "verify"}
+  ],
+  "annotations": [
+    {"label": "Direct paper comparison: 21 Figure 9 points, 8.341% mean abs error", "x": 1060, "y": 500, "w": 325, "h": 52, "kind": "result"},
+    {"label": "SystemC component delta: +85.5 ns, 0.027039% vs C backend", "x": 1060, "y": 565, "w": 325, "h": 52, "kind": "result"}
+  ]
+}

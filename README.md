@@ -1,17 +1,53 @@
-# IFC Cambricon-LLM
+# IFC Cambricon-LLM Simulator
 
-Standalone C simulator plus SystemC replay checker for a Cambricon-LLM style in-flash-computing decode-speed reproduction.
+Research-artifact simulator for the Cambricon-LLM in-flash-computing decode path. The project reconstructs the public Figure 9 W8A8 timing method with a standalone C simulator, an SSDsim-derived IFC command backend, and SystemC cross-checks.
 
-The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM" for Figure 9:
+Project author and maintainer: **Deng Lishuo (`dengls24`)**
 
-- Table II flash configurations for Cambricon-LLM-S/M/L.
-- A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
-- Section V hardware-aware tiling and read-compute/read-request workload split.
-- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend, an event-loop trace, an optional SystemC replay cross-check, and an optional component-level SystemC command-cycle model.
-- Extended flash opcodes: `READ`, `WRITE`, `READ_COMPUTE`, and `READ_SLICE`.
-- Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
+Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM](https://arxiv.org/abs/2409.15654), MICRO 2024.
 
-It intentionally keeps the scope narrow: model weights are flash-resident, in-flash computing handles the tiled weight stage, and the attention cache remains in DRAM as in the Cambricon-LLM setup.
+## Key Results
+
+| Result | Current value | Artifact |
+|---|---:|---|
+| Figure 9 W8A8 points reproduced | 21 | `results/figure9_reproduction.csv` |
+| Mean absolute relative error | 8.341% | `results/summary.json` |
+| Max absolute relative error | 14.618% | `results/summary.json` |
+| Worst case | LLaMA2-70B on Cambricon-LLM-L | `results/summary.json` |
+| Read-slicing speedup range | 1.683x-1.699x | `results/figure12_read_slice_ablation.csv` |
+| Hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
+| SystemC replay delta vs C event backend | 0 cycles | `results/systemc_cycle_compare.csv` |
+| SystemC component final-time delta vs C backend | +85.500000 ns, 0.027039% | `results/systemc_component_compare.csv` |
+
+The C simulator is the direct paper-facing Figure 9 reproduction path. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
+
+## Architecture
+
+![IFC Cambricon-LLM simulator architecture](docs/figures/ifc_cambricon_llm_architecture.svg)
+
+Editable figure spec: `docs/figures/ifc_cambricon_llm_architecture_spec.json`.
+
+## What This Repository Contains
+
+- C timing simulator for Cambricon-LLM Figure 9 decode-speed reproduction.
+- Runtime-configurable model, flash platform, NPU/DRAM, ONFI bandwidth, and IFC compute profiles.
+- SSDsim-derived C event backend for the extended IFC commands `READ_COMPUTE` and `READ_SLICE`.
+- Dependency-free C++ hardware-cycle checker.
+- SystemC replay checker that proves exact event equivalence with the C backend.
+- Component-level SystemC command-cycle model with controller/execution-fabric modules, finite issue FIFO, issue-width limit, module-clock quantization, and VCD output.
+- CSV/JSON/Markdown/SVG result artifacts for paper comparison, breakdowns, ablations, and validation.
+
+## Language Breakdown
+
+Implementation-source mix, measured with `wc -l` over `src/*.c`, `include/*.h`, `tests/*.c`, `systemc/*.cpp`, `tools/*.sh`, and `Makefile`. Documentation and generated result artifacts are excluded from this table.
+
+| Language / file type | Files | Source lines | Share |
+|---|---:|---:|---:|
+| C / C header / C tests | 10 | 3,915 | 68.6% |
+| C++ / SystemC | 3 | 1,677 | 29.4% |
+| Makefile | 1 | 92 | 1.6% |
+| Shell | 1 | 22 | 0.4% |
+| Total | 15 | 5,708 | 100.0% |
 
 ## Quick Start
 
@@ -19,24 +55,75 @@ It intentionally keeps the scope narrow: model weights are flash-resident, in-fl
 make run
 ```
 
-Expected output:
+Expected summary:
 
 ```text
 passed: Cambricon-LLM Figure 9 C reproduction
 rows: 21
-mean_abs_relative_error_pct: ...
-max_abs_relative_error_pct: ...
+mean_abs_relative_error_pct: 8.341
+max_abs_relative_error_pct: 14.618
 ```
 
-The command writes:
+Run the C test suite:
+
+```bash
+make test
+```
+
+Run all local checks, including SystemC paths when `libsystemc` is available:
+
+```bash
+make test-all
+```
+
+## SystemC Setup
+
+The default SystemC path is:
+
+```bash
+SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
+```
+
+If SystemC is not installed system-wide, install a local copy without root privileges:
+
+```bash
+tools/setup_systemc_local.sh
+```
+
+Run the replay/equivalence checker:
+
+```bash
+make systemc-cycle
+```
+
+Run the component-level command-cycle model:
+
+```bash
+make systemc-component
+```
+
+Run all C, C++, and SystemC validation paths:
+
+```bash
+make systemc-full
+```
+
+## Reproduction Outputs
+
+Main paper-facing outputs:
 
 - `results/figure9_reproduction.csv`
 - `results/summary.json`
 - `results/report.md`
-- `results/request_trace.csv`
+- `results/latency_breakdown.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
-- `results/latency_breakdown.csv`
+- `results/simulator_scheme_comparison.csv`
+- `results/figures/figure9_decode_speed.svg`
+- `results/figures/figure9_relative_error.svg`
+
+Controller and IFC command-path audit outputs:
+
 - `results/controller_schedule.csv`
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
@@ -44,105 +131,35 @@ The command writes:
 - `results/ssdsim_ifc_stats.csv`
 - `results/ssdsim_ifc_event_trace.csv`
 - `results/ssdsim_ifc_event_stats.csv`
-- `results/ablation_summary.csv`
-- `results/figure12_read_slice_ablation.csv`
-- `results/figure14_tiling_ablation.csv`
-- `results/platform_summary.csv`
-- `results/model_summary.csv`
-- `results/tile_profile.csv`
-- `results/system_profile.csv`
-- `results/reproduction_checks.csv`
-- `results/figures/figure9_decode_speed.svg`
-- `results/figures/figure9_relative_error.svg`
-- `results/figures/platform_error_summary.svg`
-- `results/figures/controller_schedule_timeline.svg`
-- `results/figures/figure12_read_slice_ablation.svg`
-- `results/figures/figure14_tiling_ablation.svg`
 
-## Current Reproduction Quality
+SystemC outputs:
 
-The checked simulator uses a compact per-platform calibration, not per-model fitting. Current outputs:
+- `results/systemc_cycle_trace.csv`
+- `results/systemc_cycle_stats.csv`
+- `results/systemc_cycle_compare.csv`
+- `results/systemc_component_trace.csv`
+- `results/systemc_component_stats.csv`
+- `results/systemc_component_compare.csv`
+- `results/systemc_component_modules.csv`
+- `results/systemc_component.vcd`
 
-- Rows: 21 Figure 9 points.
-- Mean absolute relative error: 8.341%.
-- Max absolute relative error: 14.618%.
-- Worst case: LLaMA2-70B on Cambricon-LLM-L.
+## Method Summary
 
-Run tests:
+The simulator follows the public Cambricon-LLM method path:
 
-```bash
-make test
-```
+1. Load Cambricon-LLM-S/M/L flash profiles, model profiles, NPU/DRAM profile, and Figure 9 references.
+2. Derive the hardware-aware tile shape from the Section V formulation:
 
-Run all local checks, including the SystemC replay target when `libsystemc` is available:
+   ```text
+   H_req = sqrt(cores_per_channel * page_size)
+   W_req = channel_count * H_req
+   ```
 
-```bash
-make test-all
-```
+3. Compute the IFC tiled weight stage using flash array-read latency, ONFI transfer time, input-vector transfer time, and read-compute/read-request balance.
+4. Add the NPU attention compute path and DRAM attention-cache path.
+5. Emit token/s, TPOT, breakdowns, ablations, traces, and cross-checks.
 
-Run the optional hardware-cycle cross-check:
-
-```bash
-make hw-cycle
-```
-
-This builds the dependency-free C++ hardware-cycle checker in `systemc/ifc_hw_cycle_model.cpp` and writes `results/hw_cycle_trace.csv`, `results/hw_cycle_stats.csv`, and `results/hw_cycle_compare.csv`.
-
-Run the SystemC replay cross-check:
-
-```bash
-make systemc-cycle
-```
-
-This builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and writes `results/systemc_cycle_trace.csv`, `results/systemc_cycle_stats.csv`, and `results/systemc_cycle_compare.csv`. This target is an equivalence checker: it intentionally replays the same command/stage/resource rules through the SystemC kernel, so exact agreement with the C event backend is expected and is not evidence of higher hardware fidelity. On this machine, SystemC is installed locally at `../.ifc_systemc/systemc_sysroot/usr`; override with `SYSTEMC_HOME=/usr` for a system package install.
-
-Run the component-level SystemC model:
-
-```bash
-make systemc-component
-```
-
-This builds `systemc/ifc_component_systemc.cpp` and writes `results/systemc_component_trace.csv`, `results/systemc_component_stats.csv`, `results/systemc_component_compare.csv`, `results/systemc_component_modules.csv`, and `results/systemc_component.vcd`. The component model separates the controller and execution fabric into SystemC modules and uses timed stage processes for ONFI bus, plane-array, and IFC-compute work. It remains a command-cycle architecture model, not RTL.
-
-For the default command stream, the component model intentionally does not match the C event backend cycle-for-cycle: it reports `last_event_cycle=316293` and `final_time_ns=316292.500000`, versus the C backend's `316207` cycles and `316207.000000 ns`. The delta is `+86` rounded cycles, or `+85.500000 ns` actual SystemC time (`0.027039%`). See [docs/release_summary.md](docs/release_summary.md) for the C/SystemC breakdown.
-
-Run all SystemC validation paths:
-
-```bash
-make systemc-full
-```
-
-If SystemC is not installed, run:
-
-```bash
-tools/setup_systemc_local.sh
-```
-
-The script downloads and extracts `libsystemc`/`libsystemc-dev` into `../.ifc_systemc` without root privileges.
-
-## Method
-
-The simulator derives the optimal tile shape from the paper's Section V formulation:
-
-```text
-H_req = sqrt(cores_per_channel * page_size)
-W_req = channel_count * H_req
-```
-
-For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the paper. The simulator then computes:
-
-- read-compute request time from array read latency and input-vector transfer;
-- read-compute channel occupancy;
-- sliced read request time from the remaining channel bandwidth;
-- workload fraction `alpha = t_read / (t_read + t_read_compute)`;
-- overlapped tiled weight-stage time;
-- DRAM attention-cache traffic and NPU attention arithmetic.
-
-More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). The hardware-cycle and SystemC paths are documented in [systemc/README.md](systemc/README.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md). Release-ready C/SystemC differences are summarized in [docs/release_summary.md](docs/release_summary.md). The per-scheme comparison against the Cambricon-LLM paper result is in [docs/paper_comparison.md](docs/paper_comparison.md).
-
-## References
-
-The primary paper reference is Yu et al., "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM," MICRO 2024, arXiv:2409.15654. Additional SSDsim and SystemC references are listed in [docs/references.md](docs/references.md), with BibTeX entries in [data/references.bib](data/references.bib).
+For Cambricon-LLM-S, the derived tile is `256 x 2048`, matching the paper's tile-size study.
 
 ## Configurable Experiments
 
@@ -158,29 +175,53 @@ bin/ifc_cambricon_llm \
   --reference-csv configs/default_references.csv
 ```
 
-When custom hardware or model profiles are used with default references, token/s values are design-space estimates; relative-error metrics are only reproduction claims when the reference CSV matches the configured setup.
+When custom hardware or model profiles are used with default references, token/s values are design-space estimates. Relative-error metrics are reproduction claims only when the reference CSV matches the configured setup.
+
+## Documentation Map
+
+| Topic | Document |
+|---|---|
+| Method and timing model | `docs/method.md`, `docs/latency_model.md` |
+| Controller and SSDsim-derived backend | `docs/controller_cycle_model.md`, `docs/ssdsim_ifc_backend.md` |
+| Configuration | `docs/configuration.md` |
+| Results and release summary | `docs/results.md`, `docs/release_summary.md` |
+| C/SystemC paper comparison | `docs/paper_comparison.md` |
+| Reliability and modeling boundaries | `docs/simulator_reliability.md` |
+| References and BibTeX | `docs/references.md`, `data/references.bib` |
+| SystemC models | `systemc/README.md` |
 
 ## Repository Layout
 
 ```text
-data/         Paper references and hardware/model profiles
-docs/         Method, implementation, and result notes
-include/      Public C header
-src/main.c    CLI entry point
-src/profiles.c
-             Model/platform/reference profile tables
-src/config.c  Runtime CSV configuration loader
-src/simulator.c
-             Tile model, timing model, CSV/JSON/Markdown outputs
-src/analysis.c
-             Platform/model summaries, tile profile, reproduction checks
-src/controller.c
-             SSDsim-inspired flash-controller schedule, cycle trace, and extended opcodes
-src/ssdsim_ifc.c
-             SSDsim-derived IFC command-stage backend
-systemc/     Hardware-cycle model, SystemC replay checker, and SystemC component model
+configs/     Runtime CSV examples for model, platform, system, and reference profiles
+data/        Paper profile data and BibTeX references
+docs/        Method notes, release notes, reliability notes, and architecture SVG
+include/     Public C header
+src/         C simulator, controller, SSDsim-derived backend, analysis, and SVG plots
+systemc/     C++ hardware-cycle checker, SystemC replay checker, component SystemC model
+tests/       C smoke tests and reproduction-bound checks
 tools/       Local SystemC setup helper
-src/plots.c   SVG comparison plot writer
-tests/        C smoke tests for formulas and reproduction bounds
-results/      Reproduction outputs and SVG figures
+results/     Checked reproduction outputs, traces, comparisons, and figures
 ```
+
+## Authors And Citation
+
+Project author and maintainer:
+
+- Deng Lishuo (`dengls24`)
+
+Reference paper:
+
+- Zhongkai Yu et al., "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM," MICRO 2024, arXiv:2409.15654.
+
+See `AUTHORS.md`, `CITATION.cff`, `docs/references.md`, and `data/references.bib`.
+
+## Scope Boundary
+
+This repository should be described as a public-method architecture simulator and audit artifact. It should not be described as:
+
+- the original Cambricon-LLM SSDsim fork;
+- a full SSD firmware simulator;
+- an RTL implementation;
+- a power/area/signoff model;
+- a complete prefill, multi-batch, or full serving-system simulator.
