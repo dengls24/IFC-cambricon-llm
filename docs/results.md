@@ -56,6 +56,11 @@ Additional controller artifacts:
 - `results/systemc_cycle_trace.csv`: optional SystemC replay event trace from `make systemc-cycle`.
 - `results/systemc_cycle_stats.csv`: optional SystemC replay statistics.
 - `results/systemc_cycle_compare.csv`: C backend versus SystemC replay equivalence check.
+- `results/systemc_component_trace.csv`: optional component-level SystemC event trace from `make systemc-component`.
+- `results/systemc_component_stats.csv`: optional component-level SystemC statistics.
+- `results/systemc_component_compare.csv`: C backend versus component-level SystemC cross-check.
+- `results/systemc_component_modules.csv`: ONFI-bus, plane-array, and IFC-compute module issue/completion counts.
+- `results/systemc_component.vcd`: high-level SystemC signal trace.
 - `results/ablation_summary.csv`: no-read-slicing and no-tiling comparisons for Figure 12/Figure 14 style checks.
 - `results/figure12_read_slice_ablation.csv`: Cambricon-LLM-S read-slicing ablation against the paper's reported 1.6x-1.8x range.
 - `results/figure14_tiling_ablation.csv`: Cambricon-LLM-S hardware-aware tiling ablation against the paper's reported 1.3x-1.4x range.

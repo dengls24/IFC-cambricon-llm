@@ -7,7 +7,7 @@ The repository focuses on the method used in "Cambricon-LLM: A Chiplet-Based Hyb
 - Table II flash configurations for Cambricon-LLM-S/M/L.
 - A 16x16, 1 GHz, 2 TOPS INT8 NPU with 40 GB/s DRAM bandwidth.
 - Section V hardware-aware tiling and read-compute/read-request workload split.
-- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend, an event-loop trace, and an optional SystemC replay cross-check.
+- SSDsim-inspired C flash controller state with channel/chip/die/plane busy timelines, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend, an event-loop trace, an optional SystemC replay cross-check, and an optional component-level SystemC command-cycle model.
 - Extended flash opcodes: `READ`, `WRITE`, `READ_COMPUTE`, and `READ_SLICE`.
 - Figure 9 W8A8 decode-speed comparison for OPT and LLaMA2 models at 1K context.
 
@@ -96,6 +96,20 @@ make systemc-cycle
 
 This builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and writes `results/systemc_cycle_trace.csv`, `results/systemc_cycle_stats.csv`, and `results/systemc_cycle_compare.csv`. This target is an equivalence checker: it intentionally replays the same command/stage/resource rules through the SystemC kernel, so exact agreement with the C event backend is expected and is not evidence of higher hardware fidelity. On this machine, SystemC is installed locally at `../.ifc_systemc/systemc_sysroot/usr`; override with `SYSTEMC_HOME=/usr` for a system package install.
 
+Run the component-level SystemC model:
+
+```bash
+make systemc-component
+```
+
+This builds `systemc/ifc_component_systemc.cpp` and writes `results/systemc_component_trace.csv`, `results/systemc_component_stats.csv`, `results/systemc_component_compare.csv`, `results/systemc_component_modules.csv`, and `results/systemc_component.vcd`. The component model separates the controller and execution fabric into SystemC modules and uses timed stage processes for ONFI bus, plane-array, and IFC-compute work. It remains a command-cycle architecture model, not RTL.
+
+Run all SystemC validation paths:
+
+```bash
+make systemc-full
+```
+
 If SystemC is not installed, run:
 
 ```bash
@@ -158,7 +172,7 @@ src/controller.c
              SSDsim-inspired flash-controller schedule, cycle trace, and extended opcodes
 src/ssdsim_ifc.c
              SSDsim-derived IFC command-stage backend
-systemc/     Hardware-cycle model and SystemC replay cross-check
+systemc/     Hardware-cycle model, SystemC replay checker, and SystemC component model
 tools/       Local SystemC setup helper
 src/plots.c   SVG comparison plot writer
 tests/        C smoke tests for formulas and reproduction bounds

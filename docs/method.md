@@ -94,6 +94,7 @@ The simulator writes these controller and timing artifacts:
 - `ssdsim_ifc_event_stats.csv`: event-loop completion and resource-concurrency statistics.
 - `hw_cycle_trace.csv`, `hw_cycle_stats.csv`, `hw_cycle_compare.csv`: optional dependency-free hardware-cycle cross-check artifacts from `make hw-cycle`.
 - `systemc_cycle_trace.csv`, `systemc_cycle_stats.csv`, `systemc_cycle_compare.csv`: optional SystemC replay cross-check artifacts from `make systemc-cycle`.
+- `systemc_component_trace.csv`, `systemc_component_stats.csv`, `systemc_component_compare.csv`, `systemc_component_modules.csv`, `systemc_component.vcd`: optional component-level SystemC artifacts from `make systemc-component`.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
@@ -111,7 +112,7 @@ TPOT = tiled_weight_stage
 
 This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-resident weights, in-flash read-compute, sliced read requests for NPU-side work, and DRAM-resident attention cache.
 
-The final TPOT uses the architecture timing model above. The cycle-stepped controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, and optional SystemC replay cross-check are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names and can be replayed through a SystemC kernel, but they are not a claim that this repository contains the authors' private SSDsim fork or a more detailed RTL-like hardware model.
+The final TPOT uses the architecture timing model above. The cycle-stepped controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
 
 ## Boundaries
 

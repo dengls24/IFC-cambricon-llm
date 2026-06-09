@@ -1,6 +1,6 @@
 # Hardware Cycle And Replay Models
 
-This directory contains two audit paths for the IFC controller command stream.
+This directory contains three audit paths for the IFC controller command stream.
 
 ## Dependency-free C++ checker
 
@@ -30,6 +30,30 @@ It writes:
 - `results/systemc_cycle_stats.csv`
 - `results/systemc_cycle_compare.csv`
 
+## SystemC component model
+
+```bash
+make systemc-component
+```
+
+This target builds `ifc_component_systemc.cpp` against `libsystemc`. It is not a replay of the C event loop. It separates the simulation into:
+
+- `IfcComponentController`: command state, resource reservation, stage issue, completion handling, and trace emission;
+- `IfcExecutionFabric`: timed SystemC stage execution with dynamic processes;
+- ONFI-bus, plane-array, and IFC-compute module classes in the execution fabric;
+- FIFO channels between controller and execution fabric;
+- VCD signals for active commands, completed commands, and event count.
+
+It writes:
+
+- `results/systemc_component_trace.csv`
+- `results/systemc_component_stats.csv`
+- `results/systemc_component_compare.csv`
+- `results/systemc_component_modules.csv`
+- `results/systemc_component.vcd`
+
+The current component model is still command-cycle architecture modeling rather than RTL. It validates module-level timing, resource-busy checks, and completion ordering, but it does not model bit-level ONFI signaling, internal NAND analog behavior, firmware queues, ECC, or FTL.
+
 The local default assumes:
 
 ```bash
@@ -44,7 +68,7 @@ tools/setup_systemc_local.sh
 
 ## What Is Compared
 
-Both audit paths compare against `results/ssdsim_ifc_event_stats.csv` for:
+All audit paths compare against `results/ssdsim_ifc_event_stats.csv` for:
 
 - total event count;
 - completed command count;
@@ -60,6 +84,18 @@ last_event_cycle: 316207
 
 and `results/systemc_cycle_compare.csv` reports `PASS` for all three metrics.
 
+For the checked default run, the SystemC component path currently reports:
+
+```text
+events: 1536
+completed_commands: 256
+last_event_cycle: 316207
+fabric_busy_violations: 0
+controller_timing_violations: 0
+```
+
+and `results/systemc_component_compare.csv` reports `PASS` for all three cross-backend metrics.
+
 ## Modeling Boundary
 
-The SystemC replay checker strengthens the artifact by proving that the same IFC command stream can be executed through a SystemC kernel without changing event ordering or resource accounting. It is still a command-level replay model. A more hardware-realistic SystemC model would need separate channel arbiters, ONFI bus modules, chip/die/plane state machines, IFC compute units, queues, valid/ready handshakes, and VCD-level signal traces. This repository does not claim RTL equivalence, full SSD firmware behavior, or line-by-line equivalence with the authors' private SSDsim fork.
+The SystemC replay checker proves that the same IFC command stream can be executed through a SystemC kernel without changing event ordering or resource accounting. The component model goes further by splitting controller and execution fabric behavior into SystemC modules and producing VCD traces. It is still a command-cycle model. A more hardware-realistic SystemC model would need lower-level channel arbiters, ONFI bus signal timing, chip/die/plane state machines, IFC compute datapaths, firmware queues, valid/ready handshakes on every path, and broader VCD signal coverage. This repository does not claim RTL equivalence, full SSD firmware behavior, or line-by-line equivalence with the authors' private SSDsim fork.

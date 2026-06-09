@@ -400,7 +400,7 @@ void release_resources(ResourceState *resources, const Command &command, int com
     }
 }
 
-bool write_event(
+[[maybe_unused]] bool write_event(
     FILE *file,
     Stats *stats,
     long long event_cycle,
@@ -543,7 +543,7 @@ bool run_event_loop(
 }
 #endif
 
-bool write_stats_named(
+[[maybe_unused]] bool write_stats_named(
     const char *path,
     const char *backend_name,
     const Platform &platform,

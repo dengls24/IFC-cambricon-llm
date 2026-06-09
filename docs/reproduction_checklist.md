@@ -24,6 +24,9 @@ This checklist records what is covered by the current C reproduction and where e
 | Optional hardware-cycle cross-check | `results/hw_cycle_compare.csv` | PASS |
 | Optional SystemC replay trace | `results/systemc_cycle_trace.csv` | PASS |
 | Optional SystemC replay equivalence check | `results/systemc_cycle_compare.csv` | PASS |
+| Optional component-level SystemC trace | `results/systemc_component_trace.csv` | PASS |
+| Optional component-level SystemC cross-check | `results/systemc_component_compare.csv` | PASS |
+| Optional component-level SystemC VCD | `results/systemc_component.vcd` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
 | Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |
@@ -46,6 +49,7 @@ This checklist records what is covered by the current C reproduction and where e
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC event loop enabled | 1 | 1 | PASS |
 | Hardware-cycle cross-check | PASS | PASS | PASS |
+| Component-level SystemC cross-check | PASS | PASS | PASS |
 
 ## Build Checks
 

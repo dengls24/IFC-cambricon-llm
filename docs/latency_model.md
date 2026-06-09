@@ -188,7 +188,7 @@ This trace is checked by `make test` for stage coverage and state-name consisten
 
 `results/ssdsim_ifc_event_trace.csv` records the same extended command stream through an event loop. Each stage has an `ISSUE` event and a `COMPLETE` event, and the loop advances to the nearest pending event cycle. This is still an audit path rather than the direct TPOT source.
 
-`make hw-cycle` builds `systemc/ifc_hw_cycle_model.cpp` and cross-checks the dependency-free hardware-cycle model against `results/ssdsim_ifc_event_stats.csv`. `make systemc-cycle` builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and replays the same command/stage/resource rules through a SystemC `SC_THREAD`. Matching event count, completed command count, and last event cycle indicate replay equivalence with the representative command stream; this is not evidence of higher hardware fidelity.
+`make hw-cycle` builds `systemc/ifc_hw_cycle_model.cpp` and cross-checks the dependency-free hardware-cycle model against `results/ssdsim_ifc_event_stats.csv`. `make systemc-cycle` builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and replays the same command/stage/resource rules through a SystemC `SC_THREAD`; matching event count, completed command count, and last event cycle indicate replay equivalence, not higher hardware fidelity. `make systemc-component` builds `systemc/ifc_component_systemc.cpp`, separates the controller and execution fabric into SystemC modules, runs timed stage processes, and emits module statistics plus a VCD trace. Its compare file checks the same aggregate timing contract against the C event backend.
 
 ## What Changes With Configuration
 
