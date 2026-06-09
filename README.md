@@ -140,6 +140,10 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 
 More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). The hardware-cycle and SystemC paths are documented in [systemc/README.md](systemc/README.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md). Release-ready C/SystemC differences are summarized in [docs/release_summary.md](docs/release_summary.md). The per-scheme comparison against the Cambricon-LLM paper result is in [docs/paper_comparison.md](docs/paper_comparison.md).
 
+## References
+
+The primary paper reference is Yu et al., "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM," MICRO 2024, arXiv:2409.15654. Additional SSDsim and SystemC references are listed in [docs/references.md](docs/references.md), with BibTeX entries in [data/references.bib](data/references.bib).
+
 ## Configurable Experiments
 
 The default run uses the built-in paper profile. Design-space runs can override flash scale, ONFI bandwidth, IFC frequency/throughput, NPU frequency/throughput, DRAM bandwidth, context length, and model parameters:

@@ -44,6 +44,8 @@ Current values:
 
 The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 
+Reference entries for the Cambricon-LLM paper, SSDsim-related simulator background, and SystemC are listed in `docs/references.md` and `data/references.bib`.
+
 ## C Backend
 
 The C event backend is implemented in `src/ssdsim_ifc.c` and writes:
