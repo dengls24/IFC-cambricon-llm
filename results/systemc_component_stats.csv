@@ -2,14 +2,18 @@ metric,value
 backend,systemc_component
 platform,cam_llm_s
 cycle_ns,1.000000
+component_module_clock_ns,2.500000
+component_issue_width,8
+component_queue_depth,8
 commands,256
 completed_commands,256
 events,1536
 issue_events,768
 complete_events,768
 max_active_commands,16
-last_event_cycle,316207
-last_event_ns,316207.000000
+last_event_cycle,316293
+last_event_ns,316292.500000
+last_event_cycle_rounded_ns,316293.000000
 command_address_cycles,7
 read_compute_vector_cycles,256
 read_slice_data_cycles,4096
@@ -23,3 +27,6 @@ fabric_issued,768
 fabric_completed,768
 fabric_busy_violations,0
 controller_timing_violations,0
+dispatch_cycles,100
+issue_backpressure_stalls,0
+width_limited_dispatches,3

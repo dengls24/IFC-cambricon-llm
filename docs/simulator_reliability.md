@@ -138,7 +138,7 @@ alpha = t_read / (t_read + t_rc)
 - `results/systemc_component_modules.csv`
 - `results/systemc_component.vcd`
 
-该模型不再 replay 同一个 event loop，而是拆成 `IfcComponentController` 和 `IfcExecutionFabric` 两个 SystemC 模块，通过 FIFO 传递 stage issue/done 消息，并用 timed dynamic processes 表示 ONFI bus、plane-array 和 IFC-compute stage 执行。默认 run 当前为 1536 events、256 completed commands、last event cycle 316207；`fabric_busy_violations=0`、`controller_timing_violations=0`，`systemc_component_compare.csv` 三项均为 PASS。它比 replay checker 更接近硬件组件化建模，但仍然是 command-cycle architecture model，不是 RTL。
+该模型不再 replay 同一个 event loop，而是拆成 `IfcComponentController` 和 `IfcExecutionFabric` 两个 SystemC 模块，通过 FIFO 传递 stage issue/done 消息，并用 timed dynamic processes 表示 ONFI bus、plane-array 和 IFC-compute stage 执行。默认 run 当前为 1536 events、256 completed commands、last event cycle 316293，实际 SystemC final time 为 316292.500000 ns。对应 C event backend 是 last event cycle 316207、316207.000000 ns，因此 component SystemC 相对 C backend 的差异为 +86 rounded cycles、+85.500000 ns，即 0.027039%。`fabric_busy_violations=0`、`controller_timing_violations=0`，`systemc_component_compare.csv` 对 event count 和 completed command count 做 exact PASS，对 final timing 做 bounded PASS。该非零差异来自 2.5 ns module clock、8-stage issue width、8-entry issue FIFO，以及 stage service time 的 module-clock quantization。它比 replay checker 更接近硬件组件化建模，但仍然是 command-cycle architecture model，不是 RTL。
 
 这些轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
 

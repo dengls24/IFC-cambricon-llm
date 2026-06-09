@@ -104,6 +104,8 @@ make systemc-component
 
 This builds `systemc/ifc_component_systemc.cpp` and writes `results/systemc_component_trace.csv`, `results/systemc_component_stats.csv`, `results/systemc_component_compare.csv`, `results/systemc_component_modules.csv`, and `results/systemc_component.vcd`. The component model separates the controller and execution fabric into SystemC modules and uses timed stage processes for ONFI bus, plane-array, and IFC-compute work. It remains a command-cycle architecture model, not RTL.
 
+For the default command stream, the component model intentionally does not match the C event backend cycle-for-cycle: it reports `last_event_cycle=316293` and `final_time_ns=316292.500000`, versus the C backend's `316207` cycles and `316207.000000 ns`. The delta is `+86` rounded cycles, or `+85.500000 ns` actual SystemC time (`0.027039%`). See [docs/release_summary.md](docs/release_summary.md) for the C/SystemC breakdown.
+
 Run all SystemC validation paths:
 
 ```bash
@@ -136,7 +138,7 @@ For Cambricon-LLM-S this gives `256 x 2048`, matching the tile-size study in the
 - overlapped tiled weight-stage time;
 - DRAM attention-cache traffic and NPU attention arithmetic.
 
-More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). The hardware-cycle path is documented in [systemc/README.md](systemc/README.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md).
+More detail is in [docs/method.md](docs/method.md). Latency calculation is explained in [docs/latency_model.md](docs/latency_model.md). The cycle-stepped controller trace is documented in [docs/controller_cycle_model.md](docs/controller_cycle_model.md). The SSDsim-derived IFC backend is documented in [docs/ssdsim_ifc_backend.md](docs/ssdsim_ifc_backend.md). The hardware-cycle and SystemC paths are documented in [systemc/README.md](systemc/README.md). Runtime hardware/model configuration is documented in [docs/configuration.md](docs/configuration.md). Results and plot outputs are summarized in [docs/results.md](docs/results.md). Module responsibilities are listed in [docs/implementation.md](docs/implementation.md). The pass/fail reproduction checklist is in [docs/reproduction_checklist.md](docs/reproduction_checklist.md). Simulator reliability and modeling credibility are discussed in [docs/simulator_reliability.md](docs/simulator_reliability.md). Release-ready C/SystemC differences are summarized in [docs/release_summary.md](docs/release_summary.md).
 
 ## Configurable Experiments
 

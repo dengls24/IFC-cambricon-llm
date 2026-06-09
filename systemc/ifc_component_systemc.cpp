@@ -33,6 +33,19 @@ struct StageDone {
     std::string module_name;
 };
 
+struct ComponentConfig {
+    double module_clock_ns = 2.5;
+    int issue_width = 8;
+    int queue_depth = 8;
+};
+
+struct IssueResult {
+    bool ok = true;
+    int issued = 0;
+    bool more_ready = false;
+    bool fifo_full = false;
+};
+
 std::ostream &operator<<(std::ostream &out, const StageIssue &issue) {
     out << "StageIssue{command_id=" << issue.command_id
         << ",stage=" << stage_name(stage_of(issue.command))
@@ -57,6 +70,13 @@ long long cycle_from_time(const Timing &timing) {
 
 sc_core::sc_time cycles_to_time(long long cycles, const Timing &timing) {
     return sc_core::sc_time(static_cast<double>(cycles) * timing.cycle_ns, sc_core::SC_NS);
+}
+
+long long quantize_stage_cycles(long long base_cycles, const Timing &timing, const ComponentConfig &config) {
+    double base_ns = static_cast<double>(base_cycles) * timing.cycle_ns;
+    double module_cycles = std::ceil(base_ns / config.module_clock_ns);
+    double quantized_ns = module_cycles * config.module_clock_ns;
+    return ceil_cycles(quantized_ns, timing.cycle_ns);
 }
 
 std::string unit_key_for(const Command &command) {
@@ -152,8 +172,8 @@ class IfcExecutionFabric : public sc_core::sc_module {
 
     SC_HAS_PROCESS(IfcExecutionFabric);
 
-    explicit IfcExecutionFabric(sc_core::sc_module_name name, Timing timing)
-        : sc_core::sc_module(name), timing_(timing) {
+    IfcExecutionFabric(sc_core::sc_module_name name, Timing timing, ComponentConfig config)
+        : sc_core::sc_module(name), timing_(timing), config_(config) {
         SC_THREAD(dispatch);
     }
 
@@ -179,6 +199,7 @@ class IfcExecutionFabric : public sc_core::sc_module {
 
   private:
     Timing timing_;
+    ComponentConfig config_;
     std::set<std::string> busy_units_;
     std::map<std::string, int> issued_by_class_;
     std::map<std::string, int> completed_by_class_;
@@ -232,11 +253,13 @@ class IfcComponentController : public sc_core::sc_module {
         sc_core::sc_module_name name,
         Platform platform,
         Timing timing,
+        ComponentConfig config,
         const char *trace_path,
         Stats *stats)
         : sc_core::sc_module(name),
           platform_(std::move(platform)),
           timing_(timing),
+          config_(config),
           trace_path_(trace_path),
           stats_(stats) {
         SC_THREAD(run);
@@ -253,6 +276,7 @@ class IfcComponentController : public sc_core::sc_module {
   private:
     Platform platform_;
     Timing timing_;
+    ComponentConfig config_;
     std::string trace_path_;
     Stats *stats_;
     ResourceState resources_;
@@ -261,6 +285,9 @@ class IfcComponentController : public sc_core::sc_module {
     int active_commands_ = 0;
     bool ok_ = false;
     int timing_violations_ = 0;
+    int dispatch_cycles_ = 0;
+    int issue_backpressure_stalls_ = 0;
+    int width_limited_dispatches_ = 0;
 
     void update_signals() {
         active_signal.write(active_commands_);
@@ -268,19 +295,35 @@ class IfcComponentController : public sc_core::sc_module {
         event_signal.write(stats_->events);
     }
 
-    bool issue_ready_commands() {
+    bool command_ready_now(const Command &command, long long current_cycle) const {
+        return command.status == Status::Waiting &&
+               command.arrival_cycle <= current_cycle &&
+               resources_free(resources_, command);
+    }
+
+    IssueResult issue_ready_commands() {
+        IssueResult result;
         long long current_cycle = cycle_from_time(timing_);
         for (int i = 0; i < static_cast<int>(commands_.size()); ++i) {
             Command &command = commands_[i];
-            if (command.status == Status::Waiting &&
-                command.arrival_cycle <= current_cycle &&
-                resources_free(resources_, command)) {
-                command.stage_duration_cycles = stage_duration(command, timing_);
+            if (command_ready_now(command, current_cycle)) {
+                if (result.issued >= config_.issue_width) {
+                    result.more_ready = true;
+                    break;
+                }
+                if (issue_out.num_free() <= 0) {
+                    result.more_ready = true;
+                    result.fifo_full = true;
+                    break;
+                }
+                long long base_duration_cycles = stage_duration(command, timing_);
+                command.stage_duration_cycles = quantize_stage_cycles(base_duration_cycles, timing_, config_);
                 command.stage_start_cycle = current_cycle;
                 command.stage_end_cycle = current_cycle + command.stage_duration_cycles;
                 command.status = Status::Active;
                 reserve_resources(&resources_, command, i);
                 ++active_commands_;
+                ++result.issued;
 
                 StageIssue issue;
                 issue.command_id = i;
@@ -300,13 +343,15 @@ class IfcComponentController : public sc_core::sc_module {
                         i,
                         command,
                         active_commands_)) {
-                    return false;
+                    result.ok = false;
+                    return result;
                 }
                 update_signals();
                 issue_out.write(issue);
             }
         }
-        return true;
+        ++dispatch_cycles_;
+        return result;
     }
 
     bool complete_stage(const StageDone &done) {
@@ -356,6 +401,24 @@ class IfcComponentController : public sc_core::sc_module {
         return true;
     }
 
+    bool dispatch_ready_until_blocked() {
+        while (true) {
+            IssueResult issue_result = issue_ready_commands();
+            if (!issue_result.ok) {
+                return false;
+            }
+            if (!issue_result.more_ready) {
+                return true;
+            }
+            if (issue_result.fifo_full) {
+                ++issue_backpressure_stalls_;
+            } else {
+                ++width_limited_dispatches_;
+            }
+            sc_core::wait(sc_core::sc_time(config_.module_clock_ns, sc_core::SC_NS));
+        }
+    }
+
     void run() {
         ok_ = run_controller();
         if (trace_file_ != nullptr) {
@@ -379,7 +442,7 @@ class IfcComponentController : public sc_core::sc_module {
             "duration_cycles,active_commands\n");
         update_signals();
 
-        if (!issue_ready_commands()) {
+        if (!dispatch_ready_until_blocked()) {
             return false;
         }
         while (stats_->completed_commands < stats_->commands) {
@@ -387,11 +450,24 @@ class IfcComponentController : public sc_core::sc_module {
             if (!drain_same_time_completions(done)) {
                 return false;
             }
-            if (!issue_ready_commands()) {
+            if (!dispatch_ready_until_blocked()) {
                 return false;
             }
         }
         return active_commands_ == 0 && timing_violations_ == 0;
+    }
+
+  public:
+    int dispatch_cycles() const {
+        return dispatch_cycles_;
+    }
+
+    int issue_backpressure_stalls() const {
+        return issue_backpressure_stalls_;
+    }
+
+    int width_limited_dispatches() const {
+        return width_limited_dispatches_;
     }
 };
 
@@ -399,6 +475,8 @@ bool write_component_stats(
     const char *path,
     const Platform &platform,
     const Timing &timing,
+    const ComponentConfig &config,
+    double final_systemc_time_ns,
     const Stats &stats,
     const IfcComponentController &controller,
     const IfcExecutionFabric &fabric) {
@@ -410,6 +488,9 @@ bool write_component_stats(
     std::fprintf(file, "backend,systemc_component\n");
     std::fprintf(file, "platform,%s\n", platform.name.c_str());
     std::fprintf(file, "cycle_ns,%.6f\n", timing.cycle_ns);
+    std::fprintf(file, "component_module_clock_ns,%.6f\n", config.module_clock_ns);
+    std::fprintf(file, "component_issue_width,%d\n", config.issue_width);
+    std::fprintf(file, "component_queue_depth,%d\n", config.queue_depth);
     std::fprintf(file, "commands,%d\n", stats.commands);
     std::fprintf(file, "completed_commands,%d\n", stats.completed_commands);
     std::fprintf(file, "events,%d\n", stats.events);
@@ -417,7 +498,8 @@ bool write_component_stats(
     std::fprintf(file, "complete_events,%d\n", stats.complete_events);
     std::fprintf(file, "max_active_commands,%d\n", stats.max_active_commands);
     std::fprintf(file, "last_event_cycle,%lld\n", stats.last_event_cycle);
-    std::fprintf(file, "last_event_ns,%.6f\n", static_cast<double>(stats.last_event_cycle) * timing.cycle_ns);
+    std::fprintf(file, "last_event_ns,%.6f\n", final_systemc_time_ns);
+    std::fprintf(file, "last_event_cycle_rounded_ns,%.6f\n", static_cast<double>(stats.last_event_cycle) * timing.cycle_ns);
     std::fprintf(file, "command_address_cycles,%lld\n", timing.command_address_cycles);
     std::fprintf(file, "read_compute_vector_cycles,%lld\n", timing.read_compute_vector_cycles);
     std::fprintf(file, "read_slice_data_cycles,%lld\n", timing.read_slice_data_cycles);
@@ -431,6 +513,78 @@ bool write_component_stats(
     std::fprintf(file, "fabric_completed,%d\n", fabric.completed());
     std::fprintf(file, "fabric_busy_violations,%d\n", fabric.busy_violations());
     std::fprintf(file, "controller_timing_violations,%d\n", controller.timing_violations());
+    std::fprintf(file, "dispatch_cycles,%d\n", controller.dispatch_cycles());
+    std::fprintf(file, "issue_backpressure_stalls,%d\n", controller.issue_backpressure_stalls());
+    std::fprintf(file, "width_limited_dispatches,%d\n", controller.width_limited_dispatches());
+    return std::fclose(file) == 0;
+}
+
+double read_metric_double(const char *path, const char *metric) {
+    FILE *file = std::fopen(path, "r");
+    if (file == nullptr) {
+        return -1.0;
+    }
+    char line[512];
+    double value = -1.0;
+    while (std::fgets(line, sizeof(line), file) != nullptr) {
+        char key[128];
+        double parsed_value = -1.0;
+        if (std::sscanf(line, "%127[^,],%lf", key, &parsed_value) == 2 &&
+            std::strcmp(key, metric) == 0) {
+            value = parsed_value;
+            break;
+        }
+    }
+    std::fclose(file);
+    return value;
+}
+
+bool write_component_compare(const char *path, const char *c_stats_path, const Timing &timing, const Stats &stats, double final_systemc_time_ns) {
+    long long c_events = read_metric_ll(c_stats_path, "events");
+    long long c_completed = read_metric_ll(c_stats_path, "completed_commands");
+    long long c_last = read_metric_ll(c_stats_path, "last_event_cycle");
+    double c_last_ns = read_metric_double(c_stats_path, "last_event_ns");
+    long long last_delta = c_last >= 0 ? stats.last_event_cycle - c_last : -1;
+    long long last_tolerance = c_last >= 0 ? static_cast<long long>(std::ceil(static_cast<double>(c_last) * 0.01)) : 0;
+    if (last_tolerance < 100) {
+        last_tolerance = 100;
+    }
+    double final_delta_ns = c_last_ns >= 0.0 ? final_systemc_time_ns - c_last_ns : -1.0;
+    double final_tolerance_ns = static_cast<double>(last_tolerance) * timing.cycle_ns;
+
+    FILE *file = std::fopen(path, "w");
+    if (file == nullptr) {
+        return false;
+    }
+    std::fprintf(file, "metric,c_backend,systemc_component,delta,status\n");
+    std::fprintf(
+        file,
+        "events,%lld,%d,%lld,%s\n",
+        c_events,
+        stats.events,
+        c_events >= 0 ? static_cast<long long>(stats.events) - c_events : -1,
+        c_events == stats.events ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "completed_commands,%lld,%d,%lld,%s\n",
+        c_completed,
+        stats.completed_commands,
+        c_completed >= 0 ? static_cast<long long>(stats.completed_commands) - c_completed : -1,
+        c_completed == stats.completed_commands ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "last_event_cycle,%lld,%lld,%lld,%s\n",
+        c_last,
+        stats.last_event_cycle,
+        last_delta,
+        (c_last >= 0 && std::llabs(last_delta) <= last_tolerance) ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "final_time_ns,%.6f,%.6f,%.6f,%s\n",
+        c_last_ns,
+        final_systemc_time_ns,
+        final_delta_ns,
+        (c_last_ns >= 0.0 && std::fabs(final_delta_ns) <= final_tolerance_ns) ? "PASS" : "FAIL");
     return std::fclose(file) == 0;
 }
 
@@ -475,6 +629,7 @@ int sc_main(int argc, char **argv) {
     const char *module_stats_path = "results/systemc_component_modules.csv";
     const char *vcd_path = "results/systemc_component.vcd";
     const char *c_stats_path = "results/ssdsim_ifc_event_stats.csv";
+    ComponentConfig component_config;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--platforms-csv") == 0 && i + 1 < argc) {
@@ -493,13 +648,23 @@ int sc_main(int argc, char **argv) {
             vcd_path = nullptr;
         } else if (std::strcmp(argv[i], "--c-stats") == 0 && i + 1 < argc) {
             c_stats_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--module-clock-ns") == 0 && i + 1 < argc) {
+            component_config.module_clock_ns = std::atof(argv[++i]);
+        } else if (std::strcmp(argv[i], "--issue-width") == 0 && i + 1 < argc) {
+            component_config.issue_width = std::atoi(argv[++i]);
+        } else if (std::strcmp(argv[i], "--queue-depth") == 0 && i + 1 < argc) {
+            component_config.queue_depth = std::atoi(argv[++i]);
         } else {
             std::fprintf(
                 stderr,
-                "usage: %s [--platforms-csv path] [--trace path] [--stats path] [--compare path] [--module-stats path] [--vcd path|--no-vcd] [--c-stats path]\n",
+                "usage: %s [--platforms-csv path] [--trace path] [--stats path] [--compare path] [--module-stats path] [--vcd path|--no-vcd] [--c-stats path] [--module-clock-ns ns] [--issue-width n] [--queue-depth n]\n",
                 argv[0]);
             return 1;
         }
+    }
+    if (component_config.module_clock_ns <= 0.0 || component_config.issue_width <= 0 || component_config.queue_depth <= 0) {
+        std::fprintf(stderr, "error: invalid SystemC component model parameters\n");
+        return 1;
     }
 
     Platform platform;
@@ -514,14 +679,14 @@ int sc_main(int argc, char **argv) {
 
     Timing timing = derive_timing(platform);
     Stats stats;
-    sc_core::sc_fifo<StageIssue> issue_fifo("issue_fifo", 4096);
+    sc_core::sc_fifo<StageIssue> issue_fifo("issue_fifo", component_config.queue_depth);
     sc_core::sc_fifo<StageDone> done_fifo("done_fifo", 4096);
     sc_core::sc_signal<int> active_signal("active_commands");
     sc_core::sc_signal<int> completed_signal("completed_commands");
     sc_core::sc_signal<int> event_signal("events");
 
-    IfcComponentController controller("ifc_component_controller", platform, timing, trace_path, &stats);
-    IfcExecutionFabric fabric("ifc_execution_fabric", timing);
+    IfcComponentController controller("ifc_component_controller", platform, timing, component_config, trace_path, &stats);
+    IfcExecutionFabric fabric("ifc_execution_fabric", timing, component_config);
     controller.issue_out(issue_fifo);
     controller.done_in(done_fifo);
     controller.active_signal(active_signal);
@@ -541,6 +706,7 @@ int sc_main(int argc, char **argv) {
     }
 
     sc_core::sc_start();
+    double final_systemc_time_ns = sc_core::sc_time_stamp().to_seconds() * 1e9;
 
     if (vcd != nullptr) {
         sc_core::sc_close_vcd_trace_file(vcd);
@@ -554,7 +720,7 @@ int sc_main(int argc, char **argv) {
         std::fprintf(stderr, "error: SystemC execution fabric resource validation failed\n");
         return 1;
     }
-    if (!write_component_stats(stats_path, platform, timing, stats, controller, fabric)) {
+    if (!write_component_stats(stats_path, platform, timing, component_config, final_systemc_time_ns, stats, controller, fabric)) {
         std::fprintf(stderr, "error: failed to write stats %s\n", stats_path);
         return 1;
     }
@@ -562,7 +728,7 @@ int sc_main(int argc, char **argv) {
         std::fprintf(stderr, "error: failed to write module stats %s\n", module_stats_path);
         return 1;
     }
-    if (!write_compare_named(compare_path, "systemc_component", c_stats_path, stats)) {
+    if (!write_component_compare(compare_path, c_stats_path, timing, stats, final_systemc_time_ns)) {
         std::fprintf(stderr, "error: failed to write compare %s\n", compare_path);
         return 1;
     }
@@ -577,6 +743,6 @@ int sc_main(int argc, char **argv) {
     }
     std::printf("events: %d\n", stats.events);
     std::printf("last_event_cycle: %lld\n", stats.last_event_cycle);
-    std::printf("systemc_time_ns: %.6f\n", sc_core::sc_time_stamp().to_seconds() * 1e9);
+    std::printf("systemc_time_ns: %.6f\n", final_systemc_time_ns);
     return 0;
 }

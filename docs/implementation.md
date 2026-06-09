@@ -42,7 +42,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/systemc_cycle_compare.csv` | Equivalence check between C SSDsim-derived event backend and SystemC replay. |
 | `results/systemc_component_trace.csv` | Optional component-level SystemC event trace from `make systemc-component`. |
 | `results/systemc_component_stats.csv` | Optional component-level SystemC statistics. |
-| `results/systemc_component_compare.csv` | Cross-check between C SSDsim-derived event backend and component-level SystemC model. |
+| `results/systemc_component_compare.csv` | Cross-check between C SSDsim-derived event backend and component-level SystemC model, with exact count checks and bounded final-timing deltas. |
 | `results/systemc_component_modules.csv` | ONFI-bus, plane-array, and IFC-compute module issue/completion counts. |
 | `results/systemc_component.vcd` | VCD trace for high-level active/completed/event signals. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |

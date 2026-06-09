@@ -89,13 +89,16 @@ For the checked default run, the SystemC component path currently reports:
 ```text
 events: 1536
 completed_commands: 256
-last_event_cycle: 316207
+last_event_cycle: 316293
+last_event_ns: 316292.500000
 fabric_busy_violations: 0
 controller_timing_violations: 0
 ```
 
-and `results/systemc_component_compare.csv` reports `PASS` for all three cross-backend metrics.
+The corresponding C backend result is `last_event_cycle=316207` and `last_event_ns=316207.000000`. Therefore the component model reports a bounded non-zero timing delta of `+86` rounded cycles, or `+85.500000 ns` actual SystemC time, which is `0.027039%` of the C backend final time. `results/systemc_component_compare.csv` reports exact agreement for event count and completed command count, and bounded `PASS` for final timing.
 
 ## Modeling Boundary
 
-The SystemC replay checker proves that the same IFC command stream can be executed through a SystemC kernel without changing event ordering or resource accounting. The component model goes further by splitting controller and execution fabric behavior into SystemC modules and producing VCD traces. It is still a command-cycle model. A more hardware-realistic SystemC model would need lower-level channel arbiters, ONFI bus signal timing, chip/die/plane state machines, IFC compute datapaths, firmware queues, valid/ready handshakes on every path, and broader VCD signal coverage. This repository does not claim RTL equivalence, full SSD firmware behavior, or line-by-line equivalence with the authors' private SSDsim fork.
+The SystemC replay checker proves that the same IFC command stream can be executed through a SystemC kernel without changing event ordering or resource accounting. The component model goes further by splitting controller and execution fabric behavior into SystemC modules, applying a 2.5 ns module clock, limiting each dispatch round to eight stage issues, using a finite eight-entry issue FIFO, and quantizing stage service time to module-clock boundaries. Those hardware-module boundaries explain why the component model is not bit-identical to the C event backend.
+
+It is still a command-cycle model. A more hardware-realistic SystemC model would need lower-level channel arbiters, ONFI bus signal timing, chip/die/plane state machines, IFC compute datapaths, firmware queues, valid/ready handshakes on every path, and broader VCD signal coverage. This repository does not claim RTL equivalence, full SSD firmware behavior, or line-by-line equivalence with the authors' private SSDsim fork.

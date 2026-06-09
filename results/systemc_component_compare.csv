@@ -1,4 +1,5 @@
 metric,c_backend,systemc_component,delta,status
 events,1536,1536,0,PASS
 completed_commands,256,256,0,PASS
-last_event_cycle,316207,316207,0,PASS
+last_event_cycle,316207,316293,86,PASS
+final_time_ns,316207.000000,316292.500000,85.500000,PASS

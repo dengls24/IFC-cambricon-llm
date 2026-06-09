@@ -154,4 +154,16 @@ bin/ifc_component_systemc --platforms-csv configs/default_platforms.csv
 
 The audit models currently use the first platform row. The dependency-free C++ checker emits `hw_cycle_trace.csv`, `hw_cycle_stats.csv`, and `hw_cycle_compare.csv`. The SystemC replay checker emits `systemc_cycle_trace.csv`, `systemc_cycle_stats.csv`, and `systemc_cycle_compare.csv`. The SystemC component model emits `systemc_component_trace.csv`, `systemc_component_stats.csv`, `systemc_component_compare.csv`, `systemc_component_modules.csv`, and `systemc_component.vcd`.
 
+The component SystemC model additionally accepts module-level timing controls:
+
+```bash
+bin/ifc_component_systemc \
+  --platforms-csv configs/default_platforms.csv \
+  --module-clock-ns 2.5 \
+  --issue-width 8 \
+  --queue-depth 8
+```
+
+These controls are intentionally separate from the platform CSV. The platform CSV sets flash geometry, ONFI external bandwidth, and IFC compute frequency/capacity. The component arguments set controller/execution-fabric module boundaries used by the SystemC architecture model.
+
 The SystemC target uses `SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr` by default. Use `SYSTEMC_HOME=/usr` for a system package installation, or run `tools/setup_systemc_local.sh` to create the default local sysroot without root privileges.

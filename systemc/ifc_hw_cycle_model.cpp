@@ -603,7 +603,7 @@ long long read_metric_ll(const char *path, const char *metric) {
     return value;
 }
 
-bool write_compare_named(const char *path, const char *cycle_label, const char *c_stats_path, const Stats &stats) {
+[[maybe_unused]] bool write_compare_named(const char *path, const char *cycle_label, const char *c_stats_path, const Stats &stats) {
     long long c_events = read_metric_ll(c_stats_path, "events");
     long long c_completed = read_metric_ll(c_stats_path, "completed_commands");
     long long c_last = read_metric_ll(c_stats_path, "last_event_cycle");
