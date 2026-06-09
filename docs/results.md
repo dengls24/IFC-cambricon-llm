@@ -8,6 +8,16 @@ make run
 
 The simulator writes a row for each Figure 9 model/platform point. The main output is absolute decode performance: simulated tokens/s and TPOT latency for each model on Cambricon-LLM-S/M/L.
 
+## Result Ownership
+
+| Variant | Main artifacts | Result meaning |
+|---|---|---|
+| Standalone C timing simulator plus SSDsim-derived C event backend | `results/figure9_reproduction.csv`, `results/latency_breakdown.csv`, `results/npu_timing.csv` | Owns the released 21-point token/s and TPOT performance numbers. |
+| SystemC replay checker | `results/systemc_cycle_compare.csv` | Checks that the representative C event stream replays with 0-cycle final-time delta through the SystemC kernel. |
+| SystemC component command-cycle model | `results/systemc_component_compare.csv`, `results/systemc_component_modules.csv`, `results/systemc_component.vcd` | Checks the same representative command stream after SystemC module decomposition; final-time delta is bounded rather than expected to be exactly zero. |
+
+The SystemC paths are validation paths for command-cycle behavior. They should not be read as separate full Figure 9 throughput curves.
+
 Current checked output:
 
 | Metric | Value |

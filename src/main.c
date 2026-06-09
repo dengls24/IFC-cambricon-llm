@@ -131,12 +131,7 @@ int main(int argc, char **argv) {
     printf("tile_profile_csv: %s/tile_profile.csv\n", options.output_dir);
     printf("system_profile_csv: %s/system_profile.csv\n", options.output_dir);
     printf("reproduction_checks_csv: %s/reproduction_checks.csv\n", options.output_dir);
-    printf("figure9_svg: %s/figures/figure9_decode_speed.svg\n", options.output_dir);
-    printf("figure9_error_svg: %s/figures/figure9_relative_error.svg\n", options.output_dir);
-    printf("platform_summary_svg: %s/figures/platform_error_summary.svg\n", options.output_dir);
-    printf("controller_timeline_svg: %s/figures/controller_schedule_timeline.svg\n", options.output_dir);
-    printf("figure12_svg: %s/figures/figure12_read_slice_ablation.svg\n", options.output_dir);
-    printf("figure14_svg: %s/figures/figure14_tiling_ablation.svg\n", options.output_dir);
+    printf("raw_plot_dir: %s/figures (local helper output, ignored for release)\n", options.output_dir);
     printf("rows: %d\n", summary.row_count);
     printf("mean_abs_relative_error_pct: %.3f\n", summary.mean_abs_relative_error_pct);
     printf("max_abs_relative_error_pct: %.3f\n", summary.max_abs_relative_error_pct);

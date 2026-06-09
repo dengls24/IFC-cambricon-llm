@@ -11,6 +11,8 @@ This document separates the paper-facing comparison for the two simulator scheme
 
 The SystemC replay checker is an equivalence checker, not a third independent simulator scheme. Its exact agreement with the C backend is expected by construction.
 
+The published performance tables should therefore be attributed to the C timing simulator. SystemC results should be cited as cross-check evidence for the representative IFC command stream, not as independent throughput predictions.
+
 ## Scheme 1: C Timing And SSDsim-Derived Event Backend
 
 This is the direct Figure 9 reproduction path. The paper reference values are the `reference_tokens_per_s` values in `results/figure9_reproduction.csv`; the simulator output is `simulated_tokens_per_s`.

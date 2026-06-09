@@ -51,6 +51,16 @@ The per-scheme comparison against the Cambricon-LLM paper result is documented i
 
 Reference entries for the Cambricon-LLM paper, SSDsim-related simulator background, and SystemC are listed in `docs/references.md` and `data/references.bib`.
 
+## Variant Result Ownership
+
+| Variant | Command | Released result ownership |
+|---|---|---|
+| Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, latency-breakdown, and ablation results. |
+| SystemC replay checker | `make systemc-cycle` | Reports equivalence of a representative IFC event stream against the C event backend. |
+| SystemC component command-cycle model | `make systemc-component` | Reports bounded timing drift of a componentized SystemC command stream against the C event backend. |
+
+Only the standalone C path is a direct paper-facing 21-point throughput reproduction. The SystemC paths are release validation artifacts for the command-cycle backend.
+
 ## C Backend
 
 The C event backend is implemented in `src/ssdsim_ifc.c` and writes:

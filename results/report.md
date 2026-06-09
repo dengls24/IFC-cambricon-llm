@@ -56,14 +56,12 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.
 
-## Plots
+## Publication Figures
 
-- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.
-- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15% reproduction bounds.
-- `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.
-- `figures/controller_schedule_timeline.svg` visualizes the first configured platform's sample controller schedule.
-- `figures/figure12_read_slice_ablation.svg` plots the first configured platform's read-slicing ablation.
-- `figures/figure14_tiling_ablation.svg` plots the first configured platform's hardware-aware tiling ablation.
+- Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.
+- `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.
+- `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.
+- The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.
 
 ## Sanity Checks
 

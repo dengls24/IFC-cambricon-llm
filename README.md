@@ -24,17 +24,27 @@ Reference-fit quality is kept as a secondary audit metric in `results/summary.js
 
 The C simulator is the direct paper-facing Figure 9 reproduction path. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
 
+## Simulator Variants And Result Ownership
+
+| Variant | Command | Result scope | Released result |
+|---|---|---|---|
+| Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction | Owns all token/s and TPOT tables in this README |
+| SystemC replay checker | `make systemc-cycle` | Representative IFC command stream replayed through the SystemC kernel | 0-cycle final-time delta versus the C event backend |
+| SystemC component command-cycle model | `make systemc-component` | Representative IFC command stream split into controller, execution-fabric, FIFO, ONFI, array, and IFC-compute modules | +85.500000 ns final-time delta, 0.027039%, versus the C event backend |
+
+Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs. The SystemC paths validate the command-cycle behavior and timing stability of the IFC command backend; they are not plotted as a second full Figure 9 throughput curve.
+
 ## Experimental Figures
 
 ![IFC Cambricon-LLM inference performance dashboard](docs/figures/performance_results_dashboard.png)
 
 PDF version: [performance_results_dashboard.pdf](docs/figures/performance_results_dashboard.pdf)
 
-The dashboard summarizes the simulator's absolute decode throughput, TPOT latency, full 21-point throughput table, Cambricon-LLM-S ablation checks, and C/SystemC cross-validation. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
+The dashboard summarizes the standalone C simulator's absolute decode throughput, TPOT latency, and full 21-point throughput table, then separates the SystemC replay/component checks as validation deltas. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
 
-## Absolute Inference Performance
+## Standalone C Absolute Inference Performance
 
-Decode throughput is reported as simulated tokens/s for one output token at 1K context under the default paper profile.
+Decode throughput is reported as simulated tokens/s from the standalone C paper-facing path for one output token at 1K context under the default paper profile.
 
 | Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
 |---|---:|---:|---:|
@@ -46,7 +56,7 @@ Decode throughput is reported as simulated tokens/s for one output token at 1K c
 | LLaMA2-13B | 1.878268 | 5.246682 | 16.017008 |
 | LLaMA2-70B | 0.337215 | 1.040646 | 2.902988 |
 
-TPOT latency is reported as simulated ms/token for the same runs.
+TPOT latency is reported as simulated ms/token for the same standalone C runs.
 
 | Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
 |---|---:|---:|---:|
@@ -127,13 +137,13 @@ If SystemC is not installed system-wide, install a local copy without root privi
 tools/setup_systemc_local.sh
 ```
 
-Run the replay/equivalence checker:
+Run the SystemC replay/equivalence checker:
 
 ```bash
 make systemc-cycle
 ```
 
-Run the component-level command-cycle model:
+Run the SystemC component-level command-cycle model:
 
 ```bash
 make systemc-component

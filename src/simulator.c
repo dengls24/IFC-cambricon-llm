@@ -549,13 +549,11 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.\n");
     fprintf(file, "- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.\n");
-    fprintf(file, "\n## Plots\n\n");
-    fprintf(file, "- `figures/figure9_decode_speed.svg` compares paper Figure 9 decode speed against the C simulator for all 21 points.\n");
-    fprintf(file, "- `figures/figure9_relative_error.svg` shows signed Figure 9 error with +/-15%% reproduction bounds.\n");
-    fprintf(file, "- `figures/platform_error_summary.svg` summarizes mean and max absolute error per platform.\n");
-    fprintf(file, "- `figures/controller_schedule_timeline.svg` visualizes the first configured platform's sample controller schedule.\n");
-    fprintf(file, "- `figures/figure12_read_slice_ablation.svg` plots the first configured platform's read-slicing ablation.\n");
-    fprintf(file, "- `figures/figure14_tiling_ablation.svg` plots the first configured platform's hardware-aware tiling ablation.\n");
+    fprintf(file, "\n## Publication Figures\n\n");
+    fprintf(file, "- Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.\n");
+    fprintf(file, "- `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.\n");
+    fprintf(file, "- `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.\n");
+    fprintf(file, "- The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
     fprintf(file, "- First configured platform `%s` derives a %.0fx%.0f tile.\n", config->platforms[0].name, first_tile.tile_height, first_tile.tile_width);
     fprintf(file, "- Read-compute workload fraction and channel occupancy are emitted for every model/platform row.\n");
