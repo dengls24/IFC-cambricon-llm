@@ -30,17 +30,22 @@ Main artifacts:
 - `results/latency_breakdown.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
-- `results/figures/figure9_decode_speed.svg`
-- `results/figures/figure9_relative_error.svg`
+- `docs/figures/performance_results_dashboard.png`
+- `docs/figures/performance_results_dashboard.pdf`
+- `docs/figures/architecture_summary.png`
+- `docs/figures/architecture_summary.pdf`
 
 Current values:
 
 | Metric | Value |
 |---|---:|
 | Figure 9 rows | 21 |
-| Mean absolute relative error | 8.341% |
-| Max absolute relative error | 14.618% |
-| Worst case | LLaMA2-70B on Cambricon-LLM-L |
+| Fastest simulated decode speed | 31.115 tokens/s |
+| Fastest point | OPT-6.7B on Cambricon-LLM-L |
+| LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token |
+| LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token |
+
+The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.341%, and the maximum absolute relative difference is 14.618%.
 
 The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 

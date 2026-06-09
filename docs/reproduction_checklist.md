@@ -28,8 +28,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Optional component-level SystemC cross-check | `results/systemc_component_compare.csv` | PASS |
 | Optional component-level SystemC VCD | `results/systemc_component.vcd` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
-| Figure 9 visual paper-vs-simulator comparison | `results/figures/figure9_decode_speed.svg` | PASS |
-| Figure 9 signed error diagnostic | `results/figures/figure9_relative_error.svg` | PASS |
+| Publication-facing performance dashboard | `docs/figures/performance_results_dashboard.png` | PASS |
+| Publication-facing architecture summary | `docs/figures/architecture_summary.png` | PASS |
 | Read-slicing ablation check | `results/figure12_read_slice_ablation.csv` | PASS |
 | Hardware-aware tiling ablation check | `results/figure14_tiling_ablation.csv` | PASS |
 
@@ -60,6 +60,6 @@ make run
 make test
 ```
 
-The test binary validates formula bounds and writes a temporary artifact set under `/tmp/ifc_cambricon_llm_test_outputs` to verify that primary CSV and SVG outputs are produced.
+The test binary validates formula bounds and writes a temporary artifact set under `/tmp/ifc_cambricon_llm_test_outputs` to verify that primary CSV and plot outputs are produced.
 
 The same test binary also loads the example CSV configuration files and verifies that a custom hardware/model/system run changes throughput and emits nonempty configured artifacts.

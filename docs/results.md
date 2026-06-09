@@ -6,24 +6,26 @@ Run:
 make run
 ```
 
-The simulator writes a row for each Figure 9 model/platform point. The key quality target is:
-
-```text
-max absolute relative error <= 15%
-mean absolute relative error <= 9%
-```
-
-These thresholds are enforced by `tests/test_simulator.c`.
+The simulator writes a row for each Figure 9 model/platform point. The main output is absolute decode performance: simulated tokens/s and TPOT latency for each model on Cambricon-LLM-S/M/L.
 
 Current checked output:
 
 | Metric | Value |
 |---|---:|
 | Rows | 21 |
-| Mean absolute relative error | 8.341% |
-| Max absolute relative error | 14.618% |
-| Mean relative error | -0.812% |
-| Worst case | LLaMA2-70B on Cambricon-LLM-L |
+| Fastest simulated decode speed | 31.115 tokens/s |
+| Fastest point | OPT-6.7B on Cambricon-LLM-L |
+| LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token |
+| LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token |
+
+Reference-fit guardrails are enforced by `tests/test_simulator.c`:
+
+```text
+max absolute relative error <= 15%
+mean absolute relative error <= 9%
+```
+
+The current guardrail values are 8.341% mean absolute relative difference and 14.618% maximum absolute relative difference.
 
 The report in `results/report.md` includes:
 
@@ -75,14 +77,14 @@ Additional summary and validation artifacts:
 - `results/system_profile.csv`: effective context length, NPU frequency/throughput, and DRAM bandwidth.
 - `results/reproduction_checks.csv`: pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 
-SVG comparison plots:
+Publication-facing figures:
 
-- `results/figures/figure9_decode_speed.svg`: side-by-side paper/simulator bars for all 21 Figure 9 points.
-- `results/figures/figure9_relative_error.svg`: signed relative-error bars with +/-15% reproduction bounds.
-- `results/figures/platform_error_summary.svg`: per-platform mean and max absolute error summary.
-- `results/figures/controller_schedule_timeline.svg`: Cambricon-LLM-S sample controller timeline showing read-compute windows and sliced reads.
-- `results/figures/figure12_read_slice_ablation.svg`: full simulator versus no-read-slicing ablation on Cambricon-LLM-S.
-- `results/figures/figure14_tiling_ablation.svg`: full simulator versus no-hardware-aware-tiling ablation on Cambricon-LLM-S.
+- `docs/figures/performance_results_dashboard.png`: homepage performance dashboard with absolute token/s and TPOT results.
+- `docs/figures/performance_results_dashboard.pdf`: PDF version of the performance dashboard.
+- `docs/figures/architecture_summary.png`: homepage simulator architecture summary.
+- `docs/figures/architecture_summary.pdf`: PDF version of the architecture summary.
+
+Additional raw comparison plots are kept under `results/figures/` for local inspection when plot generation is enabled.
 
 Current pass/fail checks:
 

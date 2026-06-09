@@ -91,7 +91,8 @@ alpha = t_read / (t_read + t_rc)
 样例调度写入：
 
 - `results/controller_schedule.csv`
-- `results/figures/controller_schedule_timeline.svg`
+- `docs/figures/performance_results_dashboard.png`
+- `docs/figures/architecture_summary.png`
 
 第二种是 `src/controller.c` 的 cycle-stepped command trace：
 

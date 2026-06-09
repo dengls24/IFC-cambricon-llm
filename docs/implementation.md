@@ -13,7 +13,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
 | `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
 | `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
-| `src/plots.c` | Writes standalone SVG plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
+| `src/plots.c` | Writes standalone local plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
 | `systemc/ifc_hw_cycle_model.cpp` | Implements the optional dependency-free C++ hardware-cycle cross-check model. |
 | `systemc/ifc_hw_cycle_systemc.cpp` | Implements the optional `libsystemc` replay checker using `sc_module` and `SC_THREAD`. It shares the C++ command/stage/resource rules and checks kernel-time replay equivalence. |
 | `systemc/ifc_component_systemc.cpp` | Implements the optional component-level SystemC command-cycle model with separate controller and execution-fabric modules, FIFO communication, timed stage processes, module statistics, and VCD tracing. |
@@ -25,7 +25,10 @@ This project is organized as a small C simulator rather than a single-file numer
 | Artifact | Purpose |
 |---|---|
 | `results/figure9_reproduction.csv` | Paper-vs-simulator decode-speed table for all 21 Figure 9 points. |
-| `results/figures/figure9_decode_speed.svg` | Visual paper-vs-simulator comparison for Figure 9. |
+| `docs/figures/performance_results_dashboard.png` | Publication-facing performance dashboard with absolute token/s and TPOT. |
+| `docs/figures/performance_results_dashboard.pdf` | PDF version of the performance dashboard. |
+| `docs/figures/architecture_summary.png` | Publication-facing simulator architecture summary. |
+| `docs/figures/architecture_summary.pdf` | PDF version of the architecture summary. |
 | `results/request_trace.csv` | Aggregate read-compute and sliced-read command counts. |
 | `results/controller_schedule.csv` | Concrete channel/chip/die/plane schedule for a representative Cambricon-LLM-S case. |
 | `results/cycle_controller_trace.csv` | Cycle-stepped command trace with channel and array stage timing. |
@@ -53,13 +56,9 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/tile_profile.csv` | Derived tile dimensions, request timings, and channel occupancy. |
 | `results/system_profile.csv` | Effective NPU, DRAM, and context profile used by the run. |
 | `results/reproduction_checks.csv` | Pass/fail reproduction checks used by the result documentation. |
-| `results/figures/figure9_relative_error.svg` | Signed Figure 9 error diagnostic with +/-15% bounds. |
-| `results/figures/platform_error_summary.svg` | Mean and max absolute error by platform. |
-| `results/figures/controller_schedule_timeline.svg` | Controller timeline visualization for a representative Cambricon-LLM-S schedule. |
 | `results/figure12_read_slice_ablation.csv` | Read-slicing ablation table. |
-| `results/figures/figure12_read_slice_ablation.svg` | Read-slicing ablation plot. |
 | `results/figure14_tiling_ablation.csv` | Hardware-aware tiling ablation table. |
-| `results/figures/figure14_tiling_ablation.svg` | Hardware-aware tiling ablation plot. |
+| `results/figures/` | Raw local comparison plots emitted by the C plot helper. |
 
 ## Reproduction Scope
 

@@ -7,3 +7,4 @@ core
 core.*
 *.deb
 third_party/
+results/figures/*.svg

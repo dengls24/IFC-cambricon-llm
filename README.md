@@ -10,28 +10,59 @@ Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for
 
 | Result | Current value | Artifact |
 |---|---:|---|
+| Fastest simulated decode speed | 31.115 tokens/s, 32.139 ms/token | `results/figure9_reproduction.csv` |
+| Fastest point | OPT-6.7B on Cambricon-LLM-L | `results/figure9_reproduction.csv` |
+| LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token | `results/figure9_reproduction.csv` |
+| LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token | `results/figure9_reproduction.csv` |
 | Figure 9 W8A8 points reproduced | 21 | `results/figure9_reproduction.csv` |
-| Mean absolute relative error | 8.341% | `results/summary.json` |
-| Max absolute relative error | 14.618% | `results/summary.json` |
-| Worst case | LLaMA2-70B on Cambricon-LLM-L | `results/summary.json` |
 | Cambricon-LLM-S read-slicing speedup range | 1.683x-1.699x | `results/figure12_read_slice_ablation.csv` |
 | Cambricon-LLM-S hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
 | SystemC replay delta vs C event backend | 0 cycles | `results/systemc_cycle_compare.csv` |
 | SystemC component final-time delta vs C backend | +85.500000 ns, 0.027039% | `results/systemc_component_compare.csv` |
 
+Reference-fit quality is kept as a secondary audit metric in `results/summary.json` (mean absolute relative difference 8.341%, max 14.618%). The main released performance outputs are the absolute decode throughput and TPOT tables below.
+
 The C simulator is the direct paper-facing Figure 9 reproduction path. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
 
 ## Experimental Figures
 
-![IFC Cambricon-LLM experimental results dashboard](docs/figures/experiment_results_dashboard.svg)
+![IFC Cambricon-LLM inference performance dashboard](docs/figures/performance_results_dashboard.png)
 
-The dashboard summarizes the 21-point Figure 9 reproduction, paper-vs-simulator agreement, Cambricon-LLM-S ablation checks, and C/SystemC cross-validation. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
+PDF version: [performance_results_dashboard.pdf](docs/figures/performance_results_dashboard.pdf)
+
+The dashboard summarizes the simulator's absolute decode throughput, TPOT latency, full 21-point throughput table, Cambricon-LLM-S ablation checks, and C/SystemC cross-validation. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
+
+## Absolute Inference Performance
+
+Decode throughput is reported as simulated tokens/s for one output token at 1K context under the default paper profile.
+
+| Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
+|---|---:|---:|---:|
+| OPT-6.7B | 3.665743 | 10.047004 | 31.114874 |
+| OPT-13B | 1.878268 | 5.246682 | 16.017008 |
+| OPT-30B | 0.799373 | 2.307964 | 6.731191 |
+| OPT-66B | 0.350421 | 1.058539 | 2.835573 |
+| LLaMA2-7B | 3.644249 | 9.991360 | 30.958640 |
+| LLaMA2-13B | 1.878268 | 5.246682 | 16.017008 |
+| LLaMA2-70B | 0.337215 | 1.040646 | 2.902988 |
+
+TPOT latency is reported as simulated ms/token for the same runs.
+
+| Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
+|---|---:|---:|---:|
+| OPT-6.7B | 272.796 | 99.532 | 32.139 |
+| OPT-13B | 532.405 | 190.597 | 62.434 |
+| OPT-30B | 1250.980 | 433.282 | 148.562 |
+| OPT-66B | 2853.710 | 944.698 | 352.662 |
+| LLaMA2-7B | 274.405 | 100.086 | 32.301 |
+| LLaMA2-13B | 532.405 | 190.597 | 62.434 |
+| LLaMA2-70B | 2965.466 | 960.942 | 344.473 |
 
 ## Architecture
 
-![IFC Cambricon-LLM simulator architecture](docs/figures/ifc_cambricon_llm_architecture.svg)
+![IFC Cambricon-LLM simulator architecture](docs/figures/architecture_summary.png)
 
-Editable figure spec: `docs/figures/ifc_cambricon_llm_architecture_spec.json`.
+PDF version: [architecture_summary.pdf](docs/figures/architecture_summary.pdf)
 
 ## What This Repository Contains
 
@@ -41,7 +72,7 @@ Editable figure spec: `docs/figures/ifc_cambricon_llm_architecture_spec.json`.
 - Dependency-free C++ hardware-cycle checker.
 - SystemC replay checker that proves exact event equivalence with the C backend.
 - Component-level SystemC command-cycle model with controller/execution-fabric modules, finite issue FIFO, issue-width limit, module-clock quantization, and VCD output.
-- CSV/JSON/Markdown/SVG result artifacts for paper comparison, breakdowns, ablations, and validation.
+- CSV/JSON/Markdown/PNG/PDF result artifacts for paper comparison, breakdowns, ablations, and validation.
 
 ## Language Breakdown
 
@@ -125,9 +156,10 @@ Main paper-facing outputs:
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
 - `results/simulator_scheme_comparison.csv`
-- `results/figures/figure9_decode_speed.svg`
-- `results/figures/figure9_relative_error.svg`
-- `docs/figures/experiment_results_dashboard.svg`
+- `docs/figures/performance_results_dashboard.png`
+- `docs/figures/performance_results_dashboard.pdf`
+- `docs/figures/architecture_summary.png`
+- `docs/figures/architecture_summary.pdf`
 
 Controller and IFC command-path audit outputs:
 
@@ -202,9 +234,9 @@ When custom hardware or model profiles are used with default references, token/s
 ```text
 configs/     Runtime CSV examples for model, platform, system, and reference profiles
 data/        Paper profile data and BibTeX references
-docs/        Method notes, release notes, reliability notes, and architecture SVG
+docs/        Method notes, release notes, reliability notes, and PNG/PDF figures
 include/     Public C header
-src/         C simulator, controller, SSDsim-derived backend, analysis, and SVG plots
+src/         C simulator, controller, SSDsim-derived backend, analysis, and result plots
 systemc/     C++ hardware-cycle checker, SystemC replay checker, component SystemC model
 tests/       C smoke tests and reproduction-bound checks
 tools/       Local SystemC setup helper

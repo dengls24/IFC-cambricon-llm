@@ -98,7 +98,7 @@ The simulator writes these controller and timing artifacts:
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
-- `figures/controller_schedule_timeline.svg`: visual schedule check for the sample Cambricon-LLM-S controller trace.
+- `docs/figures/performance_results_dashboard.png`: publication-facing performance dashboard with absolute decode throughput and TPOT.
 
 ## Token Time
 
