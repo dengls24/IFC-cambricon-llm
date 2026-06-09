@@ -18,7 +18,9 @@ typedef struct {
     int guardrail_max;
 } IfcContextFitSummary;
 
-static int compute_context_fit_summary(const IfcConfig *config, IfcContextFitSummary *fit);
+static int compute_context_fit_summary(
+    const IfcSimulationRow rows[IFC_ROW_COUNT],
+    IfcContextFitSummary *fit);
 
 static int ensure_dir(const char *path) {
     if (mkdir(path, 0775) == 0) {
@@ -235,10 +237,13 @@ static int write_reproduction_checks(
     double cam_s_tiling_min = 1e30;
     double cam_s_tiling_max = -1e30;
     double max_balance_delta = 0.0;
+    double min_cycle_command_expansion = 1e30;
+    double max_cycle_total_commands = 0.0;
+    int cycle_weight_rows = 0;
     IfcTileModel first_tile = ifc_derive_tile_model(&config->platforms[0]);
     IfcContextFitSummary context_fit;
 
-    if (compute_context_fit_summary(config, &context_fit) != 0) {
+    if (compute_context_fit_summary(rows, &context_fit) != 0) {
         return -1;
     }
 
@@ -250,6 +255,17 @@ static int write_reproduction_checks(
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         if (rows[i].controller_balance_delta_pct > max_balance_delta) {
             max_balance_delta = rows[i].controller_balance_delta_pct;
+        }
+        if (rows[i].cycle_total_commands > 0) {
+            double denominator = rows[i].controller_commands > 1.0 ? rows[i].controller_commands : 1.0;
+            double expansion = (double)rows[i].cycle_total_commands / denominator;
+            ++cycle_weight_rows;
+            if (expansion < min_cycle_command_expansion) {
+                min_cycle_command_expansion = expansion;
+            }
+            if ((double)rows[i].cycle_total_commands > max_cycle_total_commands) {
+                max_cycle_total_commands = (double)rows[i].cycle_total_commands;
+            }
         }
         if (strcmp(rows[i].platform, config->platforms[0].name) == 0) {
             if (rows[i].speedup_vs_no_read_slicing < cam_s_slice_min) {
@@ -281,6 +297,9 @@ static int write_reproduction_checks(
         write_check(file, "context_guardrail_window_max_tokens", (double)context_fit.guardrail_max, ">=default", context_fit.guardrail_max >= config->context_tokens) != 0 ||
         write_check(file, "context_best_max_error_tokens", (double)context_fit.best_max_context, "900-1100", context_fit.best_max_context >= 900 && context_fit.best_max_context <= 1100) != 0 ||
         write_check(file, "context_best_rmse_tokens", (double)context_fit.best_rmse_context, "900-1100", context_fit.best_rmse_context >= 900 && context_fit.best_rmse_context <= 1100) != 0 ||
+        write_check(file, "cycle_weight_rows", (double)cycle_weight_rows, "21", cycle_weight_rows == IFC_ROW_COUNT) != 0 ||
+        write_check(file, "cycle_weight_min_command_expansion", min_cycle_command_expansion, ">1", min_cycle_command_expansion > 1.0) != 0 ||
+        write_check(file, "cycle_weight_max_total_commands", max_cycle_total_commands, ">0", max_cycle_total_commands > 0.0) != 0 ||
         write_check(file, "controller_balance_delta_max_pct", max_balance_delta, "<=1e-6", max_balance_delta <= 1e-6) != 0 ||
         write_check(file, "cycle_controller_trace_enabled", 1.0, "1", 1) != 0 ||
         write_check(file, "ssdsim_ifc_backend_enabled", 1.0, "1", 1) != 0 ||
@@ -291,30 +310,54 @@ static int write_reproduction_checks(
     return fclose(file);
 }
 
-static int context_summary_at(
-    const IfcConfig *config,
+static void context_summary_at(
     int context_tokens,
+    const IfcSimulationRow rows[IFC_ROW_COUNT],
     IfcSummary *summary) {
-    IfcConfig sweep_config = *config;
-    IfcSimulationRow sweep_rows[IFC_ROW_COUNT];
-    sweep_config.context_tokens = context_tokens;
-    *summary = ifc_simulate_config(&sweep_config, sweep_rows);
-    return 0;
+    double abs_error_sum = 0.0;
+    double error_sum = 0.0;
+    double max_abs_error = -1.0;
+    summary->row_count = IFC_ROW_COUNT;
+    summary->worst_case_model = "";
+    summary->worst_case_platform = "";
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        double scale = rows[i].context_tokens > 0 ? (double)context_tokens / (double)rows[i].context_tokens : 1.0;
+        double attention_ms = (rows[i].attention_cache_ms + rows[i].attention_compute_ms) * scale;
+        double tpot_ms = rows[i].controller_weight_stage_ms + attention_ms;
+        double simulated_tokens_per_s = 1000.0 / tpot_ms;
+        double relative_error = (simulated_tokens_per_s - rows[i].reference_tokens_per_s) /
+                                rows[i].reference_tokens_per_s * 100.0;
+        double abs_error = fabs(relative_error);
+        abs_error_sum += abs_error;
+        error_sum += relative_error;
+        if (abs_error > max_abs_error) {
+            max_abs_error = abs_error;
+            summary->worst_case_model = rows[i].model;
+            summary->worst_case_platform = rows[i].platform;
+        }
+    }
+    summary->mean_abs_relative_error_pct = abs_error_sum / (double)IFC_ROW_COUNT;
+    summary->max_abs_relative_error_pct = max_abs_error;
+    summary->mean_relative_error_pct = error_sum / (double)IFC_ROW_COUNT;
 }
 
-static double context_rmse_at(const IfcConfig *config, int context_tokens) {
-    IfcConfig sweep_config = *config;
-    IfcSimulationRow sweep_rows[IFC_ROW_COUNT];
+static double context_rmse_at(int context_tokens, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     double squared_error_sum = 0.0;
-    sweep_config.context_tokens = context_tokens;
-    (void)ifc_simulate_config(&sweep_config, sweep_rows);
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
-        squared_error_sum += sweep_rows[i].relative_error_pct * sweep_rows[i].relative_error_pct;
+        double scale = rows[i].context_tokens > 0 ? (double)context_tokens / (double)rows[i].context_tokens : 1.0;
+        double attention_ms = (rows[i].attention_cache_ms + rows[i].attention_compute_ms) * scale;
+        double tpot_ms = rows[i].controller_weight_stage_ms + attention_ms;
+        double simulated_tokens_per_s = 1000.0 / tpot_ms;
+        double relative_error = (simulated_tokens_per_s - rows[i].reference_tokens_per_s) /
+                                rows[i].reference_tokens_per_s * 100.0;
+        squared_error_sum += relative_error * relative_error;
     }
     return sqrt(squared_error_sum / (double)IFC_ROW_COUNT);
 }
 
-static int compute_context_fit_summary(const IfcConfig *config, IfcContextFitSummary *fit) {
+static int compute_context_fit_summary(
+    const IfcSimulationRow rows[IFC_ROW_COUNT],
+    IfcContextFitSummary *fit) {
     double best_mae = 1e30;
     double best_rmse = 1e30;
     double best_max = 1e30;
@@ -328,10 +371,8 @@ static int compute_context_fit_summary(const IfcConfig *config, IfcContextFitSum
         IfcSummary summary;
         double rmse;
         int guardrail_pass;
-        if (context_summary_at(config, context_tokens, &summary) != 0) {
-            return -1;
-        }
-        rmse = context_rmse_at(config, context_tokens);
+        context_summary_at(context_tokens, rows, &summary);
+        rmse = context_rmse_at(context_tokens, rows);
         if (summary.mean_abs_relative_error_pct < best_mae) {
             best_mae = summary.mean_abs_relative_error_pct;
             fit->best_mae_context = context_tokens;
@@ -355,11 +396,14 @@ static int compute_context_fit_summary(const IfcConfig *config, IfcContextFitSum
     return 0;
 }
 
-static int write_context_length_inference(const char *path, const IfcConfig *config) {
+static int write_context_length_inference(
+    const char *path,
+    const IfcConfig *config,
+    const IfcSimulationRow rows[IFC_ROW_COUNT]) {
     FILE *file;
     IfcContextFitSummary fit;
 
-    if (compute_context_fit_summary(config, &fit) != 0) {
+    if (compute_context_fit_summary(rows, &fit) != 0) {
         return -1;
     }
 
@@ -376,11 +420,8 @@ static int write_context_length_inference(const char *path, const IfcConfig *con
         IfcSummary summary;
         double rmse;
         int guardrail_pass;
-        if (context_summary_at(config, context_tokens, &summary) != 0) {
-            fclose(file);
-            return -1;
-        }
-        rmse = context_rmse_at(config, context_tokens);
+        context_summary_at(context_tokens, rows, &summary);
+        rmse = context_rmse_at(context_tokens, rows);
         guardrail_pass = summary.mean_abs_relative_error_pct <= 9.0 && summary.max_abs_relative_error_pct <= 15.0;
         fprintf(file,
                 "%d,%.6f,%.6f,%.6f,%.6f,%d,%d,%d,%d,%d,%d,%d,%s\n",
@@ -437,7 +478,7 @@ int ifc_write_analysis_outputs_config(
         write_tile_profile(tile_profile_path, config) != 0 ||
         write_system_profile(system_profile_path, config) != 0 ||
         write_reproduction_checks(checks_path, config, rows, summary) != 0 ||
-        write_context_length_inference(context_inference_path, config) != 0) {
+        write_context_length_inference(context_inference_path, config, rows) != 0) {
         return -1;
     }
     return 0;

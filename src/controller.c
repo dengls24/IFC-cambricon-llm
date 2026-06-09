@@ -71,12 +71,23 @@ static double max2(double lhs, double rhs) {
     return lhs > rhs ? lhs : rhs;
 }
 
+static long long max_ll(long long lhs, long long rhs) {
+    return lhs > rhs ? lhs : rhs;
+}
+
 static long long ceil_cycles(double duration_ns, double cycle_ns) {
     long long cycles = (long long)(duration_ns / cycle_ns);
     if ((double)cycles * cycle_ns < duration_ns) {
         ++cycles;
     }
     return cycles > 0 ? cycles : 1;
+}
+
+static long long round_positive_to_ll(double value) {
+    if (value <= 0.0) {
+        return 0;
+    }
+    return (long long)(value + 0.5);
 }
 
 static int controller_platform_supported(const IfcPlatformProfile *platform) {
@@ -533,6 +544,225 @@ static int write_cycle_stats_file(
     fprintf(file, "read_slice_channel_cycles,%lld\n", read_slice_channel_cycles);
     fprintf(file, "array_cycles,%lld\n", array_cycles);
     return fclose(file);
+}
+
+static void cycle_weight_place(
+    const IfcPlatformProfile *platform,
+    long long index,
+    int plane_offset,
+    int *channel,
+    int *chip,
+    int *die,
+    int *plane) {
+    long long lane;
+    long long group;
+    *channel = (int)(index % platform->channels);
+    group = index / platform->channels;
+    lane = group % ((long long)platform->chips_per_channel * (long long)platform->dies_per_chip);
+    *chip = (int)(lane % platform->chips_per_channel);
+    *die = (int)((lane / platform->chips_per_channel) % platform->dies_per_chip);
+    *plane = (int)(((group / ((long long)platform->chips_per_channel * (long long)platform->dies_per_chip)) +
+                    (long long)plane_offset) %
+                   platform->planes_per_die);
+}
+
+static void cycle_weight_submit_read_compute(
+    const IfcPlatformProfile *platform,
+    long long index,
+    long long command_address_cycles,
+    long long vector_cycles,
+    long long array_read_cycles,
+    long long ifc_compute_cycles,
+    long long channel_ready[IFC_CONTROLLER_MAX_CHANNELS],
+    long long chip_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL],
+    long long plane_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
+                         [IFC_CONTROLLER_MAX_DIES_PER_CHIP][IFC_CONTROLLER_MAX_PLANES_PER_DIE],
+    long long compute_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
+                           [IFC_CONTROLLER_MAX_DIES_PER_CHIP],
+    long long *last_cycle) {
+    int channel;
+    int chip;
+    int die;
+    int plane;
+    long long start;
+    long long end;
+
+    cycle_weight_place(platform, index, 0, &channel, &chip, &die, &plane);
+    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    end = start + command_address_cycles;
+    channel_ready[channel] = end;
+    chip_ready[channel][chip] = end;
+
+    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    end = start + vector_cycles;
+    channel_ready[channel] = end;
+    chip_ready[channel][chip] = end;
+
+    start = max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]);
+    end = start + array_read_cycles;
+    chip_ready[channel][chip] = end;
+    plane_ready[channel][chip][die][plane] = end;
+
+    start = max_ll(max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]),
+                   compute_ready[channel][chip][die]);
+    end = start + ifc_compute_cycles;
+    chip_ready[channel][chip] = end;
+    plane_ready[channel][chip][die][plane] = end;
+    compute_ready[channel][chip][die] = end;
+    if (end > *last_cycle) {
+        *last_cycle = end;
+    }
+}
+
+static void cycle_weight_submit_read_slice(
+    const IfcPlatformProfile *platform,
+    long long index,
+    long long command_address_cycles,
+    long long data_cycles,
+    long long channel_ready[IFC_CONTROLLER_MAX_CHANNELS],
+    long long chip_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL],
+    long long *last_cycle) {
+    int channel;
+    int chip;
+    int die;
+    int plane;
+    long long start;
+    long long end;
+
+    cycle_weight_place(platform, index, 1, &channel, &chip, &die, &plane);
+    (void)die;
+    (void)plane;
+    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    end = start + command_address_cycles;
+    channel_ready[channel] = end;
+    chip_ready[channel][chip] = end;
+
+    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    end = start + data_cycles;
+    channel_ready[channel] = end;
+    chip_ready[channel][chip] = end;
+    if (end > *last_cycle) {
+        *last_cycle = end;
+    }
+}
+
+int ifc_estimate_cycle_weight_stage(
+    const IfcPlatformProfile *platform,
+    double read_compute_requests,
+    double read_slice_commands,
+    double effective_efficiency,
+    IfcCycleWeightStats *stats) {
+    IfcTileModel tile;
+    long long channel_ready[IFC_CONTROLLER_MAX_CHANNELS];
+    long long chip_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL];
+    long long plane_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
+                         [IFC_CONTROLLER_MAX_DIES_PER_CHIP][IFC_CONTROLLER_MAX_PLANES_PER_DIE];
+    long long compute_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
+                           [IFC_CONTROLLER_MAX_DIES_PER_CHIP];
+    long long read_compute_count;
+    long long read_slice_count;
+    long long slice_done = 0;
+    long long last_cycle = 0;
+    long long command_multiplier;
+    double cycle_ns;
+    double onfi_cycle_ns;
+    double channel_bw;
+    double ops_per_read_compute;
+    double compute_ops_per_s;
+    long long command_address_cycles;
+    long long vector_cycles;
+    long long data_cycles;
+    long long array_read_cycles;
+    long long ifc_compute_cycles;
+
+    if (stats == NULL || !controller_platform_supported(platform) || effective_efficiency <= 0.0) {
+        return -1;
+    }
+
+    memset(stats, 0, sizeof(*stats));
+    memset(channel_ready, 0, sizeof(channel_ready));
+    memset(chip_ready, 0, sizeof(chip_ready));
+    memset(plane_ready, 0, sizeof(plane_ready));
+    memset(compute_ready, 0, sizeof(compute_ready));
+
+    tile = ifc_derive_tile_model(platform);
+    cycle_ns = platform->ifc_frequency_hz > 0.0 ? 1e9 / platform->ifc_frequency_hz : 1.0;
+    onfi_cycle_ns = platform->onfi_rate_MTps > 0.0 ? 1000.0 / platform->onfi_rate_MTps : cycle_ns;
+    channel_bw = ifc_platform_channel_bandwidth_Bps(platform);
+    ops_per_read_compute = tile.tile_height * (tile.tile_width / (double)platform->channels);
+    compute_ops_per_s =
+        (double)platform->compute_cores_per_die * platform->ifc_frequency_hz * platform->ifc_ops_per_core_cycle;
+
+    command_address_cycles = ceil_cycles(7.0 * onfi_cycle_ns, cycle_ns);
+    vector_cycles = ceil_cycles(tile.tile_width / (double)platform->channels / channel_bw * 1e9, cycle_ns);
+    data_cycles = ceil_cycles(((double)platform->page_bytes / (double)IFC_READ_SLICES_PER_REQUEST) / channel_bw * 1e9, cycle_ns);
+    array_read_cycles = ceil_cycles(platform->array_read_us * 1000.0, cycle_ns);
+    ifc_compute_cycles =
+        compute_ops_per_s > 0.0 ? ceil_cycles(ops_per_read_compute / compute_ops_per_s * 1e9, cycle_ns) : 1;
+
+    command_multiplier = (long long)platform->chips_per_channel * (long long)platform->dies_per_chip;
+    if (command_multiplier < 1) {
+        command_multiplier = 1;
+    }
+    read_compute_count = round_positive_to_ll(read_compute_requests * (double)command_multiplier);
+    read_slice_count = round_positive_to_ll(read_slice_commands * (double)command_multiplier);
+    if (read_compute_count <= 0 && read_slice_count <= 0) {
+        return -1;
+    }
+
+    for (long long rc = 0; rc < read_compute_count; ++rc) {
+        long long target_slices;
+        cycle_weight_submit_read_compute(
+            platform,
+            rc,
+            command_address_cycles,
+            vector_cycles,
+            array_read_cycles,
+            ifc_compute_cycles,
+            channel_ready,
+            chip_ready,
+            plane_ready,
+            compute_ready,
+            &last_cycle);
+        target_slices = ((rc + 1) * read_slice_count + read_compute_count / 2) / read_compute_count;
+        while (slice_done < target_slices) {
+            cycle_weight_submit_read_slice(
+                platform,
+                slice_done,
+                command_address_cycles,
+                data_cycles,
+                channel_ready,
+                chip_ready,
+                &last_cycle);
+            ++slice_done;
+        }
+    }
+    while (slice_done < read_slice_count) {
+        cycle_weight_submit_read_slice(
+            platform,
+            slice_done,
+            command_address_cycles,
+            data_cycles,
+            channel_ready,
+            chip_ready,
+            &last_cycle);
+        ++slice_done;
+    }
+
+    stats->last_cycle = last_cycle;
+    stats->read_compute_commands = read_compute_count;
+    stats->read_slice_commands = read_slice_count;
+    stats->total_commands = read_compute_count + read_slice_count;
+    stats->command_multiplier = (int)command_multiplier;
+    stats->cycle_ns = cycle_ns;
+    stats->raw_weight_stage_ms = (double)last_cycle * cycle_ns * 1e-6;
+    stats->calibrated_weight_stage_ms = stats->raw_weight_stage_ms / effective_efficiency;
+    stats->command_address_cycles = (double)command_address_cycles;
+    stats->read_compute_vector_cycles = (double)vector_cycles;
+    stats->read_slice_data_cycles = (double)data_cycles;
+    stats->array_read_cycles = (double)array_read_cycles;
+    stats->ifc_compute_cycles = (double)ifc_compute_cycles;
+    return 0;
 }
 
 int ifc_write_cycle_controller_trace_for_platform(

@@ -21,7 +21,7 @@ These defaults can be overridden at runtime through CSV files. Configurable fiel
 The implementation has two timing paths:
 
 - NPU timing: attention arithmetic is timed by the 2 TOPS INT8 profile, and attention-cache traffic is timed by 40 GB/s DRAM bandwidth.
-- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, emits a cycle-stepped trace, emits an SSDsim-derived command-stage trace, and runs an SSDsim-derived event loop for a representative command stream.
+- Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, computes full-row cycle-derived weight-stage latency for every Figure 9 row, emits a cycle-stepped representative trace, emits an SSDsim-derived command-stage trace, and runs an SSDsim-derived event loop for a representative command stream.
 
 The controller exposes four opcodes:
 
@@ -77,11 +77,12 @@ Workload fraction assigned to read-compute:
 alpha = t_read / (t_read + t_rc)
 ```
 
-The tiled weight stage uses the max of the read-compute and sliced-read paths, then applies one platform-level pipeline efficiency term. The efficiency term absorbs startup, imperfect command packing, and controller effects that are not visible in the high-level equations. It is calibrated per S/M/L platform, not per model.
+The equations above produce the logical read-compute and sliced-read demand. The released weight-stage latency then uses `ifc_estimate_cycle_weight_stage()` to expand those logical counts into physical IFC commands and schedule the entire Figure 9 row in integer cycles. The scheduler models C/A cycles, vector transfer, sliced data transfer, array read, IFC compute, channel readiness, chip readiness, plane readiness, and IFC-compute readiness. One platform-level pipeline efficiency term is applied to the raw full-row cycle result. The efficiency term absorbs startup and imperfect command packing that are not visible in public paper parameters. It is calibrated per S/M/L platform, not per model.
 
 The simulator writes these controller and timing artifacts:
 
 - `request_trace.csv`: aggregate `READ_COMPUTE` and `READ_SLICE` command counts for every Figure 9 row.
+- `cycle_weight_timing.csv`: full-row cycle-derived flash weight-stage timing for every Figure 9 row.
 - `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `latency_breakdown.csv`: operator-group latency mapping that explains TPOT from flash weight GeMV, sliced transfer, attention memory, and attention arithmetic terms.
@@ -107,16 +108,16 @@ The simulator writes these controller and timing artifacts:
 The final per-token latency is:
 
 ```text
-TPOT = tiled_weight_stage
+TPOT = cycle_derived_tiled_weight_stage
      + DRAM_attention_cache_bytes / 40 GBps
      + attention_arithmetic_ops / 2 TOPS
 ```
 
 This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-resident weights, in-flash read-compute, sliced read requests for NPU-side work, and DRAM-resident attention cache.
 
-The default context length is 1000 tokens. This value is configurable and is reported as inferred: the context sweep over 1-4096 tokens gives a 970-1040 token guardrail window when matching the 21 public Figure 9 throughput points.
+The default context length is 1000 tokens. This value is configurable and is reported as inferred: the context sweep over 1-4096 tokens gives a 977-1040 token guardrail window when matching the 21 public Figure 9 throughput points.
 
-The final TPOT uses the architecture timing model above. The cycle-stepped controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
+The final TPOT uses the full-row C cycle timing path for the flash weight stage. The cycle-stepped representative controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are validation artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
 
 ## Boundaries
 

@@ -65,6 +65,22 @@ typedef struct {
 } IfcTileModel;
 
 typedef struct {
+    long long last_cycle;
+    long long read_compute_commands;
+    long long read_slice_commands;
+    long long total_commands;
+    int command_multiplier;
+    double cycle_ns;
+    double raw_weight_stage_ms;
+    double calibrated_weight_stage_ms;
+    double command_address_cycles;
+    double read_compute_vector_cycles;
+    double read_slice_data_cycles;
+    double array_read_cycles;
+    double ifc_compute_cycles;
+} IfcCycleWeightStats;
+
+typedef struct {
     const char *name;
     const char *label;
     double npu_frequency_hz;
@@ -111,6 +127,19 @@ typedef struct {
     double npu_read_requests;
     double npu_read_slices;
     double controller_commands;
+    long long cycle_weight_last_cycle;
+    long long cycle_read_compute_commands;
+    long long cycle_read_slice_commands;
+    long long cycle_total_commands;
+    int cycle_command_multiplier;
+    double cycle_ns;
+    double cycle_weight_raw_ms;
+    double cycle_weight_stage_ms;
+    double cycle_command_address_cycles;
+    double cycle_read_compute_vector_cycles;
+    double cycle_read_slice_data_cycles;
+    double cycle_array_read_cycles;
+    double cycle_ifc_compute_cycles;
     double read_compute_channel_rate_pct;
     double ifc_read_compute_path_ms;
     double npu_weight_read_path_ms;
@@ -164,6 +193,12 @@ int ifc_write_cycle_controller_trace_for_platform(
     const char *trace_path,
     const char *stats_path,
     const IfcPlatformProfile *platform);
+int ifc_estimate_cycle_weight_stage(
+    const IfcPlatformProfile *platform,
+    double read_compute_requests,
+    double read_slice_commands,
+    double effective_efficiency,
+    IfcCycleWeightStats *stats);
 int ifc_write_ssdsim_ifc_trace_for_platform(
     const char *trace_path,
     const char *stats_path,

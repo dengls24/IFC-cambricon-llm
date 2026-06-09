@@ -10,12 +10,12 @@
 
 - Flash-resident weight stage：模型权重驻留在 flash 侧，由 in-flash read-compute 处理主要权重 GeMV。
 - Hardware-aware tiling：按 Section V 的 tile 公式推导 `H_req` 和 `W_req`。
-- Flash controller path：维护 channel/chip/die/plane busy timeline，并生成事件级调度轨迹、命令级 cycle trace、SSDsim-derived command-stage trace、SSDsim-derived event-loop trace 和独立硬件周期 cross-check。
+- Flash controller path：维护 channel/chip/die/plane busy timeline，为每个 Figure 9 行生成整行周期级 weight-stage timing，并生成事件级调度轨迹、命令级 cycle trace、SSDsim-derived command-stage trace、SSDsim-derived event-loop trace 和独立硬件周期 cross-check。
 - Extended command path：显式区分 `READ_COMPUTE` 与 `READ_SLICE`。
 - NPU/DRAM path：NPU attention arithmetic 由 2 TOPS INT8 建模，attention-cache traffic 由 40 GB/s DRAM 建模。
 - Reproduction and ablation：输出 Figure 9 全 21 点复现、read-slicing 消融和 hardware-aware tiling 消融。
 
-这类分层时序模型是体系结构论文常用的仿真粒度：核心硬件时序由公式与结构参数决定，控制器行为由资源 timeline、cycle-stepped command state machine、SSDsim-style service stages、next-event loop 和独立硬件周期模型约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
+这类分层时序模型是体系结构论文常用的仿真粒度：逻辑请求量由公式与结构参数决定，flash weight-stage latency 由整行物理 IFC 命令的周期调度给出，控制器行为由资源 timeline、cycle-stepped command state machine、SSDsim-style service stages、next-event loop 和独立硬件周期模型约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
 
 ## 2. 参数真实性
 
@@ -30,13 +30,13 @@
 真实性约束：
 
 - 所有输出由 `make run` 调用同一个 C 程序生成。
-- CSV、JSON、Markdown report 和 SVG 图来自同一组 `IfcSimulationRow` 数据。
+- CSV、JSON、Markdown report 和 PNG/PDF 图来自同一组 `IfcSimulationRow` 数据。
 - 每个 Figure 9 点没有单独的 per-row hidden correction。
 - 校准项是 per-platform efficiency，而不是 per-model 或 per-point fitting。
 - `results/reproduction_checks.csv` 给出可机器检查的 pass/fail 条件。
 - Runtime CSV 配置可替换 hardware/model/system/reference profile；默认配置是论文复现模式，自定义配置是 design-space mode，除非 reference CSV 与自定义设置匹配，否则不把 relative-error 当作复现误差声明。
 
-这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace 一直追到最终 TPOT 和 token/s。
+这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、cycle-weight timing、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace 一直追到最终 TPOT 和 token/s。
 
 ## 3. 时序建模层次
 
@@ -75,13 +75,20 @@ t_read = page_size / ((1 - rate_rc) * channel_bandwidth)
 alpha = t_read / (t_read + t_rc)
 ```
 
-`alpha` 决定 tiled weight stage 中 read-compute 与 sliced read 的 workload split。最终 weight stage 使用两条路径的 overlapped maximum，而不是简单相加，从而反映论文中 read-compute 与 read request 交错执行的设定。
+`alpha` 决定 tiled weight stage 中 read-compute 与 sliced read 的 workload split。该 split 不是最终 TPOT 的结束点，而是整行周期调度的输入。仿真器将逻辑请求扩展为物理 `READ_COMPUTE` 与 `READ_SLICE` 命令，在 channel/chip/die/plane/IFC-compute 资源约束下调度完整 Figure 9 行。最终 weight stage 使用 raw full-row cycle time 除以平台级 efficiency，而不是简单的加减乘除路径相加。
 
 ### 3.3 Flash controller path
 
-控制器模块不是只输出 aggregate 计数，而是维护五种可检查的控制器轨迹。
+控制器模块不是只输出 aggregate 计数，而是维护一个进入 TPOT 的整行周期 timing artifact，以及多种可检查的控制器轨迹。
 
-第一种是 `src/controller.c` 的事件级 busy timeline：
+第一种是 `src/controller.c` 的 full-row cycle weight-stage timing：
+
+- `results/cycle_weight_timing.csv`
+- `results/figure9_reproduction.csv` 中的 `cycle_*` columns
+
+该路径对每个 Figure 9 model/platform row 调用 `ifc_estimate_cycle_weight_stage()`，把 logical `READ_COMPUTE`/`READ_SLICE` 需求扩展为物理 IFC commands。默认最大行是 LLaMA2-70B/Cambricon-LLM-S，共 1,544,720 条物理命令，完成周期为 1,379,730,715 cycles。该 raw cycle time 经过平台级 efficiency 后成为 `weight_stage_ms`，直接进入 TPOT。
+
+第二种是 `src/controller.c` 的事件级 busy timeline：
 
 - channel busy interval；
 - chip/die/plane placement；
@@ -94,28 +101,28 @@ alpha = t_read / (t_read + t_rc)
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/architecture_summary.png`
 
-第二种是 `src/controller.c` 的 cycle-stepped command trace：
+第三种是 `src/controller.c` 的 cycle-stepped command trace：
 
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
 
 该 trace 使用 IFC clock 计算 `cycle_ns`，将 channel transfer 和 array read service 向上取整到控制器周期，并让每条命令经过 `QUEUED -> CHANNEL -> WAIT_ARRAY -> ARRAY -> DONE`。`READ_SLICE` 只占用 channel stage，不占用 array stage。`make test` 会解析该 trace 并检查 channel/array 周期数是否闭合。
 
-第三种是 `src/ssdsim_ifc.c` 的 SSDsim-derived command-stage trace：
+第四种是 `src/ssdsim_ifc.c` 的 SSDsim-derived command-stage trace：
 
 - `results/ssdsim_ifc_trace.csv`
 - `results/ssdsim_ifc_stats.csv`
 
 该 trace 将扩展命令映射到 SSDsim-style service stages：`READ_COMPUTE` 经过 C/A transfer、IFC vector transfer、array read 和 IFC compute；`READ_SLICE` 经过 C/A transfer 和 data transfer。每个 stage 都记录 subrequest/channel/chip/plane state 名称与起止周期。
 
-第四种是 `src/ssdsim_ifc.c` 的 SSDsim-derived event-loop trace：
+第五种是 `src/ssdsim_ifc.c` 的 SSDsim-derived event-loop trace：
 
 - `results/ssdsim_ifc_event_trace.csv`
 - `results/ssdsim_ifc_event_stats.csv`
 
 该 trace 对同一 command stream 记录 `ISSUE` 和 `COMPLETE` 事件。事件循环在每个 event cycle 完成已到期 stage、释放资源、发射可用资源上的等待 stage，然后推进到最近的下一完成事件。它比静态 stage trace 更接近 SSDsim 的 next-event execution style。
 
-第五种是 `systemc/ifc_hw_cycle_model.cpp` 的 dependency-free 硬件周期 cross-check：
+第六种是 `systemc/ifc_hw_cycle_model.cpp` 的 dependency-free 硬件周期 cross-check：
 
 - `results/hw_cycle_trace.csv`
 - `results/hw_cycle_stats.csv`
@@ -123,7 +130,7 @@ alpha = t_read / (t_read + t_rc)
 
 该模型不依赖本机安装 SystemC 库。它独立编译、独立执行同一 command stream，并与 C SSDsim-derived event backend 对齐 event count、completed command count 和 last event cycle。
 
-第六种是 `systemc/ifc_hw_cycle_systemc.cpp` 的 SystemC replay/equivalence cross-check：
+第七种是 `systemc/ifc_hw_cycle_systemc.cpp` 的 SystemC replay/equivalence cross-check：
 
 - `results/systemc_cycle_trace.csv`
 - `results/systemc_cycle_stats.csv`
@@ -131,7 +138,7 @@ alpha = t_read / (t_read + t_rc)
 
 该模型链接 `libsystemc`，使用 `sc_module` 和 `SC_THREAD`，并通过 `wait(sc_time(delta_cycles * cycle_ns, SC_NS))` 推进 SystemC 仿真时间。它复用 dependency-free C++ cycle checker 的 command generation、stage duration 和 resource-conflict 规则，所以它与 C event backend 在 event count、completed command count 和 last event cycle 上完全一致是预期结果，不代表 SystemC 版本自动更接近真实硬件。默认 run 当前为 1536 events、256 completed commands、last event cycle 316207，`systemc_cycle_compare.csv` 三项均为 PASS。
 
-第七种是 `systemc/ifc_component_systemc.cpp` 的 component-level SystemC command-cycle model：
+第八种是 `systemc/ifc_component_systemc.cpp` 的 component-level SystemC command-cycle model：
 
 - `results/systemc_component_trace.csv`
 - `results/systemc_component_stats.csv`
@@ -141,7 +148,7 @@ alpha = t_read / (t_read + t_rc)
 
 该模型不再 replay 同一个 event loop，而是拆成 `IfcComponentController` 和 `IfcExecutionFabric` 两个 SystemC 模块，通过 FIFO 传递 stage issue/done 消息，并用 timed dynamic processes 表示 ONFI bus、plane-array 和 IFC-compute stage 执行。默认 run 当前为 1536 events、256 completed commands、last event cycle 316293，实际 SystemC final time 为 316292.500000 ns。对应 C event backend 是 last event cycle 316207、316207.000000 ns，因此 component SystemC 相对 C backend 的差异为 +86 rounded cycles、+85.500000 ns，即 0.027039%。`fabric_busy_violations=0`、`controller_timing_violations=0`，`systemc_component_compare.csv` 对 event count 和 completed command count 做 exact PASS，对 final timing 做 bounded PASS。该非零差异来自 2.5 ns module clock、8-stage issue width、8-entry issue FIFO，以及 stage service time 的 module-clock quantization。它比 replay checker 更接近硬件组件化建模，但仍然是 command-cycle architecture model，不是 RTL。
 
-这些轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
+整行 cycle-weight artifact 证明最终 TPOT 的 flash 部分来自实际物理命令调度；代表性轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
 
 ### 3.4 NPU/DRAM path
 
@@ -155,7 +162,7 @@ attention_cache_s = attention_cache_bytes / 40 GB/s
 最终每 token latency：
 
 ```text
-TPOT = tiled_weight_stage
+TPOT = cycle_derived_tiled_weight_stage
      + attention_cache_s
      + attention_compute_s
 ```
@@ -189,9 +196,9 @@ Figure 9 全部 21 个点都由同一 C timing path 生成：
 | 指标 | 当前值 | 目标 |
 |---|---:|---:|
 | Row count | 21 | 21 |
-| Mean absolute relative error | 8.341% | <=9% |
-| Max absolute relative error | 14.618% | <=15% |
-| Worst case | LLaMA2-70B / Cambricon-LLM-L | 显式报告 |
+| Mean absolute relative error | 8.354% | <=9% |
+| Max absolute relative error | 14.541% | <=15% |
+| Worst case | LLaMA2-13B / Cambricon-LLM-L | 显式报告 |
 
 这说明模型不是只对单个平台或单个模型有效，而是在 S/M/L 平台与 OPT/LLaMA2 模型族上保持一致误差边界。
 
@@ -199,10 +206,10 @@ Figure 9 全部 21 个点都由同一 C timing path 生成：
 
 | Context-fit metric | 当前值 |
 |---|---:|
-| Stable guardrail window | 970-1040 tokens |
+| Stable guardrail window | 977-1040 tokens |
 | Default reproduction context | 1000 tokens |
-| Best maximum-error context | 990 tokens |
-| Best RMSE context | 1023 tokens |
+| Best maximum-error context | 1007 tokens |
+| Best RMSE context | 1032 tokens |
 
 因此，默认 1K context 是由公开 Figure 9 曲线反推得到的 reproduction setting。可靠性边界也必须同时说明：这不是论文文本中显式给出的 Figure 9 字段，而是本公开重建模型下的多点拟合结论。
 
@@ -212,7 +219,7 @@ Figure 9 全部 21 个点都由同一 C timing path 生成：
 
 | 消融项 | 当前范围 | 论文文本范围 | 状态 |
 |---|---:|---:|---|
-| Read slicing speedup on Cambricon-LLM-S | 1.683x-1.699x | 1.6x-1.8x | PASS |
+| Read slicing speedup on Cambricon-LLM-S | 1.724x-1.742x | 1.6x-1.8x | PASS |
 | Hardware-aware tiling speedup on Cambricon-LLM-S | 1.341x-1.349x | 1.3x-1.4x | PASS |
 
 这些消融从同一 timing path 派生，而不是单独 hard-code 的图表。
@@ -266,6 +273,7 @@ make test
 - Figure 9 table；
 - summary JSON；
 - Markdown report；
+- full-row cycle weight-stage timing；
 - controller trace；
 - cycle-level controller trace and stats；
 - SSDsim-derived IFC trace and stats；
@@ -288,8 +296,8 @@ make test
 |---|---|---|
 | 参数透明 | 满足 | 平台、模型、参考点均在源码和 CSV 中公开。 |
 | 模块分层 | 满足 | profiles、simulator、controller、analysis、plots 独立。 |
-| 时序路径清晰 | 满足 | Flash weight stage、controller path、NPU compute、DRAM traffic 分开建模。 |
-| 资源约束显式 | 满足 | channel/chip/die/plane busy timeline、cycle-stepped command trace、SSDsim-derived stage trace、event-loop trace、hardware-cycle trace、SystemC replay trace 和 component-level SystemC trace 明确输出。 |
+| 时序路径清晰 | 满足 | Flash weight stage、controller path、NPU compute、DRAM traffic 分开建模，其中 flash weight stage 由整行周期调度给出。 |
+| 资源约束显式 | 满足 | full-row cycle-weight timing、channel/chip/die/plane busy timeline、cycle-stepped command trace、SSDsim-derived stage trace、event-loop trace、hardware-cycle trace、SystemC replay trace 和 component-level SystemC trace 明确输出。 |
 | 校准克制 | 满足 | 使用 platform-level efficiency，不做 per-point 拟合。 |
 | 多点验证 | 满足 | 21 个 Figure 9 点全部报告误差。 |
 | 消融验证 | 满足 | Read slicing 与 tiling 消融均在论文范围内。 |
@@ -297,7 +305,7 @@ make test
 | 自动检查 | 满足 | `make test` 和 `reproduction_checks.csv` 给出 pass/fail 约束。 |
 | 边界声明 | 满足 | 明确不覆盖私有 simulator、power、ECC、prefill、完整 baseline。 |
 
-因此，在声明范围内，本项目可以作为一个可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check 和自动检查证明模型行为自洽。
+因此，在声明范围内，本项目可以作为一个可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、full-row cycle-weight timing、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check 和自动检查证明模型行为自洽。
 
 ## 7. 边界与不应过度声明的内容
 
@@ -318,11 +326,11 @@ make test
 如果在论文、报告或 README 中描述本项目，建议使用以下表述：
 
 ```text
-We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, an optional dependency-free hardware-cycle cross-check, an optional SystemC replay equivalence checker, an optional component-level SystemC command-cycle model, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, infers a stable 970-1040 token context-fit window around the default 1K setting, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork or RTL-level hardware fidelity.
+We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, a full-row cycle-derived IFC weight-stage scheduler, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, an optional dependency-free hardware-cycle cross-check, an optional SystemC replay equivalence checker, an optional component-level SystemC command-cycle model, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.354% mean absolute relative error and 14.541% max absolute relative error, infers a stable 977-1040 token context-fit window around the default 1K setting, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork or RTL-level hardware fidelity.
 ```
 
 如果需要更谨慎的中文表述：
 
 ```text
-本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check、NPU timing、context-length inference、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价，也不声称达到 RTL 级硬件保真度。
+本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 full-row cycle-weight timing、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check、NPU timing、context-length inference、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价，也不声称达到 RTL 级硬件保真度。
 ```

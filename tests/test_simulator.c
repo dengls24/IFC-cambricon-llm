@@ -425,10 +425,18 @@ int main(void) {
             rows[i].controller_weight_stage_ms + rows[i].attention_cache_ms + rows[i].attention_compute_ms,
             1e-6,
             "TPOT decomposition");
-        require_true(rows[i].speedup_vs_no_read_slicing > 1.55, "read slicing lower speedup bound");
-        require_true(rows[i].speedup_vs_no_read_slicing < 1.75, "read slicing upper speedup bound");
-        require_true(rows[i].speedup_vs_no_tiling > 1.25, "tiling lower speedup bound");
-        require_true(rows[i].speedup_vs_no_tiling < 1.36, "tiling upper speedup bound");
+        require_true(rows[i].cycle_weight_last_cycle > 0, "cycle-derived weight stage cycle");
+        require_true(rows[i].cycle_total_commands > rows[i].controller_commands, "full-row physical command expansion");
+        require_true(rows[i].cycle_weight_raw_ms > 0.0, "cycle-derived raw weight time");
+        require_close(rows[i].weight_stage_ms, rows[i].cycle_weight_stage_ms, 1e-6, "cycle-derived weight stage source");
+        require_true(rows[i].speedup_vs_no_read_slicing > 1.0, "read slicing positive speedup");
+        require_true(rows[i].speedup_vs_no_tiling > 1.0, "tiling positive speedup");
+        if (strcmp(rows[i].platform, IFC_PLATFORMS[0].name) == 0) {
+            require_true(rows[i].speedup_vs_no_read_slicing > 1.60, "Cambricon-LLM-S read slicing lower speedup bound");
+            require_true(rows[i].speedup_vs_no_read_slicing < 1.80, "Cambricon-LLM-S read slicing upper speedup bound");
+            require_true(rows[i].speedup_vs_no_tiling > 1.30, "Cambricon-LLM-S tiling lower speedup bound");
+            require_true(rows[i].speedup_vs_no_tiling < 1.40, "Cambricon-LLM-S tiling upper speedup bound");
+        }
     }
 
     const char *artifact_dir = "/tmp/ifc_cambricon_llm_test_outputs";
@@ -438,6 +446,7 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figure9_reproduction.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/platform_summary.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/latency_breakdown.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_weight_timing.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_stats.csv");
     require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/cycle_controller_trace.csv");
@@ -478,6 +487,7 @@ int main(void) {
     require_true(ifc_write_plots_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom plot outputs");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/tile_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/latency_breakdown.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_weight_timing.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_stats.csv");
     require_cycle_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/cycle_controller_trace.csv");

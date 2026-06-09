@@ -67,7 +67,7 @@ The read-compute request time uses the slower of vector transfer and IFC compute
 t_read_compute = t_R + max(vector_transfer_s, ifc_compute_time_s)
 ```
 
-The controller audit paths check platform dimensions before emitting traces. The current internal limits are 64 channels, 128 chips/channel, 8 dies/chip, and 8 planes/die. The analytic Figure 9 timing path and summaries still use the active CSV values, but controller traces are emitted only when the first configured platform is inside those checked limits.
+The controller audit paths check platform dimensions before emitting traces. The current internal limits are 64 channels, 128 chips/channel, 8 dies/chip, and 8 planes/die. The full-row Figure 9 timing path and summaries still use the active CSV values, but compact representative controller traces are emitted only when the first configured platform is inside those checked limits.
 
 ## NPU And System CSV
 
@@ -83,7 +83,7 @@ Rows:
 | `npu_peak_TOPS` | Direct peak throughput override. |
 | `dram_bandwidth_GBps` | DRAM bandwidth for attention-cache reads. |
 
-The default `context_tokens=1000` is the inferred Figure 9 reproduction setting. It is supported by `results/context_length_inference.csv`, which sweeps 1-4096 context tokens and identifies 970-1040 tokens as the stable window satisfying the current Figure 9 reproduction guardrails.
+The default `context_tokens=1000` is the inferred Figure 9 reproduction setting. It is supported by `results/context_length_inference.csv`, which sweeps 1-4096 context tokens and identifies 977-1040 tokens as the stable window satisfying the current Figure 9 reproduction guardrails.
 
 If `npu_peak_TOPS` is positive, it is used directly. Otherwise the simulator derives:
 
@@ -128,6 +128,7 @@ All major artifacts use the active configuration:
 
 - `figure9_reproduction.csv`
 - `request_trace.csv`
+- `cycle_weight_timing.csv`
 - `controller_schedule.csv`
 - `cycle_controller_trace.csv`
 - `cycle_controller_stats.csv`
@@ -143,7 +144,7 @@ All major artifacts use the active configuration:
 - `system_profile.csv`
 - `context_length_inference.csv`
 - `reproduction_checks.csv`
-- all SVG plots under `results/figures/`
+- PNG/PDF result figures under `docs/figures/`
 
 The default command remains the canonical Figure 9 reproduction. Configured runs are design-space experiments unless their reference CSV corresponds to the configured hardware and model setup.
 

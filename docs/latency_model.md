@@ -76,7 +76,7 @@ npu_read_requests = request_units * (1 - alpha_read_compute)
 npu_read_slices = npu_read_requests * IFC_READ_SLICES_PER_REQUEST
 ```
 
-Then the two weight-stage paths are timed:
+The split above produces logical demand. The simulator still records the compact path-balance timing:
 
 ```text
 read_compute_s = read_compute_requests * t_read_compute
@@ -84,14 +84,34 @@ sliced_read_s = npu_read_requests * sliced_read_request_s
 overlapped_weight_s = max(read_compute_s, sliced_read_s)
 ```
 
-Finally, platform-level command packing and pipeline loss are applied:
+The released TPOT does not use this balance equation as the final flash-weight latency. It expands the logical demand into physical IFC commands:
+
+```text
+command_multiplier =
+    chips_per_channel * dies_per_chip
+
+physical_READ_COMPUTE =
+    round(read_compute_requests * command_multiplier)
+
+physical_READ_SLICE =
+    round(npu_read_slices * command_multiplier)
+```
+
+`src/controller.c::ifc_estimate_cycle_weight_stage()` schedules the full Figure 9 row with integer controller cycles. Every command includes explicit C/A cycles. `READ_COMPUTE` commands include vector transfer, array read, and IFC compute stages. `READ_SLICE` commands include sliced data transfer. The scheduler tracks channel, chip, die, plane, and IFC-compute resource readiness, then reports:
+
+- `cycle_weight_last_cycle`;
+- physical `READ_COMPUTE` and `READ_SLICE` command counts;
+- raw cycle-derived weight-stage latency;
+- calibrated cycle-derived weight-stage latency.
+
+Platform-level command packing and pipeline loss are applied after the raw full-row cycle result:
 
 ```text
 effective_efficiency =
     pipeline_efficiency /
     (1 + footprint_penalty * (parameters_billion / 70)^footprint_penalty_power)
 
-weight_stage_s = overlapped_weight_s / effective_efficiency
+weight_stage_s = cycle_raw_weight_stage_s / effective_efficiency
 ```
 
 ## Step 3: Attention Terms
@@ -138,6 +158,7 @@ The simulator writes both final and decomposed values:
 - `results/npu_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/latency_breakdown.csv`
+- `results/cycle_weight_timing.csv`
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
 - `results/ssdsim_ifc_trace.csv`
@@ -145,7 +166,7 @@ The simulator writes both final and decomposed values:
 - `results/ssdsim_ifc_event_trace.csv`
 - `results/ssdsim_ifc_event_stats.csv`
 
-The first four artifacts are the primary TPOT reconstruction path. The controller trace artifacts are emitted from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
+The first five artifacts are the primary TPOT reconstruction path. `cycle_weight_timing.csv` is the direct source for the flash-weight stage in `figure9_reproduction.csv`. The representative controller and SSDsim-derived trace artifacts are emitted from the same platform parameters and extended command semantics, but they are intentionally compact validation traces rather than million-command dumps for every Figure 9 row.
 
 ## Context-Length Inference
 
@@ -160,12 +181,12 @@ The current default profile gives:
 
 | Fit criterion | Context length | Error summary |
 |---|---:|---|
-| Best mean absolute error | 568 tokens | 8.197% mean absolute error, but 23.320% maximum error |
-| Best maximum-error fit | 990 tokens | 14.606% maximum error |
-| Best RMSE fit | 1023 tokens | 9.689% RMSE |
-| Default reproduction setting | 1000 tokens | 8.341% mean absolute error, 14.618% maximum error |
+| Best mean absolute error | 555 tokens | 8.207% mean absolute error, but 23.765% maximum error |
+| Best maximum-error fit | 1007 tokens | 14.413% maximum error |
+| Best RMSE fit | 1032 tokens | 9.701% RMSE |
+| Default reproduction setting | 1000 tokens | 8.354% mean absolute error, 14.541% maximum error |
 
-The stable guardrail window is 970-1040 tokens. For release reporting, the repository therefore describes the default as an inferred 1K context setting. This wording is intentional: it is a reproduction fit against Figure 9, not an explicit statement from the paper text.
+The stable guardrail window is 977-1040 tokens. For release reporting, the repository therefore describes the default as an inferred 1K context setting. This wording is intentional: it is a reproduction fit against Figure 9, not an explicit statement from the paper text.
 
 Artifacts:
 
@@ -179,9 +200,9 @@ Artifacts:
 
 | Row type | Meaning |
 |---|---|
-| `flash_weight_gemv` | Tiled weight GeMV mapped to flash-side `READ_COMPUTE`. |
+| `flash_weight_gemv` | Logical tiled weight GeMV mapped to flash-side `READ_COMPUTE`. |
 | `flash_weight_slice_transfer` | Sliced transfer path for the non-read-compute weight fraction. |
-| `effective_weight_stage` | Overlapped weight-stage latency after platform efficiency. |
+| `effective_weight_stage` | Full-row cycle-derived weight-stage latency after platform efficiency. |
 | `attention_state_memory` | DRAM memory term for decode attention state access. |
 | `attention_score_value_compute` | NPU compute term for decode attention score/value arithmetic. |
 | `total_tpot` | Sum used for final token latency. |
@@ -193,7 +214,7 @@ Publication figure:
 - `docs/figures/decode_latency_breakdown.png`
 - `docs/figures/decode_latency_breakdown.pdf`
 
-The figure shows the additive TPOT terms and separately shows the overlapped flash read-compute versus sliced-transfer paths, so the weight-stage overlap is not double counted.
+The figure shows the additive TPOT terms and separately shows the raw full-row cycle weight timing before pipeline calibration, so the flash stage is not presented as a simple sum of dataflow formulas.
 
 ## Controller Cycle Audit
 
@@ -219,7 +240,7 @@ READ_SLICE:   C/A transfer, data transfer
 
 This trace is checked by `make test` for stage coverage and state-name consistency. See `docs/ssdsim_ifc_backend.md`.
 
-`results/ssdsim_ifc_event_trace.csv` records the same extended command stream through an event loop. Each stage has an `ISSUE` event and a `COMPLETE` event, and the loop advances to the nearest pending event cycle. This is still an audit path rather than the direct TPOT source.
+`results/ssdsim_ifc_event_trace.csv` records the same representative extended command stream through an event loop. Each stage has an `ISSUE` event and a `COMPLETE` event, and the loop advances to the nearest pending event cycle. The direct full-row TPOT source is `results/cycle_weight_timing.csv`; the event trace is the compact command-semantics audit.
 
 `make hw-cycle` builds `systemc/ifc_hw_cycle_model.cpp` and cross-checks the dependency-free hardware-cycle model against `results/ssdsim_ifc_event_stats.csv`. `make systemc-cycle` builds `systemc/ifc_hw_cycle_systemc.cpp` against `libsystemc` and replays the same command/stage/resource rules through a SystemC `SC_THREAD`; matching event count, completed command count, and last event cycle indicate replay equivalence, not higher hardware fidelity. `make systemc-component` builds `systemc/ifc_component_systemc.cpp`, separates the controller and execution fabric into SystemC modules, runs timed stage processes, and emits module statistics plus a VCD trace. Its compare file checks the same aggregate timing contract against the C event backend.
 

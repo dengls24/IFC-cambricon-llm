@@ -6,7 +6,7 @@ This document summarizes the release-ready simulator variants, current validatio
 
 The repository is a Cambricon-LLM style in-flash-computing architecture simulator for the Figure 9 decode-speed path. It includes:
 
-- a standalone C timing simulator for the 21 Figure 9 points;
+- a standalone C timing simulator for the 21 Figure 9 points, including full-row cycle-derived IFC weight-stage timing;
 - an SSDsim-derived C event backend for extended `READ_COMPUTE` and `READ_SLICE` commands;
 - a dependency-free C++ hardware-cycle checker;
 - a SystemC replay equivalence checker;
@@ -28,6 +28,7 @@ Main artifacts:
 - `results/figure9_reproduction.csv`
 - `results/simulator_scheme_comparison.csv`
 - `results/latency_breakdown.csv`
+- `results/cycle_weight_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
 - `results/context_length_inference.csv`
@@ -47,16 +48,17 @@ Current values:
 | Metric | Value |
 |---|---:|
 | Figure 9 rows | 21 |
-| Fastest simulated decode speed | 31.115 tokens/s |
+| Fastest simulated decode speed | 31.113 tokens/s |
 | Fastest point | OPT-6.7B on Cambricon-LLM-L |
-| LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token |
-| LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token |
-| Inferred Figure 9 context window | 970-1040 tokens |
+| LLaMA2-7B on Cambricon-LLM-L | 30.874 tokens/s, 32.390 ms/token |
+| LLaMA2-70B on Cambricon-LLM-L | 2.914 tokens/s, 343.203 ms/token |
+| Inferred Figure 9 context window | 977-1040 tokens |
 | Default reproduction context | 1000 tokens |
+| Largest full-row IFC command schedule | 1,544,720 physical commands |
 
-The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.341%, and the maximum absolute relative difference is 14.618%.
+The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.354%, and the maximum absolute relative difference is 14.541%.
 
-Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 970-1040 token stable window; the best maximum-error and RMSE fits are 990 and 1023 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
+Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 977-1040 token stable window; the best maximum-error and RMSE fits are 1007 and 1032 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
 
 The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 
@@ -66,11 +68,11 @@ Reference entries for the Cambricon-LLM paper, SSDsim-related simulator backgrou
 
 | Variant | Command | Released result ownership |
 |---|---|---|
-| Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, latency-breakdown, and ablation results. |
+| Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, cycle-weight timing, latency-breakdown, and ablation results. |
 | SystemC replay checker | `make systemc-cycle` | Reports lightweight equivalence of a representative IFC event stream against the C event backend. |
 | SystemC component command-cycle model | `make systemc-component` | Reports detailed bounded timing drift of a componentized SystemC command stream against the C event backend. |
 
-Only the standalone C path is a direct paper-facing 21-point throughput reproduction. The SystemC paths are release validation artifacts for the command-cycle backend.
+Only the standalone C path is a direct paper-facing 21-point throughput reproduction. In that path, `results/cycle_weight_timing.csv` is the row-level flash-weight timing source, while the SystemC paths are release validation artifacts for the representative command-cycle backend.
 
 ## C Backend
 
@@ -217,7 +219,7 @@ SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
 This release is suitable as an auditable architecture-simulator artifact for the stated Figure 9 reproduction path. It should be described as:
 
 ```text
-A standalone C timing simulator with SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
+A standalone C timing simulator with full-row IFC cycle-derived weight-stage timing, SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
 ```
 
 It should not be described as:

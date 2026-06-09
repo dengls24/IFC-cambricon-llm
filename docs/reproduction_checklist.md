@@ -14,6 +14,7 @@ This checklist records what is covered by the current C reproduction and where e
 | DRAM attention-cache traffic timing | `results/npu_timing.csv` | PASS |
 | Extended `READ_COMPUTE` command accounting | `results/request_trace.csv` | PASS |
 | Sliced read command accounting | `results/request_trace.csv` | PASS |
+| Full-row cycle-derived IFC weight-stage timing | `results/cycle_weight_timing.csv` | PASS |
 | Channel/chip/die/plane sample schedule | `results/controller_schedule.csv` | PASS |
 | Cycle-stepped controller command trace | `results/cycle_controller_trace.csv` | PASS |
 | Cycle-level controller resource statistics | `results/cycle_controller_stats.csv` | PASS |
@@ -43,14 +44,16 @@ This checklist records what is covered by the current C reproduction and where e
 | Check | Current Value | Target | Status |
 |---|---:|---:|---|
 | Figure 9 row count | 21 | 21 | PASS |
-| Mean absolute relative error | 8.341% | <=9% | PASS |
-| Max absolute relative error | 14.618% | <=15% | PASS |
-| Inferred context guardrail window | 970-1040 tokens | includes 1000 | PASS |
-| Best maximum-error context fit | 990 tokens | near 1K | PASS |
-| Best RMSE context fit | 1023 tokens | near 1K | PASS |
+| Mean absolute relative error | 8.354% | <=9% | PASS |
+| Max absolute relative error | 14.541% | <=15% | PASS |
+| Inferred context guardrail window | 977-1040 tokens | includes 1000 | PASS |
+| Best maximum-error context fit | 1007 tokens | near 1K | PASS |
+| Best RMSE context fit | 1032 tokens | near 1K | PASS |
+| Full-row cycle timing rows | 21 | 21 | PASS |
+| Maximum full-row cycle commands | 1,544,720 | >0 | PASS |
 | Cambricon-LLM-S tile height | 256 | 256 | PASS |
 | Cambricon-LLM-S tile width | 2048 | 2048 | PASS |
-| Cambricon-LLM-S read-slicing speedup | 1.683x-1.699x | 1.6x-1.8x | PASS |
+| Cambricon-LLM-S read-slicing speedup | 1.724x-1.742x | 1.6x-1.8x | PASS |
 | Cambricon-LLM-S tiling speedup | 1.341x-1.349x | 1.3x-1.4x | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
 | Cycle controller trace enabled | 1 | 1 | PASS |

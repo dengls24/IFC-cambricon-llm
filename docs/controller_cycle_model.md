@@ -8,10 +8,11 @@ The important boundary is explicit: this repository is not the paper authors' pr
 
 The main Figure 9 latency path is reconstructed from model operator groups and hardware parameters. That part is described in `docs/latency_model.md`.
 
-The controller side adds two auditable traces:
+The controller side adds one full-row timing artifact and several compact validation traces:
 
 | Artifact | Model level |
 |---|---|
+| `results/cycle_weight_timing.csv` | Full-row cycle-derived flash weight-stage timing for every Figure 9 model/platform row. |
 | `results/controller_schedule.csv` | Event timeline in ns for a representative command stream. |
 | `results/cycle_controller_trace.csv` | Cycle-stepped C controller trace for the same class of command stream. |
 | `results/cycle_controller_stats.csv` | Cycle-level aggregate statistics for that trace. |
@@ -20,7 +21,7 @@ The controller side adds two auditable traces:
 | `results/ssdsim_ifc_event_trace.csv` | ISSUE/COMPLETE event-loop trace for the extended command stream. |
 | `results/ssdsim_ifc_event_stats.csv` | Event-loop completion and concurrency statistics. |
 
-The cycle trace is produced by `src/controller.c`, not by post-processing equations. Each command moves through explicit stages:
+The cycle artifacts are produced by `src/controller.c`, not by post-processing equations. Each representative controller command moves through explicit stages:
 
 ```text
 QUEUED -> CHANNEL -> WAIT_ARRAY -> ARRAY -> DONE
@@ -105,12 +106,23 @@ TPOT = effective_weight_stage
      + attention_score_value_compute
 ```
 
-The weight stage is derived from the paper's Section V tile/request equations and the configured flash platform. The cycle trace is an audit artifact for the controller command semantics and resource ordering. It is not used as the direct full-run TPOT source because a literal per-cycle replay of every Figure 9 command would be unnecessarily large for a compact reproduction artifact.
+The weight stage is derived in two steps. First, the paper's Section V tile/request equations produce logical read-compute and sliced-read demand from the configured flash platform and model size. Second, `ifc_estimate_cycle_weight_stage()` expands that demand into physical channel/chip/die commands and schedules the whole Figure 9 row with integer controller cycles.
+
+For each row, the full-row scheduler records:
+
+- physical `READ_COMPUTE` and `READ_SLICE` command counts;
+- final row completion cycle;
+- C/A, vector-transfer, data-transfer, array-read, and IFC-compute cycle costs;
+- raw cycle-derived weight-stage time;
+- platform-efficiency calibrated weight-stage time used by TPOT.
+
+Those values are written to `results/cycle_weight_timing.csv` and copied into the cycle columns in `results/figure9_reproduction.csv`. A literal trace file for every physical command is deliberately not emitted because the largest default row already schedules 1,544,720 physical commands. The compact trace files remain representative validation artifacts for command semantics and resource ordering.
 
 This separation is intentional:
 
-- the Figure 9 table uses the calibrated architecture timing model needed for the paper reproduction;
-- the controller trace proves that the extended command stream is representable as a C cycle-level resource schedule;
+- the Figure 9 table uses the full-row cycle-derived weight stage plus NPU/DRAM attention timing needed for the paper reproduction;
+- `cycle_weight_timing.csv` proves that each Figure 9 row has been expanded to physical IFC commands and scheduled through integer cycles;
+- the representative controller trace proves that the extended command stream is representable as a C cycle-level resource schedule;
 - the SSDsim-derived trace proves that the same extended commands can be represented as C/A, array-read, data-transfer, and IFC-compute service stages;
 - the SSDsim-derived event trace proves that those service stages can execute through a next-event loop with explicit ISSUE and COMPLETE events;
 - `docs/latency_model.md` links the model operators to the final latency terms.
@@ -126,7 +138,7 @@ A complete SSDsim fork integration would require these additional pieces inside 
 - full interaction with SSDsim FTL, mapping, queueing, garbage collection, and statistics;
 - validation that the extended commands preserve existing SSDsim behavior for normal read and write requests.
 
-Those pieces are not claimed in this standalone repository. The current implementation is a clean C reconstruction of the public Cambricon-LLM method path with an SSDsim-inspired command/resource model.
+Those pieces are not claimed in this standalone repository. The current implementation is a clean C reconstruction of the public Cambricon-LLM method path with a full-row IFC cycle timing path and an SSDsim-inspired command/resource validation model.
 
 ## How To Audit
 
@@ -141,6 +153,7 @@ Then inspect:
 
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
+- `results/cycle_weight_timing.csv`
 - `results/ssdsim_ifc_trace.csv`
 - `results/ssdsim_ifc_stats.csv`
 - `results/ssdsim_ifc_event_trace.csv`

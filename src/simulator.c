@@ -101,7 +101,11 @@ IfcSimulationRow ifc_simulate_one_with_system(
     double sliced_read_s = npu_read_requests * tile.sliced_read_request_s;
     double overlapped_weight_s = read_compute_s > sliced_read_s ? read_compute_s : sliced_read_s;
     double efficiency = effective_efficiency(model, platform);
-    double weight_stage_s = overlapped_weight_s / efficiency;
+    double analytic_weight_stage_s = overlapped_weight_s / efficiency;
+    IfcCycleWeightStats cycle_stats;
+    int cycle_weight_ok =
+        ifc_estimate_cycle_weight_stage(platform, read_compute_requests, npu_read_slices, efficiency, &cycle_stats);
+    double weight_stage_s = cycle_weight_ok == 0 ? cycle_stats.calibrated_weight_stage_ms * 1e-3 : analytic_weight_stage_s;
     double att_cache_bytes = attention_cache_bytes(model, context_tokens);
     double att_ops = attention_ops(model, context_tokens);
     double attention_cache_s = att_cache_bytes / system->dram_bandwidth_Bps;
@@ -139,6 +143,19 @@ IfcSimulationRow ifc_simulate_one_with_system(
     row.npu_read_requests = npu_read_requests;
     row.npu_read_slices = npu_read_slices;
     row.controller_commands = read_compute_requests + npu_read_slices;
+    row.cycle_weight_last_cycle = cycle_weight_ok == 0 ? cycle_stats.last_cycle : 0;
+    row.cycle_read_compute_commands = cycle_weight_ok == 0 ? cycle_stats.read_compute_commands : 0;
+    row.cycle_read_slice_commands = cycle_weight_ok == 0 ? cycle_stats.read_slice_commands : 0;
+    row.cycle_total_commands = cycle_weight_ok == 0 ? cycle_stats.total_commands : 0;
+    row.cycle_command_multiplier = cycle_weight_ok == 0 ? cycle_stats.command_multiplier : 0;
+    row.cycle_ns = cycle_weight_ok == 0 ? cycle_stats.cycle_ns : 0.0;
+    row.cycle_weight_raw_ms = cycle_weight_ok == 0 ? cycle_stats.raw_weight_stage_ms : 0.0;
+    row.cycle_weight_stage_ms = cycle_weight_ok == 0 ? cycle_stats.calibrated_weight_stage_ms : 0.0;
+    row.cycle_command_address_cycles = cycle_weight_ok == 0 ? cycle_stats.command_address_cycles : 0.0;
+    row.cycle_read_compute_vector_cycles = cycle_weight_ok == 0 ? cycle_stats.read_compute_vector_cycles : 0.0;
+    row.cycle_read_slice_data_cycles = cycle_weight_ok == 0 ? cycle_stats.read_slice_data_cycles : 0.0;
+    row.cycle_array_read_cycles = cycle_weight_ok == 0 ? cycle_stats.array_read_cycles : 0.0;
+    row.cycle_ifc_compute_cycles = cycle_weight_ok == 0 ? cycle_stats.ifc_compute_cycles : 0.0;
     row.read_compute_channel_rate_pct = tile.read_compute_channel_rate * 100.0;
     row.ifc_read_compute_path_ms = read_compute_s / efficiency * 1e3;
     row.npu_weight_read_path_ms = sliced_read_s / efficiency * 1e3;
@@ -208,16 +225,23 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
             "tpot_ms,weight_stage_ms,attention_cache_ms,attention_compute_ms,tile_height,tile_width,"
             "alpha_read_compute,effective_pipeline_efficiency,"
             "read_compute_requests,npu_read_requests,npu_read_slices,controller_commands,"
+            "cycle_weight_last_cycle,cycle_read_compute_commands,cycle_read_slice_commands,"
+            "cycle_total_commands,cycle_command_multiplier,cycle_ns,cycle_weight_raw_ms,"
+            "cycle_weight_stage_ms,cycle_command_address_cycles,cycle_read_compute_vector_cycles,"
+            "cycle_read_slice_data_cycles,cycle_array_read_cycles,cycle_ifc_compute_cycles,"
             "read_compute_channel_rate_pct,ifc_read_compute_path_ms,npu_weight_read_path_ms,"
             "controller_weight_stage_ms,controller_balance_delta_pct,no_read_slicing_tokens_per_s,"
             "no_tiling_tokens_per_s,speedup_vs_no_read_slicing,speedup_vs_no_tiling\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
         fprintf(file,
-                "%s,%s,%s,%s,%d,%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f\n",
+                "%s,%s,%s,%s,%d,"
+                "%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                "%lld,%lld,%lld,%lld,%d,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
                 r->model,
                 r->model_label,
                 r->platform,
@@ -241,6 +265,19 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 r->npu_read_requests,
                 r->npu_read_slices,
                 r->controller_commands,
+                r->cycle_weight_last_cycle,
+                r->cycle_read_compute_commands,
+                r->cycle_read_slice_commands,
+                r->cycle_total_commands,
+                r->cycle_command_multiplier,
+                r->cycle_ns,
+                r->cycle_weight_raw_ms,
+                r->cycle_weight_stage_ms,
+                r->cycle_command_address_cycles,
+                r->cycle_read_compute_vector_cycles,
+                r->cycle_read_slice_data_cycles,
+                r->cycle_array_read_cycles,
+                r->cycle_ifc_compute_cycles,
                 r->read_compute_channel_rate_pct,
                 r->ifc_read_compute_path_ms,
                 r->npu_weight_read_path_ms,
@@ -256,8 +293,18 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
 
 static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     FILE *file = fopen(path, "w");
+    int cycle_weight_rows = 0;
+    long long max_cycle_total_commands = 0;
     if (file == NULL) {
         return -1;
+    }
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        if (rows[i].cycle_weight_last_cycle > 0) {
+            ++cycle_weight_rows;
+        }
+        if (rows[i].cycle_total_commands > max_cycle_total_commands) {
+            max_cycle_total_commands = rows[i].cycle_total_commands;
+        }
     }
     fprintf(file, "{\n");
     fprintf(file, "  \"summary\": {\n");
@@ -266,7 +313,9 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
     fprintf(file, "    \"max_abs_relative_error_pct\": %.3f,\n", summary->max_abs_relative_error_pct);
     fprintf(file, "    \"mean_relative_error_pct\": %.3f,\n", summary->mean_relative_error_pct);
     fprintf(file, "    \"worst_case_model\": \"%s\",\n", summary->worst_case_model);
-    fprintf(file, "    \"worst_case_platform\": \"%s\"\n", summary->worst_case_platform);
+    fprintf(file, "    \"worst_case_platform\": \"%s\",\n", summary->worst_case_platform);
+    fprintf(file, "    \"cycle_weight_rows\": %d,\n", cycle_weight_rows);
+    fprintf(file, "    \"max_cycle_total_commands\": %lld\n", max_cycle_total_commands);
     fprintf(file, "  },\n");
     fprintf(file, "  \"rows\": [\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
@@ -423,8 +472,8 @@ static int write_latency_breakdown(const char *path, const IfcSimulationRow rows
                 r->npu_read_slices,
                 r->npu_weight_read_path_ms);
         fprintf(file,
-                "%s,%s,effective_weight_stage,controller_overlap,max_path_after_efficiency,%.6f,%.6f,selected_path,"
-                "max(read-compute path, sliced-read path) after platform efficiency\n",
+                "%s,%s,effective_weight_stage,controller_overlap,cycle_weight_stage_ms,%.6f,%.6f,selected_path,"
+                "full-row cycle-derived flash weight stage after platform efficiency\n",
                 r->model,
                 r->platform,
                 r->controller_weight_stage_ms,
@@ -449,6 +498,45 @@ static int write_latency_breakdown(const char *path, const IfcSimulationRow rows
                 r->model,
                 r->platform,
                 r->tpot_ms,
+                r->tpot_ms);
+    }
+    return fclose(file);
+}
+
+static int write_cycle_weight_timing(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,cycle_ns,logical_read_compute_requests,logical_read_slice_commands,"
+            "command_multiplier,cycle_read_compute_commands,cycle_read_slice_commands,"
+            "cycle_total_commands,last_cycle,raw_weight_stage_ms,calibrated_weight_stage_ms,"
+            "effective_pipeline_efficiency,command_address_cycles,read_compute_vector_cycles,"
+            "read_slice_data_cycles,array_read_cycles,ifc_compute_cycles,tpot_ms\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        const IfcSimulationRow *r = &rows[i];
+        fprintf(file,
+                "%s,%s,%.6f,%.6f,%.6f,%d,%lld,%lld,%lld,%lld,%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                r->model,
+                r->platform,
+                r->cycle_ns,
+                r->read_compute_requests,
+                r->npu_read_slices,
+                r->cycle_command_multiplier,
+                r->cycle_read_compute_commands,
+                r->cycle_read_slice_commands,
+                r->cycle_total_commands,
+                r->cycle_weight_last_cycle,
+                r->cycle_weight_raw_ms,
+                r->cycle_weight_stage_ms,
+                r->effective_pipeline_efficiency,
+                r->cycle_command_address_cycles,
+                r->cycle_read_compute_vector_cycles,
+                r->cycle_read_slice_data_cycles,
+                r->cycle_array_read_cycles,
+                r->cycle_ifc_compute_cycles,
                 r->tpot_ms);
     }
     return fclose(file);
@@ -506,7 +594,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     }
     first_tile = ifc_derive_tile_model(&config->platforms[0]);
     fprintf(file, "# Figure 9 Reproduction Report\n\n");
-    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.\n\n");
+    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, full-row cycle-derived IFC weight-stage timing, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.\n\n");
     fprintf(file, "## Summary\n\n");
     fprintf(file, "- Rows: %d\n", summary->row_count);
     fprintf(file, "- Mean absolute relative error: %.3f%%\n", summary->mean_abs_relative_error_pct);
@@ -535,6 +623,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
     fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
     fprintf(file, "- `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.\n");
+    fprintf(file, "- `cycle_weight_timing.csv` records full-row cycle-derived IFC weight-stage timing for every Figure 9 row.\n");
     fprintf(file, "- `controller_schedule.csv` records one %s/%s event-timeline sample with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
     fprintf(file, "- `cycle_controller_trace.csv` records a C cycle-stepped command trace for the first configured platform.\n");
     fprintf(file, "- `cycle_controller_stats.csv` records cycle-level resource statistics for the same command stream.\n");
@@ -588,6 +677,7 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     char controller_timing_path[4096];
     char npu_timing_path[4096];
     char latency_breakdown_path[4096];
+    char cycle_weight_timing_path[4096];
     char figure12_path[4096];
     char figure14_path[4096];
 
@@ -609,6 +699,7 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
     join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
     join_path(latency_breakdown_path, sizeof(latency_breakdown_path), output_dir, "latency_breakdown.csv");
+    join_path(cycle_weight_timing_path, sizeof(cycle_weight_timing_path), output_dir, "cycle_weight_timing.csv");
     join_path(figure12_path, sizeof(figure12_path), output_dir, "figure12_read_slice_ablation.csv");
     join_path(figure14_path, sizeof(figure14_path), output_dir, "figure14_tiling_ablation.csv");
 
@@ -655,6 +746,9 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
         return -1;
     }
     if (write_latency_breakdown(latency_breakdown_path, rows) != 0) {
+        return -1;
+    }
+    if (write_cycle_weight_timing(cycle_weight_timing_path, rows) != 0) {
         return -1;
     }
     if (write_figure12_read_slice_ablation(figure12_path, config, rows) != 0) {
