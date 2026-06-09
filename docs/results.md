@@ -33,6 +33,8 @@ The report in `results/report.md` includes:
 - TPOT;
 - derived tile shape;
 - read-compute workload fraction;
+
+The release-facing per-scheme paper comparison is in `docs/paper_comparison.md` and `results/simulator_scheme_comparison.csv`.
 - aggregate controller command count.
 
 The CSV in `results/figure9_reproduction.csv` additionally includes the no-read-slicing and no-tiling ablation outputs from the same model path.

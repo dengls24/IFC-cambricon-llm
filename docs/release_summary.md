@@ -26,6 +26,7 @@ Main artifacts:
 
 - `results/summary.json`
 - `results/figure9_reproduction.csv`
+- `results/simulator_scheme_comparison.csv`
 - `results/latency_breakdown.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
@@ -40,6 +41,8 @@ Current values:
 | Mean absolute relative error | 8.341% |
 | Max absolute relative error | 14.618% |
 | Worst case | LLaMA2-70B on Cambricon-LLM-L |
+
+The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 
 ## C Backend
 
