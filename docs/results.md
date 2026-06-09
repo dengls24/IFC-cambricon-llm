@@ -91,6 +91,10 @@ Publication-facing figures:
 
 - `docs/figures/performance_results_dashboard.png`: homepage performance dashboard with absolute token/s and TPOT results.
 - `docs/figures/performance_results_dashboard.pdf`: PDF version of the performance dashboard.
+- `docs/figures/decode_latency_breakdown.png`: decode TPOT operator breakdown across weight stage, attention memory, and attention compute.
+- `docs/figures/decode_latency_breakdown.pdf`: PDF version of the decode latency breakdown.
+- `docs/figures/paper_reference_comparison.png`: paper Figure 9 reference versus simulator absolute throughput comparison.
+- `docs/figures/paper_reference_comparison.pdf`: PDF version of the paper-reference comparison.
 - `docs/figures/systemc_component_comparison.png`: detailed C-vs-SystemC component comparison for the representative command stream.
 - `docs/figures/systemc_component_comparison.pdf`: PDF version of the SystemC component comparison.
 - `docs/figures/architecture_summary.png`: homepage simulator architecture summary.

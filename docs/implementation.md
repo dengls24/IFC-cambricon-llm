@@ -27,6 +27,10 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/figure9_reproduction.csv` | Paper-vs-simulator decode-speed table for all 21 Figure 9 points. |
 | `docs/figures/performance_results_dashboard.png` | Publication-facing performance dashboard with absolute token/s and TPOT. |
 | `docs/figures/performance_results_dashboard.pdf` | PDF version of the performance dashboard. |
+| `docs/figures/decode_latency_breakdown.png` | Publication-facing decode operator latency breakdown. |
+| `docs/figures/decode_latency_breakdown.pdf` | PDF version of the decode latency breakdown. |
+| `docs/figures/paper_reference_comparison.png` | Publication-facing paper Figure 9 reference comparison. |
+| `docs/figures/paper_reference_comparison.pdf` | PDF version of the paper-reference comparison. |
 | `docs/figures/systemc_component_comparison.png` | Publication-facing C-vs-SystemC component timing comparison. |
 | `docs/figures/systemc_component_comparison.pdf` | PDF version of the SystemC component comparison. |
 | `docs/figures/architecture_summary.png` | Publication-facing simulator architecture summary. |

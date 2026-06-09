@@ -29,6 +29,8 @@ This checklist records what is covered by the current C reproduction and where e
 | Optional component-level SystemC VCD | `results/systemc_component.vcd` | PASS |
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Publication-facing performance dashboard | `docs/figures/performance_results_dashboard.png` | PASS |
+| Publication-facing decode latency breakdown | `docs/figures/decode_latency_breakdown.png` | PASS |
+| Publication-facing paper-reference comparison | `docs/figures/paper_reference_comparison.png` | PASS |
 | Publication-facing SystemC component comparison | `docs/figures/systemc_component_comparison.png` | PASS |
 | Publication-facing architecture summary | `docs/figures/architecture_summary.png` | PASS |
 | Read-slicing ablation check | `results/figure12_read_slice_ablation.csv` | PASS |

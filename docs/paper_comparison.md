@@ -17,6 +17,8 @@ The published performance tables should therefore be attributed to the C timing 
 
 This is the direct Figure 9 reproduction path. The paper reference values are the `reference_tokens_per_s` values in `results/figure9_reproduction.csv`; the simulator output is `simulated_tokens_per_s`.
 
+Publication figure: `docs/figures/paper_reference_comparison.png` and `docs/figures/paper_reference_comparison.pdf`.
+
 | Metric | Value |
 |---|---:|
 | Figure 9 rows | 21 |

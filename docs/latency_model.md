@@ -162,6 +162,13 @@ The first four artifacts are the primary TPOT reconstruction path. The controlle
 
 This artifact is the easiest way to audit how model parameters and hardware configuration combine into latency.
 
+Publication figure:
+
+- `docs/figures/decode_latency_breakdown.png`
+- `docs/figures/decode_latency_breakdown.pdf`
+
+The figure shows the additive TPOT terms and separately shows the overlapped flash read-compute versus sliced-transfer paths, so the weight-stage overlap is not double counted.
+
 ## Controller Cycle Audit
 
 `results/cycle_controller_trace.csv` is emitted from a C state machine in `src/controller.c`. It records command stages in controller cycles:

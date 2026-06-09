@@ -32,6 +32,10 @@ Main artifacts:
 - `results/npu_timing.csv`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
+- `docs/figures/decode_latency_breakdown.png`
+- `docs/figures/decode_latency_breakdown.pdf`
+- `docs/figures/paper_reference_comparison.png`
+- `docs/figures/paper_reference_comparison.pdf`
 - `docs/figures/architecture_summary.png`
 - `docs/figures/architecture_summary.pdf`
 

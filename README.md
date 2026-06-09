@@ -42,6 +42,18 @@ PDF version: [performance_results_dashboard.pdf](docs/figures/performance_result
 
 The dashboard summarizes the standalone C simulator's absolute decode throughput, TPOT latency, and full 21-point throughput table, then separates the SystemC replay/component checks as validation deltas. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
 
+![LLM decode latency breakdown](docs/figures/decode_latency_breakdown.png)
+
+PDF version: [decode_latency_breakdown.pdf](docs/figures/decode_latency_breakdown.pdf)
+
+The latency breakdown figure decomposes standalone C decode TPOT into effective flash-weight stage, attention state memory, and attention score/value compute. It also shows that flash `READ_COMPUTE` and sliced transfer are overlapped paths, so TPOT adds the selected effective weight stage rather than summing both paths.
+
+![Paper Figure 9 reference comparison](docs/figures/paper_reference_comparison.png)
+
+PDF version: [paper_reference_comparison.pdf](docs/figures/paper_reference_comparison.pdf)
+
+The paper-reference comparison reports absolute paper-vs-simulator decode throughput for all 21 Figure 9 W8A8 points, plus compact delta and platform-level reproduction summaries.
+
 ![SystemC component model detailed comparison](docs/figures/systemc_component_comparison.png)
 
 PDF version: [systemc_component_comparison.pdf](docs/figures/systemc_component_comparison.pdf)
@@ -174,6 +186,10 @@ Main paper-facing outputs:
 - `results/simulator_scheme_comparison.csv`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
+- `docs/figures/decode_latency_breakdown.png`
+- `docs/figures/decode_latency_breakdown.pdf`
+- `docs/figures/paper_reference_comparison.png`
+- `docs/figures/paper_reference_comparison.pdf`
 - `docs/figures/systemc_component_comparison.png`
 - `docs/figures/systemc_component_comparison.pdf`
 - `docs/figures/architecture_summary.png`
