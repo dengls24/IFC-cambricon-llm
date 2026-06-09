@@ -15,7 +15,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
 | `src/plots.c` | Writes standalone SVG plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
 | `systemc/ifc_hw_cycle_model.cpp` | Implements the optional dependency-free C++ hardware-cycle cross-check model. |
-| `systemc/ifc_hw_cycle_systemc.cpp` | Implements the optional `libsystemc` kernel cross-check model using `sc_module` and `SC_THREAD`. |
+| `systemc/ifc_hw_cycle_systemc.cpp` | Implements the optional `libsystemc` replay checker using `sc_module` and `SC_THREAD`. It shares the C++ command/stage/resource rules and checks kernel-time replay equivalence. |
 | `tools/setup_systemc_local.sh` | Installs a local SystemC sysroot without root privileges. |
 | `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, SSDsim-derived stage consistency, dependency-free hardware-cycle cross-check output, ablation speedup bounds, and nonempty output artifacts. |
 
@@ -36,9 +36,9 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/hw_cycle_trace.csv` | Optional hardware-cycle model event trace from `make hw-cycle`. |
 | `results/hw_cycle_stats.csv` | Optional hardware-cycle model statistics. |
 | `results/hw_cycle_compare.csv` | Cross-check between C SSDsim-derived event backend and hardware-cycle model. |
-| `results/systemc_cycle_trace.csv` | Optional SystemC kernel event trace from `make systemc-cycle`. |
-| `results/systemc_cycle_stats.csv` | Optional SystemC kernel statistics. |
-| `results/systemc_cycle_compare.csv` | Cross-check between C SSDsim-derived event backend and SystemC cycle model. |
+| `results/systemc_cycle_trace.csv` | Optional SystemC replay event trace from `make systemc-cycle`. |
+| `results/systemc_cycle_stats.csv` | Optional SystemC replay statistics. |
+| `results/systemc_cycle_compare.csv` | Equivalence check between C SSDsim-derived event backend and SystemC replay. |
 | `results/controller_timing_summary.csv` | Per-row controller path balance and command totals. |
 | `results/npu_timing.csv` | NPU arithmetic, DRAM attention traffic, and reconstructed TPOT. |
 | `results/latency_breakdown.csv` | Operator-group latency mapping used to reconstruct TPOT. |
@@ -65,7 +65,7 @@ The implementation follows the paper's Figure 9 method path:
 - command-level cycle trace generation for controller resource ordering;
 - SSDsim-derived command-stage trace generation for extended commands;
 - SSDsim-derived event-loop execution for extended commands;
-- optional dependency-free hardware-cycle and SystemC kernel cross-checks for the same event stream;
+- optional dependency-free hardware-cycle and SystemC replay cross-checks for the same event stream;
 - a 16x16, 1 GHz, 2 TOPS INT8 NPU timing path;
 - 40 GB/s DRAM timing for attention-cache traffic;
 - one platform-level calibration term for command packing and pipeline effects.

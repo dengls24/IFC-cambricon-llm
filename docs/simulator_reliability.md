@@ -122,13 +122,15 @@ alpha = t_read / (t_read + t_rc)
 
 该模型不依赖本机安装 SystemC 库。它独立编译、独立执行同一 command stream，并与 C SSDsim-derived event backend 对齐 event count、completed command count 和 last event cycle。
 
-第六种是 `systemc/ifc_hw_cycle_systemc.cpp` 的 SystemC kernel cross-check：
+第六种是 `systemc/ifc_hw_cycle_systemc.cpp` 的 SystemC replay/equivalence cross-check：
 
 - `results/systemc_cycle_trace.csv`
 - `results/systemc_cycle_stats.csv`
 - `results/systemc_cycle_compare.csv`
 
-该模型链接 `libsystemc`，使用 `sc_module` 和 `SC_THREAD`，并通过 `wait(sc_time(delta_cycles * cycle_ns, SC_NS))` 推进 SystemC 仿真时间。它与 C event backend 检查同样的 event count、completed command count 和 last event cycle。默认 run 当前为 1536 events、256 completed commands、last event cycle 316207，`systemc_cycle_compare.csv` 三项均为 PASS。
+该模型链接 `libsystemc`，使用 `sc_module` 和 `SC_THREAD`，并通过 `wait(sc_time(delta_cycles * cycle_ns, SC_NS))` 推进 SystemC 仿真时间。它复用 dependency-free C++ cycle checker 的 command generation、stage duration 和 resource-conflict 规则，所以它与 C event backend 在 event count、completed command count 和 last event cycle 上完全一致是预期结果，不代表 SystemC 版本自动更接近真实硬件。默认 run 当前为 1536 events、256 completed commands、last event cycle 316207，`systemc_cycle_compare.csv` 三项均为 PASS。
+
+更硬件真实的 SystemC 模型需要把 replay loop 继续拆成显式模块网络，例如 channel arbiter、ONFI bus、chip/die/plane state machine、IFC compute unit、request queue、valid/ready handshake 和 VCD signal trace。当前版本尚未做到这一层，因此只能作为 kernel-time replay 与一致性检查，而不能作为独立硬件微结构仿真结果。
 
 这些轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
 
@@ -228,7 +230,7 @@ controller_balance_delta_max_pct = 0.000000
 - `READ_COMPUTE` 到达 array-read complete 与 IFC-compute issue；
 - `READ_SLICE` 到达 data-transfer complete。
 
-`make test` 还会运行 `make hw-cycle` 并检查 `results/hw_cycle_compare.csv`，确认 dependency-free 硬件周期模型与 C event backend 在核心事件指标上对齐。安装 SystemC 后，`make test-systemc` 或 `make test-all` 会进一步运行 `make systemc-cycle` 并检查 `results/systemc_cycle_compare.csv`。
+`make test` 还会运行 `make hw-cycle` 并检查 `results/hw_cycle_compare.csv`，确认 dependency-free 硬件周期模型与 C event backend 在核心事件指标上对齐。安装 SystemC 后，`make test-systemc` 或 `make test-all` 会进一步运行 `make systemc-cycle` 并检查 `results/systemc_cycle_compare.csv` 的 replay 等价性。
 
 ### 5.4 Artifact 可复跑
 
@@ -266,7 +268,7 @@ make test
 | 参数透明 | 满足 | 平台、模型、参考点均在源码和 CSV 中公开。 |
 | 模块分层 | 满足 | profiles、simulator、controller、analysis、plots 独立。 |
 | 时序路径清晰 | 满足 | Flash weight stage、controller path、NPU compute、DRAM traffic 分开建模。 |
-| 资源约束显式 | 满足 | channel/chip/die/plane busy timeline、cycle-stepped command trace、SSDsim-derived stage trace、event-loop trace、hardware-cycle trace 和 SystemC cycle trace 明确输出。 |
+| 资源约束显式 | 满足 | channel/chip/die/plane busy timeline、cycle-stepped command trace、SSDsim-derived stage trace、event-loop trace、hardware-cycle trace 和 SystemC replay trace 明确输出。 |
 | 校准克制 | 满足 | 使用 platform-level efficiency，不做 per-point 拟合。 |
 | 多点验证 | 满足 | 21 个 Figure 9 点全部报告误差。 |
 | 消融验证 | 满足 | Read slicing 与 tiling 消融均在论文范围内。 |
@@ -274,7 +276,7 @@ make test
 | 自动检查 | 满足 | `make test` 和 `reproduction_checks.csv` 给出 pass/fail 约束。 |
 | 边界声明 | 满足 | 明确不覆盖私有 simulator、power、ECC、prefill、完整 baseline。 |
 
-因此，在声明范围内，本项目可以作为一个可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC kernel cross-check 和自动检查证明模型行为自洽。
+因此，在声明范围内，本项目可以作为一个可审计、可复现的 architecture simulator artifact。它的价值不在于声称拥有原作者私有实现，而在于用公开方法重建关键 timing path，并用误差表、消融表、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check 和自动检查证明模型行为自洽。
 
 ## 7. 边界与不应过度声明的内容
 
@@ -295,11 +297,11 @@ make test
 如果在论文、报告或 README 中描述本项目，建议使用以下表述：
 
 ```text
-We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, optional dependency-free and SystemC kernel hardware-cycle cross-check models, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork.
+We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, an optional dependency-free hardware-cycle cross-check, an optional SystemC replay equivalence checker, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork or RTL-level hardware fidelity.
 ```
 
 如果需要更谨慎的中文表述：
 
 ```text
-本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC kernel cross-check、NPU timing、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价。
+本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、NPU timing、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价，也不声称达到 RTL 级硬件保真度。
 ```

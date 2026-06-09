@@ -132,7 +132,7 @@ It also parses `ssdsim_ifc_event_trace.csv` and checks that:
 - `READ_COMPUTE` reaches array-read completion and IFC-compute issue;
 - `READ_SLICE` reaches data-transfer completion.
 
-`make hw-cycle` builds the independent dependency-free hardware-cycle model in `systemc/` and compares its event count, completed command count, and last event cycle against `ssdsim_ifc_event_stats.csv`. `make systemc-cycle` repeats that comparison through the `libsystemc` kernel model.
+`make hw-cycle` builds the independent dependency-free hardware-cycle model in `systemc/` and compares its event count, completed command count, and last event cycle against `ssdsim_ifc_event_stats.csv`. `make systemc-cycle` repeats that comparison through a `libsystemc` replay checker. Because the replay checker shares the command/stage/resource rules, exact agreement is expected by construction.
 
 ## Boundary
 

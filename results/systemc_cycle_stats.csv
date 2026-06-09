@@ -1,5 +1,5 @@
 metric,value
-backend,systemc_hw_cycle
+backend,systemc_replay_checker
 platform,cam_llm_s
 cycle_ns,1.000000
 commands,256

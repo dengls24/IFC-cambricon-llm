@@ -3,6 +3,11 @@
 #include <memory>
 #include <utility>
 
+/*
+ * This SystemC target is an equivalence checker, not a new microarchitecture.
+ * It shares the command, stage, and resource rules with the C++ cycle checker
+ * and uses the SystemC kernel only to advance simulation time.
+ */
 #define IFC_HW_CYCLE_NO_MAIN
 #include "ifc_hw_cycle_model.cpp"
 
@@ -186,7 +191,7 @@ int sc_main(int argc, char **argv) {
         return 1;
     }
     if (!platform_supported(platform)) {
-        std::fprintf(stderr, "error: first platform dimensions exceed SystemC cycle model limits\n");
+        std::fprintf(stderr, "error: first platform dimensions exceed SystemC replay checker limits\n");
         return 1;
     }
 
@@ -199,16 +204,16 @@ int sc_main(int argc, char **argv) {
         std::fprintf(stderr, "error: SystemC cycle event loop failed\n");
         return 1;
     }
-    if (!write_stats_named(stats_path, "systemc_hw_cycle", platform, timing, stats)) {
+    if (!write_stats_named(stats_path, "systemc_replay_checker", platform, timing, stats)) {
         std::fprintf(stderr, "error: failed to write stats %s\n", stats_path);
         return 1;
     }
-    if (!write_compare_named(compare_path, "systemc_cycle", c_stats_path, stats)) {
+    if (!write_compare_named(compare_path, "systemc_replay", c_stats_path, stats)) {
         std::fprintf(stderr, "error: failed to write compare %s\n", compare_path);
         return 1;
     }
 
-    std::printf("passed: SystemC hardware cycle model\n");
+    std::printf("passed: SystemC replay checker\n");
     std::printf("trace_csv: %s\n", trace_path);
     std::printf("stats_csv: %s\n", stats_path);
     std::printf("compare_csv: %s\n", compare_path);

@@ -151,6 +151,6 @@ bin/ifc_hw_cycle_model --platforms-csv configs/default_platforms.csv
 bin/ifc_hw_cycle_systemc --platforms-csv configs/default_platforms.csv
 ```
 
-The hardware-cycle models currently use the first platform row. The dependency-free C++ checker emits `hw_cycle_trace.csv`, `hw_cycle_stats.csv`, and `hw_cycle_compare.csv`. The SystemC checker emits `systemc_cycle_trace.csv`, `systemc_cycle_stats.csv`, and `systemc_cycle_compare.csv`.
+The audit models currently use the first platform row. The dependency-free C++ checker emits `hw_cycle_trace.csv`, `hw_cycle_stats.csv`, and `hw_cycle_compare.csv`. The SystemC replay checker emits `systemc_cycle_trace.csv`, `systemc_cycle_stats.csv`, and `systemc_cycle_compare.csv`.
 
 The SystemC target uses `SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr` by default. Use `SYSTEMC_HOME=/usr` for a system package installation, or run `tools/setup_systemc_local.sh` to create the default local sysroot without root privileges.

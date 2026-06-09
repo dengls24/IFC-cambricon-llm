@@ -1,4 +1,4 @@
-metric,c_backend,systemc_cycle,delta,status
+metric,c_backend,systemc_replay,delta,status
 events,1536,1536,0,PASS
 completed_commands,256,256,0,PASS
 last_event_cycle,316207,316207,0,PASS
