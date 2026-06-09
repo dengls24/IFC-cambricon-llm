@@ -27,6 +27,8 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/figure9_reproduction.csv` | Paper-vs-simulator decode-speed table for all 21 Figure 9 points. |
 | `docs/figures/performance_results_dashboard.png` | Publication-facing performance dashboard with absolute token/s and TPOT. |
 | `docs/figures/performance_results_dashboard.pdf` | PDF version of the performance dashboard. |
+| `docs/figures/systemc_component_comparison.png` | Publication-facing C-vs-SystemC component timing comparison. |
+| `docs/figures/systemc_component_comparison.pdf` | PDF version of the SystemC component comparison. |
 | `docs/figures/architecture_summary.png` | Publication-facing simulator architecture summary. |
 | `docs/figures/architecture_summary.pdf` | PDF version of the architecture summary. |
 | `results/request_trace.csv` | Aggregate read-compute and sliced-read command counts. |

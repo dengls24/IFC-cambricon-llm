@@ -76,6 +76,18 @@ Comparison against the C backend anchor:
 
 The SystemC component final-time delta is 0.027039% relative to the C backend command-stream final time. This non-zero difference is expected from finite FIFO boundaries, dispatch width limiting, the 2.5 ns module clock, and module-clock quantization of stage service time.
 
+Detailed figure: `docs/figures/systemc_component_comparison.png` and `docs/figures/systemc_component_comparison.pdf`.
+
+Stage service duration comparison:
+
+| Stage | C backend cycles | SystemC component cycles | Delta |
+|---|---:|---:|---:|
+| C/A transfer | 7 | 8 | +1 |
+| IFC vector transfer | 256 | 258 | +2 |
+| Array read | 30000 | 30000 | 0 |
+| IFC compute | 1024 | 1025 | +1 |
+| Data transfer | 4096 | 4098 | +2 |
+
 Interpretation: the SystemC component model does not provide a new direct paper Figure 9 curve. It provides a cycle-level cross-check that the paper-facing C simulator's IFC command path remains stable under a more explicit SystemC controller/execution-fabric decomposition. Its timing perturbation is much smaller than the Figure 9 reproduction error envelope of the C scheme.
 
 ## Release Statement

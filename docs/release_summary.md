@@ -56,8 +56,8 @@ Reference entries for the Cambricon-LLM paper, SSDsim-related simulator backgrou
 | Variant | Command | Released result ownership |
 |---|---|---|
 | Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, latency-breakdown, and ablation results. |
-| SystemC replay checker | `make systemc-cycle` | Reports equivalence of a representative IFC event stream against the C event backend. |
-| SystemC component command-cycle model | `make systemc-component` | Reports bounded timing drift of a componentized SystemC command stream against the C event backend. |
+| SystemC replay checker | `make systemc-cycle` | Reports lightweight equivalence of a representative IFC event stream against the C event backend. |
+| SystemC component command-cycle model | `make systemc-component` | Reports detailed bounded timing drift of a componentized SystemC command stream against the C event backend. |
 
 Only the standalone C path is a direct paper-facing 21-point throughput reproduction. The SystemC paths are release validation artifacts for the command-cycle backend.
 
@@ -120,6 +120,8 @@ Artifacts:
 - `results/systemc_component_compare.csv`
 - `results/systemc_component_modules.csv`
 - `results/systemc_component.vcd`
+- `docs/figures/systemc_component_comparison.png`
+- `docs/figures/systemc_component_comparison.pdf`
 
 The model separates the command-cycle simulation into:
 
@@ -147,6 +149,16 @@ Difference versus the C backend:
 | final time ns | 316207.000000 | 316292.500000 | +85.500000 | PASS |
 
 The component final-time delta is `0.027039%` of the C backend final time. This non-zero delta is expected: the component model applies a finite issue FIFO, an eight-stage issue width, a 2.5 ns module clock, and module-clock quantization of ONFI/data/array/compute service time. For example, the final `READ_SLICE` data transfer is 4096 cycles in the C event backend and 4098 rounded cycles in the component SystemC trace.
+
+Stage service durations in the representative command stream:
+
+| Stage | C backend cycles | SystemC component cycles | Delta |
+|---|---:|---:|---:|
+| C/A transfer | 7 | 8 | +1 |
+| IFC vector transfer | 256 | 258 | +2 |
+| Array read | 30000 | 30000 | 0 |
+| IFC compute | 1024 | 1025 | +1 |
+| Data transfer | 4096 | 4098 | +2 |
 
 Additional component checks:
 

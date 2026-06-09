@@ -60,6 +60,7 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 
 - Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.
 - `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.
+- `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.
 - `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.
 - The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.
 

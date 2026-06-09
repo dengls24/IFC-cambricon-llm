@@ -91,6 +91,8 @@ Publication-facing figures:
 
 - `docs/figures/performance_results_dashboard.png`: homepage performance dashboard with absolute token/s and TPOT results.
 - `docs/figures/performance_results_dashboard.pdf`: PDF version of the performance dashboard.
+- `docs/figures/systemc_component_comparison.png`: detailed C-vs-SystemC component comparison for the representative command stream.
+- `docs/figures/systemc_component_comparison.pdf`: PDF version of the SystemC component comparison.
 - `docs/figures/architecture_summary.png`: homepage simulator architecture summary.
 - `docs/figures/architecture_summary.pdf`: PDF version of the architecture summary.
 

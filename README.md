@@ -29,10 +29,10 @@ The C simulator is the direct paper-facing Figure 9 reproduction path. The Syste
 | Variant | Command | Result scope | Released result |
 |---|---|---|---|
 | Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction | Owns all token/s and TPOT tables in this README |
-| SystemC replay checker | `make systemc-cycle` | Representative IFC command stream replayed through the SystemC kernel | 0-cycle final-time delta versus the C event backend |
-| SystemC component command-cycle model | `make systemc-component` | Representative IFC command stream split into controller, execution-fabric, FIFO, ONFI, array, and IFC-compute modules | +85.500000 ns final-time delta, 0.027039%, versus the C event backend |
+| SystemC replay checker | `make systemc-cycle` | Representative IFC command stream replayed through the SystemC kernel | Lightweight 0-cycle equivalence guard |
+| SystemC component command-cycle model | `make systemc-component` | Representative IFC command stream split into controller, execution-fabric, FIFO, ONFI, array, and IFC-compute modules | Detailed C-vs-SystemC comparison: +85.500000 ns final-time delta, 0.027039% |
 
-Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs. The SystemC paths validate the command-cycle behavior and timing stability of the IFC command backend; they are not plotted as a second full Figure 9 throughput curve.
+Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs. The SystemC replay checker is a lightweight equivalence guard. The SystemC component model is the meaningful SystemC result: it compares a componentized command-cycle simulation against the C event backend and exposes the small timing drift introduced by FIFO, issue width, and module-clock quantization.
 
 ## Experimental Figures
 
@@ -41,6 +41,12 @@ Read the results this way: the absolute inference-performance numbers are standa
 PDF version: [performance_results_dashboard.pdf](docs/figures/performance_results_dashboard.pdf)
 
 The dashboard summarizes the standalone C simulator's absolute decode throughput, TPOT latency, and full 21-point throughput table, then separates the SystemC replay/component checks as validation deltas. Detailed source tables are in `results/figure9_reproduction.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
+
+![SystemC component model detailed comparison](docs/figures/systemc_component_comparison.png)
+
+PDF version: [systemc_component_comparison.pdf](docs/figures/systemc_component_comparison.pdf)
+
+The SystemC component figure gives the detailed comparison that the replay checker cannot provide: final command-stream time, per-stage service-time quantization, matched-event timing drift, and module issued/completed accounting. The C path remains the paper-facing throughput simulator; the component SystemC path is a detailed command-cycle validation model.
 
 ## Standalone C Absolute Inference Performance
 
@@ -168,6 +174,8 @@ Main paper-facing outputs:
 - `results/simulator_scheme_comparison.csv`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
+- `docs/figures/systemc_component_comparison.png`
+- `docs/figures/systemc_component_comparison.pdf`
 - `docs/figures/architecture_summary.png`
 - `docs/figures/architecture_summary.pdf`
 

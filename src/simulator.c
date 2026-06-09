@@ -552,6 +552,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "\n## Publication Figures\n\n");
     fprintf(file, "- Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.\n");
     fprintf(file, "- `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.\n");
+    fprintf(file, "- `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.\n");
     fprintf(file, "- `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.\n");
     fprintf(file, "- The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.\n");
     fprintf(file, "\n## Sanity Checks\n\n");
