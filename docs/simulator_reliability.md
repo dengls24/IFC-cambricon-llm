@@ -195,6 +195,17 @@ Figure 9 全部 21 个点都由同一 C timing path 生成：
 
 这说明模型不是只对单个平台或单个模型有效，而是在 S/M/L 平台与 OPT/LLaMA2 模型族上保持一致误差边界。
 
+此外，`results/context_length_inference.csv` 将 decode context length 作为 1-4096 token 的 sweep 参数，对同一组 21 个 Figure 9 点做反向拟合。当前结果显示：
+
+| Context-fit metric | 当前值 |
+|---|---:|
+| Stable guardrail window | 970-1040 tokens |
+| Default reproduction context | 1000 tokens |
+| Best maximum-error context | 990 tokens |
+| Best RMSE context | 1023 tokens |
+
+因此，默认 1K context 是由公开 Figure 9 曲线反推得到的 reproduction setting。可靠性边界也必须同时说明：这不是论文文本中显式给出的 Figure 9 字段，而是本公开重建模型下的多点拟合结论。
+
 ### 5.2 消融一致性
 
 仿真器给出两类论文风格消融：
@@ -261,12 +272,13 @@ make test
 - SSDsim-derived IFC event-loop trace and stats；
 - hardware-cycle trace, stats, and cross-check；
 - NPU timing；
+- context-length inference table；
 - platform/model summary；
 - tile profile；
 - pass/fail checklist；
-- 6 张 SVG 图。
+- release-facing PNG/PDF figures。
 
-`make test` 不只检查公式，还会在 `/tmp/ifc_cambricon_llm_test_outputs` 写出一套临时 artifact，并确认关键 CSV/SVG 非空。
+`make test` 不只检查公式，还会在 `/tmp/ifc_cambricon_llm_test_outputs` 写出一套临时 artifact，并确认关键 CSV 和本地 helper plot 输出非空。
 
 ## 6. 为什么符合声明范围内的论文级仿真器建模水准
 
@@ -281,7 +293,7 @@ make test
 | 校准克制 | 满足 | 使用 platform-level efficiency，不做 per-point 拟合。 |
 | 多点验证 | 满足 | 21 个 Figure 9 点全部报告误差。 |
 | 消融验证 | 满足 | Read slicing 与 tiling 消融均在论文范围内。 |
-| 输出可审计 | 满足 | CSV/JSON/report/SVG 均由同一 C 程序生成。 |
+| 输出可审计 | 满足 | CSV/JSON/report 与 release-facing PNG/PDF artifact 均可复跑。 |
 | 自动检查 | 满足 | `make test` 和 `reproduction_checks.csv` 给出 pass/fail 约束。 |
 | 边界声明 | 满足 | 明确不覆盖私有 simulator、power、ECC、prefill、完整 baseline。 |
 
@@ -306,11 +318,11 @@ make test
 如果在论文、报告或 README 中描述本项目，建议使用以下表述：
 
 ```text
-We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, an optional dependency-free hardware-cycle cross-check, an optional SystemC replay equivalence checker, an optional component-level SystemC command-cycle model, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork or RTL-level hardware fidelity.
+We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, an SSDsim-inspired channel/chip/die/plane controller timeline, a cycle-stepped command trace, an SSDsim-derived IFC command-stage backend and event loop with READ_COMPUTE and READ_SLICE commands, an optional dependency-free hardware-cycle cross-check, an optional SystemC replay equivalence checker, an optional component-level SystemC command-cycle model, and a 2 TOPS INT8 NPU plus 40 GB/s DRAM timing path. The simulator reproduces all 21 Figure 9 W8A8 points with 8.341% mean absolute relative error and 14.618% max absolute relative error, infers a stable 970-1040 token context-fit window around the default 1K setting, and its read-slicing and hardware-aware tiling ablations fall within the paper-reported ranges. It does not claim line-by-line equivalence with the authors' private SSDsim fork or RTL-level hardware fidelity.
 ```
 
 如果需要更谨慎的中文表述：
 
 ```text
-本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check、NPU timing、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价，也不声称达到 RTL 级硬件保真度。
+本项目是一个公开参数驱动的 C 语言时序仿真器，复现 Cambricon-LLM Figure 9 解码吞吐路径，并通过 controller schedule、cycle trace、SSDsim-derived trace、event-loop trace、hardware-cycle cross-check、SystemC replay equivalence check、component-level SystemC cross-check、NPU timing、context-length inference、平台/模型汇总、误差诊断和消融检查验证模型自洽性。在声明的 Figure 9 与相关消融复现范围内，其建模透明度、可复跑性和误差报告方式符合体系结构论文 artifact 的基本要求；但不声称与原作者私有 SSDsim fork 逐行等价，也不声称达到 RTL 级硬件保真度。
 ```

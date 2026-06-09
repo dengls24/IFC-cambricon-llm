@@ -15,6 +15,7 @@ Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for
 | LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token | `results/figure9_reproduction.csv` |
 | LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token | `results/figure9_reproduction.csv` |
 | Figure 9 W8A8 points reproduced | 21 | `results/figure9_reproduction.csv` |
+| Inferred Figure 9 context window | 970-1040 tokens; default 1000 tokens | `results/context_length_inference.csv` |
 | Cambricon-LLM-S read-slicing speedup range | 1.683x-1.699x | `results/figure12_read_slice_ablation.csv` |
 | Cambricon-LLM-S hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
 | SystemC replay delta vs C event backend | 0 cycles | `results/systemc_cycle_compare.csv` |
@@ -54,6 +55,12 @@ PDF version: [paper_reference_comparison.pdf](docs/figures/paper_reference_compa
 
 The paper-reference comparison reports absolute paper-vs-simulator decode throughput for all 21 Figure 9 W8A8 points, plus compact delta and platform-level reproduction summaries.
 
+![Context-length inference from Figure 9 fit](docs/figures/context_length_inference.png)
+
+PDF version: [context_length_inference.pdf](docs/figures/context_length_inference.pdf)
+
+The context-length inference figure treats decode context length as a sweep parameter and fits the public Figure 9 throughput references. The stable paper-fit window is 970-1040 tokens; the default 1000-token context is inside that window, while the best RMSE and best max-error points are 1023 and 990 tokens respectively. This is an inferred reproduction setting, not a claim that the paper text explicitly states the Figure 9 context length.
+
 ![SystemC component model detailed comparison](docs/figures/systemc_component_comparison.png)
 
 PDF version: [systemc_component_comparison.pdf](docs/figures/systemc_component_comparison.pdf)
@@ -62,7 +69,7 @@ The SystemC component figure gives the detailed comparison that the replay check
 
 ## Standalone C Absolute Inference Performance
 
-Decode throughput is reported as simulated tokens/s from the standalone C paper-facing path for one output token at 1K context under the default paper profile.
+Decode throughput is reported as simulated tokens/s from the standalone C paper-facing path for one output token at the inferred 1K context under the default paper profile.
 
 | Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
 |---|---:|---:|---:|
@@ -108,11 +115,11 @@ Implementation-source mix, measured with `wc -l` over `src/*.c`, `include/*.h`, 
 
 | Language / file type | Files | Source lines | Share |
 |---|---:|---:|---:|
-| C / C header / C tests | 10 | 3,915 | 68.6% |
-| C++ / SystemC | 3 | 1,677 | 29.4% |
+| C / C header / C tests | 10 | 4,093 | 69.6% |
+| C++ / SystemC | 3 | 1,677 | 28.5% |
 | Makefile | 1 | 92 | 1.6% |
 | Shell | 1 | 22 | 0.4% |
-| Total | 15 | 5,708 | 100.0% |
+| Total | 15 | 5,884 | 100.0% |
 
 ## Quick Start
 
@@ -183,6 +190,7 @@ Main paper-facing outputs:
 - `results/latency_breakdown.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
+- `results/context_length_inference.csv`
 - `results/simulator_scheme_comparison.csv`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
@@ -190,6 +198,8 @@ Main paper-facing outputs:
 - `docs/figures/decode_latency_breakdown.pdf`
 - `docs/figures/paper_reference_comparison.png`
 - `docs/figures/paper_reference_comparison.pdf`
+- `docs/figures/context_length_inference.png`
+- `docs/figures/context_length_inference.pdf`
 - `docs/figures/systemc_component_comparison.png`
 - `docs/figures/systemc_component_comparison.pdf`
 - `docs/figures/architecture_summary.png`
@@ -230,7 +240,8 @@ The simulator follows the public Cambricon-LLM method path:
 
 3. Compute the IFC tiled weight stage using flash array-read latency, ONFI transfer time, input-vector transfer time, and read-compute/read-request balance.
 4. Add the NPU attention compute path and DRAM attention-cache path.
-5. Emit token/s, TPOT, breakdowns, ablations, traces, and cross-checks.
+5. Sweep context length for inverse Figure 9 fit and keep the inferred 1K setting as the default reproduction context.
+6. Emit token/s, TPOT, breakdowns, ablations, traces, and cross-checks.
 
 For Cambricon-LLM-S, the derived tile is `256 x 2048`, matching the paper's tile-size study.
 

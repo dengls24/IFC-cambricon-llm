@@ -8,6 +8,10 @@ first_platform_read_slicing_speedup_min,1.682847,>=1.0,PASS
 first_platform_read_slicing_speedup_max,1.698878,<=4.0,PASS
 first_platform_tiling_speedup_min,1.341423,>=1.0,PASS
 first_platform_tiling_speedup_max,1.349439,<=4.0,PASS
+context_guardrail_window_min_tokens,970.000000,<=default,PASS
+context_guardrail_window_max_tokens,1040.000000,>=default,PASS
+context_best_max_error_tokens,990.000000,900-1100,PASS
+context_best_rmse_tokens,1023.000000,900-1100,PASS
 controller_balance_delta_max_pct,0.000000,<=1e-6,PASS
 cycle_controller_trace_enabled,1.000000,1,PASS
 ssdsim_ifc_backend_enabled,1.000000,1,PASS

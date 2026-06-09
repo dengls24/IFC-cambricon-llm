@@ -27,6 +27,8 @@ Current checked output:
 | Fastest point | OPT-6.7B on Cambricon-LLM-L |
 | LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token |
 | LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token |
+| Inferred Figure 9 context window | 970-1040 tokens |
+| Default reproduction context | 1000 tokens |
 
 Reference-fit guardrails are enforced by `tests/test_simulator.c`:
 
@@ -45,6 +47,7 @@ The report in `results/report.md` includes:
 - TPOT;
 - derived tile shape;
 - read-compute workload fraction;
+- context-length inference output;
 
 The release-facing per-scheme paper comparison is in `docs/paper_comparison.md` and `results/simulator_scheme_comparison.csv`.
 - aggregate controller command count.
@@ -85,6 +88,7 @@ Additional summary and validation artifacts:
 - `results/model_summary.csv`: per-model throughput and error summary across S/M/L platforms.
 - `results/tile_profile.csv`: derived tile dimensions, payload, request timing, and read-compute channel occupancy.
 - `results/system_profile.csv`: effective context length, NPU frequency/throughput, and DRAM bandwidth.
+- `results/context_length_inference.csv`: 1-4096 token context sweep against the 21 public Figure 9 references.
 - `results/reproduction_checks.csv`: pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 
 Publication-facing figures:
@@ -95,6 +99,8 @@ Publication-facing figures:
 - `docs/figures/decode_latency_breakdown.pdf`: PDF version of the decode latency breakdown.
 - `docs/figures/paper_reference_comparison.png`: paper Figure 9 reference versus simulator absolute throughput comparison.
 - `docs/figures/paper_reference_comparison.pdf`: PDF version of the paper-reference comparison.
+- `docs/figures/context_length_inference.png`: inverse context-length fit showing the stable 970-1040 token window.
+- `docs/figures/context_length_inference.pdf`: PDF version of the context-length inference figure.
 - `docs/figures/systemc_component_comparison.png`: detailed C-vs-SystemC component comparison for the representative command stream.
 - `docs/figures/systemc_component_comparison.pdf`: PDF version of the SystemC component comparison.
 - `docs/figures/architecture_summary.png`: homepage simulator architecture summary.
@@ -113,6 +119,7 @@ Current pass/fail checks:
 | Cambricon-LLM-S tile width | 2048 | 2048 | PASS |
 | Read-slicing speedup range | 1.683x-1.699x | 1.6x-1.8x | PASS |
 | Tiling speedup range | 1.341x-1.349x | 1.3x-1.4x | PASS |
+| Inferred context guardrail window | 970-1040 tokens | includes 1000 | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
 | Cycle controller trace enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |

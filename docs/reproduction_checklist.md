@@ -10,6 +10,7 @@ This checklist records what is covered by the current C reproduction and where e
 | Section V tile shape derivation | `results/tile_profile.csv` | PASS |
 | 16x16 1 GHz INT8 NPU timing path | `results/npu_timing.csv` | PASS |
 | Effective system profile emission | `results/system_profile.csv` | PASS |
+| Context-length inverse-fit sweep | `results/context_length_inference.csv` | PASS |
 | DRAM attention-cache traffic timing | `results/npu_timing.csv` | PASS |
 | Extended `READ_COMPUTE` command accounting | `results/request_trace.csv` | PASS |
 | Sliced read command accounting | `results/request_trace.csv` | PASS |
@@ -31,6 +32,7 @@ This checklist records what is covered by the current C reproduction and where e
 | Publication-facing performance dashboard | `docs/figures/performance_results_dashboard.png` | PASS |
 | Publication-facing decode latency breakdown | `docs/figures/decode_latency_breakdown.png` | PASS |
 | Publication-facing paper-reference comparison | `docs/figures/paper_reference_comparison.png` | PASS |
+| Publication-facing context-length inference | `docs/figures/context_length_inference.png` | PASS |
 | Publication-facing SystemC component comparison | `docs/figures/systemc_component_comparison.png` | PASS |
 | Publication-facing architecture summary | `docs/figures/architecture_summary.png` | PASS |
 | Read-slicing ablation check | `results/figure12_read_slice_ablation.csv` | PASS |
@@ -43,6 +45,9 @@ This checklist records what is covered by the current C reproduction and where e
 | Figure 9 row count | 21 | 21 | PASS |
 | Mean absolute relative error | 8.341% | <=9% | PASS |
 | Max absolute relative error | 14.618% | <=15% | PASS |
+| Inferred context guardrail window | 970-1040 tokens | includes 1000 | PASS |
+| Best maximum-error context fit | 990 tokens | near 1K | PASS |
+| Best RMSE context fit | 1023 tokens | near 1K | PASS |
 | Cambricon-LLM-S tile height | 256 | 256 | PASS |
 | Cambricon-LLM-S tile width | 2048 | 2048 | PASS |
 | Cambricon-LLM-S read-slicing speedup | 1.683x-1.699x | 1.6x-1.8x | PASS |

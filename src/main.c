@@ -130,6 +130,7 @@ int main(int argc, char **argv) {
     printf("model_summary_csv: %s/model_summary.csv\n", options.output_dir);
     printf("tile_profile_csv: %s/tile_profile.csv\n", options.output_dir);
     printf("system_profile_csv: %s/system_profile.csv\n", options.output_dir);
+    printf("context_inference_csv: %s/context_length_inference.csv\n", options.output_dir);
     printf("reproduction_checks_csv: %s/reproduction_checks.csv\n", options.output_dir);
     printf("raw_plot_dir: %s/figures (local helper output, ignored for release)\n", options.output_dir);
     printf("rows: %d\n", summary.row_count);

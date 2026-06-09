@@ -53,6 +53,7 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.
 - `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.
 - `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.
+- `context_length_inference.csv` sweeps decode context length and identifies the Figure 9 best-fit window.
 - `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.
 - READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.
 
@@ -62,6 +63,7 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.
 - `decode_latency_breakdown.png` and `decode_latency_breakdown.pdf` report decode-stage operator latency breakdowns.
 - `paper_reference_comparison.png` and `paper_reference_comparison.pdf` compare simulator throughput against paper Figure 9 references.
+- `context_length_inference.png` and `context_length_inference.pdf` show the context-length inverse fit against the paper Figure 9 references.
 - `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.
 - `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.
 - The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.

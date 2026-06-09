@@ -147,6 +147,32 @@ The simulator writes both final and decomposed values:
 
 The first four artifacts are the primary TPOT reconstruction path. The controller trace artifacts are emitted from the same platform parameters and extended command semantics, but they are used to audit controller ordering and resource occupancy rather than to replace the compact Figure 9 latency equations.
 
+## Context-Length Inference
+
+The public paper result does not expose a per-Figure 9 context-length field. This simulator therefore treats context length as a configurable reproduction parameter and also emits an inverse-fit sweep:
+
+- sweep range: 1-4096 decode context tokens;
+- target: all 21 public Figure 9 W8A8 throughput points;
+- metrics: mean absolute relative error, RMSE relative error, and maximum absolute relative error;
+- guardrail: mean absolute relative error <= 9% and maximum absolute relative error <= 15%.
+
+The current default profile gives:
+
+| Fit criterion | Context length | Error summary |
+|---|---:|---|
+| Best mean absolute error | 568 tokens | 8.197% mean absolute error, but 23.320% maximum error |
+| Best maximum-error fit | 990 tokens | 14.606% maximum error |
+| Best RMSE fit | 1023 tokens | 9.689% RMSE |
+| Default reproduction setting | 1000 tokens | 8.341% mean absolute error, 14.618% maximum error |
+
+The stable guardrail window is 970-1040 tokens. For release reporting, the repository therefore describes the default as an inferred 1K context setting. This wording is intentional: it is a reproduction fit against Figure 9, not an explicit statement from the paper text.
+
+Artifacts:
+
+- `results/context_length_inference.csv`
+- `docs/figures/context_length_inference.png`
+- `docs/figures/context_length_inference.pdf`
+
 ## Latency Breakdown Artifact
 
 `results/latency_breakdown.csv` maps each row to operator groups:

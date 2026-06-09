@@ -30,12 +30,15 @@ Main artifacts:
 - `results/latency_breakdown.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
+- `results/context_length_inference.csv`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
 - `docs/figures/decode_latency_breakdown.png`
 - `docs/figures/decode_latency_breakdown.pdf`
 - `docs/figures/paper_reference_comparison.png`
 - `docs/figures/paper_reference_comparison.pdf`
+- `docs/figures/context_length_inference.png`
+- `docs/figures/context_length_inference.pdf`
 - `docs/figures/architecture_summary.png`
 - `docs/figures/architecture_summary.pdf`
 
@@ -48,8 +51,12 @@ Current values:
 | Fastest point | OPT-6.7B on Cambricon-LLM-L |
 | LLaMA2-7B on Cambricon-LLM-L | 30.959 tokens/s, 32.301 ms/token |
 | LLaMA2-70B on Cambricon-LLM-L | 2.903 tokens/s, 344.473 ms/token |
+| Inferred Figure 9 context window | 970-1040 tokens |
+| Default reproduction context | 1000 tokens |
 
 The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.341%, and the maximum absolute relative difference is 14.618%.
+
+Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 970-1040 token stable window; the best maximum-error and RMSE fits are 990 and 1023 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
 
 The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 

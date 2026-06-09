@@ -319,6 +319,73 @@ static void require_compare_passes(const char *path) {
     require_true(pass_count >= 3, "hardware compare row count");
 }
 
+static void require_context_inference_consistent(const char *path) {
+    FILE *file = fopen(path, "r");
+    char line[512];
+    int row_count = 0;
+    int default_seen = 0;
+    int best_rmse_seen = 0;
+    int best_max_seen = 0;
+    require_true(file != NULL, "open context inference");
+    require_true(fgets(line, sizeof(line), file) != NULL, "context inference header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int context_tokens;
+        double mean_abs_error;
+        double rmse_error;
+        double max_abs_error;
+        double mean_error;
+        int guardrail_pass;
+        int best_mae;
+        int best_rmse;
+        int best_max;
+        int default_context;
+        int guardrail_min;
+        int guardrail_max;
+        char interpretation[64];
+        int parsed = sscanf(
+            line,
+            "%d,%lf,%lf,%lf,%lf,%d,%d,%d,%d,%d,%d,%d,%63[^\n\r]",
+            &context_tokens,
+            &mean_abs_error,
+            &rmse_error,
+            &max_abs_error,
+            &mean_error,
+            &guardrail_pass,
+            &best_mae,
+            &best_rmse,
+            &best_max,
+            &default_context,
+            &guardrail_min,
+            &guardrail_max,
+            interpretation);
+        require_true(parsed == 13, "parse context inference row");
+        require_true(context_tokens >= 1 && context_tokens <= 4096, "context inference range");
+        require_true(mean_abs_error > 0.0 && rmse_error > 0.0 && max_abs_error > 0.0, "context inference metrics");
+        require_true(guardrail_min <= 1000 && guardrail_max >= 1000, "context guardrail includes 1K");
+        if (default_context) {
+            default_seen = 1;
+            require_true(context_tokens == 1000, "default context marker");
+            require_true(guardrail_pass, "default context guardrail pass");
+            require_true(mean_abs_error <= 9.0, "default context mean error");
+            require_true(max_abs_error <= 15.0, "default context max error");
+        }
+        if (best_rmse) {
+            best_rmse_seen = 1;
+            require_true(context_tokens >= 900 && context_tokens <= 1100, "best RMSE context near 1K");
+        }
+        if (best_max) {
+            best_max_seen = 1;
+            require_true(context_tokens >= 900 && context_tokens <= 1100, "best max-error context near 1K");
+        }
+        ++row_count;
+    }
+    fclose(file);
+    require_true(row_count == 4096, "context inference row count");
+    require_true(default_seen, "context inference default marker");
+    require_true(best_rmse_seen, "context inference RMSE marker");
+    require_true(best_max_seen, "context inference max-error marker");
+}
+
 int main(void) {
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
@@ -382,6 +449,8 @@ int main(void) {
     require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_test_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/reproduction_checks.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
+    require_context_inference_consistent("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_relative_error.svg");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_schedule_timeline.svg");
@@ -419,6 +488,7 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_stats.csv");
     require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/context_length_inference.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
 
     require_true(system("make hw-cycle >/tmp/ifc_cambricon_llm_hw_cycle_test.log 2>&1") == 0, "run hardware cycle target");

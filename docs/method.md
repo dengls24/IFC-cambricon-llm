@@ -97,8 +97,10 @@ The simulator writes these controller and timing artifacts:
 - `systemc_component_trace.csv`, `systemc_component_stats.csv`, `systemc_component_compare.csv`, `systemc_component_modules.csv`, `systemc_component.vcd`: optional component-level SystemC artifacts from `make systemc-component`.
 - `platform_summary.csv`, `model_summary.csv`, and `tile_profile.csv`: grouped diagnostics for platform/model error and derived tile timing.
 - `system_profile.csv`: effective NPU, DRAM, and context settings used by the run.
+- `context_length_inference.csv`: context-length sweep used to infer the default Figure 9 reproduction setting.
 - `reproduction_checks.csv`: pass/fail checklist for row count, error bounds, tile size, ablation ranges, and controller balance.
 - `docs/figures/performance_results_dashboard.png`: publication-facing performance dashboard with absolute decode throughput and TPOT.
+- `docs/figures/context_length_inference.png`: publication-facing inverse fit for the inferred 1K context setting.
 
 ## Token Time
 
@@ -111,6 +113,8 @@ TPOT = tiled_weight_stage
 ```
 
 This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-resident weights, in-flash read-compute, sliced read requests for NPU-side work, and DRAM-resident attention cache.
+
+The default context length is 1000 tokens. This value is configurable and is reported as inferred: the context sweep over 1-4096 tokens gives a 970-1040 token guardrail window when matching the 21 public Figure 9 throughput points.
 
 The final TPOT uses the architecture timing model above. The cycle-stepped controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are audit artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
 

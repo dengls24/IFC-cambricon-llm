@@ -83,6 +83,8 @@ Rows:
 | `npu_peak_TOPS` | Direct peak throughput override. |
 | `dram_bandwidth_GBps` | DRAM bandwidth for attention-cache reads. |
 
+The default `context_tokens=1000` is the inferred Figure 9 reproduction setting. It is supported by `results/context_length_inference.csv`, which sweeps 1-4096 context tokens and identifies 970-1040 tokens as the stable window satisfying the current Figure 9 reproduction guardrails.
+
 If `npu_peak_TOPS` is positive, it is used directly. Otherwise the simulator derives:
 
 ```text
@@ -139,6 +141,7 @@ All major artifacts use the active configuration:
 - `model_summary.csv`
 - `tile_profile.csv`
 - `system_profile.csv`
+- `context_length_inference.csv`
 - `reproduction_checks.csv`
 - all SVG plots under `results/figures/`
 

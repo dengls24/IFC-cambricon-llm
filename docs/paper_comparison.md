@@ -19,6 +19,8 @@ This is the direct Figure 9 reproduction path. The paper reference values are th
 
 Publication figure: `docs/figures/paper_reference_comparison.png` and `docs/figures/paper_reference_comparison.pdf`.
 
+Context inference figure: `docs/figures/context_length_inference.png` and `docs/figures/context_length_inference.pdf`.
+
 | Metric | Value |
 |---|---:|
 | Figure 9 rows | 21 |
@@ -26,6 +28,8 @@ Publication figure: `docs/figures/paper_reference_comparison.png` and `docs/figu
 | Mean relative error | -0.812% |
 | Max absolute relative error | 14.618% |
 | Worst case | LLaMA2-70B on Cambricon-LLM-L |
+| Inferred context guardrail window | 970-1040 tokens |
+| Default reproduction context | 1000 tokens |
 
 Per-point comparison:
 
@@ -53,7 +57,7 @@ Per-point comparison:
 | LLaMA2-70B | Cambricon-LLM-M | 1.000000 | 1.040646 | 4.065% |
 | LLaMA2-70B | Cambricon-LLM-L | 3.400000 | 2.902988 | -14.618% |
 
-Interpretation: this scheme is the only path that should be described as directly reproducing the paper's Figure 9 decode-speed result. It is within 8.341% mean absolute relative error over the 21 paper points.
+Interpretation: this scheme is the only path that should be described as directly reproducing the paper's Figure 9 decode-speed result. It is within 8.341% mean absolute relative error over the 21 paper points. The default 1K context is an inverse-fit setting supported by the Figure 9 sweep, not a field that the paper text explicitly states for Figure 9.
 
 ## Scheme 2: SystemC Component Command-Cycle Model
 
@@ -97,7 +101,7 @@ Interpretation: the SystemC component model does not provide a new direct paper 
 Use this wording for release:
 
 ```text
-The C simulator directly reproduces Cambricon-LLM Figure 9 with 8.341% mean absolute relative error over 21 decode-speed points. The SystemC component model is a command-cycle cross-check of the representative IFC command stream; it preserves event and completion counts exactly and introduces a bounded +85.5 ns final-time delta, or 0.027039%, versus the C backend.
+The C simulator directly reproduces Cambricon-LLM Figure 9 with 8.341% mean absolute relative error over 21 decode-speed points and an inferred 970-1040 token context-fit window around the default 1K setting. The SystemC component model is a command-cycle cross-check of the representative IFC command stream; it preserves event and completion counts exactly and introduces a bounded +85.5 ns final-time delta, or 0.027039%, versus the C backend.
 ```
 
 Do not describe the SystemC component model as an independent full Figure 9 reproduction or as RTL.

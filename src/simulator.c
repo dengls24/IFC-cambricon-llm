@@ -547,6 +547,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `platform_summary.csv` and `model_summary.csv` aggregate reproduction error and throughput by platform/model.\n");
     fprintf(file, "- `tile_profile.csv` records derived tile dimensions, request timings, and read-compute channel occupancy.\n");
     fprintf(file, "- `system_profile.csv` records effective context length, NPU throughput, and DRAM bandwidth.\n");
+    fprintf(file, "- `context_length_inference.csv` sweeps decode context length and identifies the Figure 9 best-fit window.\n");
     fprintf(file, "- `reproduction_checks.csv` records pass/fail checks for row count, error bounds, tile size, ablation ranges, and controller balance.\n");
     fprintf(file, "- READ_SLICE channel intervals are emitted between READ_COMPUTE submissions to model the paper's sliced read behavior. This artifact is a command-level controller audit, not a claim of line-by-line equivalence with the private SSDsim fork used by the paper authors.\n");
     fprintf(file, "\n## Publication Figures\n\n");
@@ -554,6 +555,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.\n");
     fprintf(file, "- `decode_latency_breakdown.png` and `decode_latency_breakdown.pdf` report decode-stage operator latency breakdowns.\n");
     fprintf(file, "- `paper_reference_comparison.png` and `paper_reference_comparison.pdf` compare simulator throughput against paper Figure 9 references.\n");
+    fprintf(file, "- `context_length_inference.png` and `context_length_inference.pdf` show the context-length inverse fit against the paper Figure 9 references.\n");
     fprintf(file, "- `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.\n");
     fprintf(file, "- `architecture_summary.png` and `architecture_summary.pdf` summarize the simulator architecture and C/SystemC boundary.\n");
     fprintf(file, "- The C plot helper may emit raw local plot files under this output directory's `figures/` folder for test inspection; those files are not release artifacts.\n");

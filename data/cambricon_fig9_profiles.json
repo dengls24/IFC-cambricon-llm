@@ -3,6 +3,7 @@
     "title": "Cambricon-LLM: A Chiplet-Based Hybrid Architecture for On-Device Inference of 70B LLM",
     "source": "arXiv:2409.15654, Table II, Figure 9, Section V",
     "context_tokens": 1000,
+    "context_note": "Default 1000-token context is inferred from the public Figure 9 fit; the paper text is not treated as explicitly specifying a Figure 9 context-length field.",
     "precision": "W8A8",
     "reference_decode_speed_tokens_per_s": {
       "opt_6_7b": {"cam_llm_s": 3.6, "cam_llm_m": 11.0, "cam_llm_l": 36.3},

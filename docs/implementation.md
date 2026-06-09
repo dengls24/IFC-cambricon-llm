@@ -31,6 +31,8 @@ This project is organized as a small C simulator rather than a single-file numer
 | `docs/figures/decode_latency_breakdown.pdf` | PDF version of the decode latency breakdown. |
 | `docs/figures/paper_reference_comparison.png` | Publication-facing paper Figure 9 reference comparison. |
 | `docs/figures/paper_reference_comparison.pdf` | PDF version of the paper-reference comparison. |
+| `docs/figures/context_length_inference.png` | Publication-facing inverse context-length fit against Figure 9. |
+| `docs/figures/context_length_inference.pdf` | PDF version of the context-length inference figure. |
 | `docs/figures/systemc_component_comparison.png` | Publication-facing C-vs-SystemC component timing comparison. |
 | `docs/figures/systemc_component_comparison.pdf` | PDF version of the SystemC component comparison. |
 | `docs/figures/architecture_summary.png` | Publication-facing simulator architecture summary. |
@@ -61,6 +63,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/model_summary.csv` | Per-model throughput and error summary across platforms. |
 | `results/tile_profile.csv` | Derived tile dimensions, request timings, and channel occupancy. |
 | `results/system_profile.csv` | Effective NPU, DRAM, and context profile used by the run. |
+| `results/context_length_inference.csv` | Context-length sweep used to infer the default Figure 9 reproduction setting. |
 | `results/reproduction_checks.csv` | Pass/fail reproduction checks used by the result documentation. |
 | `results/figure12_read_slice_ablation.csv` | Read-slicing ablation table. |
 | `results/figure14_tiling_ablation.csv` | Hardware-aware tiling ablation table. |
@@ -79,11 +82,12 @@ The implementation follows the paper's Figure 9 method path:
 - optional dependency-free hardware-cycle, SystemC replay, and component-level SystemC cross-checks for the same event stream;
 - a 16x16, 1 GHz, 2 TOPS INT8 NPU timing path;
 - 40 GB/s DRAM timing for attention-cache traffic;
+- a context-length inverse-fit sweep for the public Figure 9 points;
 - one platform-level calibration term for command packing and pipeline effects.
 
 The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The cycle trace is a command-level controller audit, not a full SSD firmware or FTL model.
 
-Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The SSDsim-derived backend is documented in `docs/ssdsim_ifc_backend.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied.
+Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The SSDsim-derived backend is documented in `docs/ssdsim_ifc_backend.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied. The default 1K context setting is inferred from the Figure 9 sweep rather than treated as an explicitly stated paper field.
 
 ## Reliability Documentation
 
