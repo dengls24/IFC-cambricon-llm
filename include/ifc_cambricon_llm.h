@@ -10,6 +10,7 @@
 #define IFC_SAMPLE_TILES 16
 #define IFC_NAME_LEN 64
 #define IFC_LABEL_LEN 96
+#define IFC_TRACE_OPS_PER_LAYER 13
 
 typedef enum {
     IFC_OP_READ = 1,
@@ -124,6 +125,20 @@ typedef struct {
     double weight_stage_ms;
     double attention_cache_ms;
     double attention_compute_ms;
+    int operator_trace_ops;
+    int operator_trace_ifc_ops;
+    int operator_trace_dram_ops;
+    int operator_trace_npu_ops;
+    double operator_trace_total_ms;
+    double operator_trace_ifc_ms;
+    double operator_trace_dram_ms;
+    double operator_trace_npu_ms;
+    double operator_trace_weight_bytes;
+    double operator_trace_dram_bytes;
+    double operator_trace_npu_ops_value;
+    long long operator_trace_dram_bursts;
+    double legacy_tpot_ms;
+    double operator_trace_delta_pct;
     double tile_height;
     double tile_width;
     double alpha_read_compute;

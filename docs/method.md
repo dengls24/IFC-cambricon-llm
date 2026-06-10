@@ -18,8 +18,9 @@ These defaults can be overridden at runtime through CSV files. Configurable fiel
 
 ## C Timing Components
 
-The implementation has two timing paths:
+The implementation has three timing paths:
 
+- LLM operator trace timing: every transformer layer is expanded into 13 decode operators mapped to IFC, DRAM, and NPU engine timelines.
 - NPU timing: attention arithmetic is timed by the 2 TOPS INT8 profile, and attention-cache traffic is timed by 40 GB/s DRAM bandwidth.
 - Flash-controller timing: the controller maintains channel/chip/die/plane busy timelines, schedules flash-side commands, computes full-row microcycle-derived weight-stage latency for every Figure 9 row, emits a cycle-stepped representative trace, emits an SSDsim-derived command-stage trace, and runs an SSDsim-derived event loop for a representative command stream.
 
@@ -86,6 +87,8 @@ The simulator writes these controller and timing artifacts:
 - `controller_timing_summary.csv`: controller-derived READ_COMPUTE and READ_SLICE path balance for every row.
 - `npu_timing.csv`: DRAM attention-cache timing and NPU attention arithmetic timing for every row.
 - `latency_breakdown.csv`: operator-group latency mapping that explains TPOT from flash weight GeMV, sliced transfer, attention memory, and attention arithmetic terms.
+- `operator_trace.csv`: per-layer decode operator schedule with IFC, DRAM, and NPU engine assignment.
+- `operator_trace_summary.csv`: per-row operator counts, engine latency totals, work totals, and trace-vs-TPOT deltas.
 - `controller_schedule.csv`: sample OPT-6.7B/Cambricon-LLM-S channel/chip/die/plane event timeline showing `READ_SLICE` channel transfers placed between `READ_COMPUTE` submissions.
 - `cycle_controller_trace.csv`: cycle-stepped C controller trace for the first configured platform.
 - `cycle_controller_stats.csv`: cycle-level command/resource statistics for that trace.
@@ -108,7 +111,10 @@ The simulator writes these controller and timing artifacts:
 The final per-token latency is:
 
 ```text
-TPOT = microcycle_derived_tiled_weight_stage
+TPOT = operator_trace_total
+
+operator_trace_total =
+       microcycle_derived_tiled_weight_stage
      + DRAM_attention_cache_bytes / 40 GBps
      + attention_arithmetic_ops / 2 TOPS
 ```
@@ -117,7 +123,7 @@ This keeps the reproduction aligned with Cambricon-LLM's Figure 9 setup: flash-r
 
 The default context length is 1000 tokens. This value is configurable and is reported as inferred: the context sweep over 1-4096 tokens gives a 975-1038 token guardrail window when matching the 21 public Figure 9 throughput points.
 
-The final TPOT uses the full-row C microcycle timing path for the flash weight stage. The cycle-stepped representative controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are validation artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
+The final TPOT uses the generated LLM operator trace as the top-level schedule. The trace's flash service budget comes from the full-row C microcycle timing path. The cycle-stepped representative controller trace, SSDsim-derived command-stage trace, SSDsim-derived event trace, optional dependency-free hardware-cycle cross-check, optional SystemC replay cross-check, and optional component-level SystemC model are validation artifacts for command semantics and resource ordering. They prove that the extended `READ_COMPUTE` and `READ_SLICE` path is representable as C controller state machines with SSDsim-style stage names, can be replayed through a SystemC kernel, and can be split into controller/execution-fabric SystemC modules. They are not a claim that this repository contains the authors' private SSDsim fork or an RTL-like hardware implementation.
 
 ## Boundaries
 

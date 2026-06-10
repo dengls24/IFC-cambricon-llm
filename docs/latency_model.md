@@ -4,13 +4,14 @@ This document explains how per-token decode latency is computed from model opera
 
 ## Scope
 
-The simulator models decode latency at an architecture-paper timing level. It does not replay a framework kernel trace. Instead, it groups decode work into the operator classes that matter for the Cambricon-LLM Figure 9 path:
+The simulator models decode latency at an architecture-paper timing level. It does not replay a framework runtime trace captured from an NPU compiler. Instead, it generates a deterministic per-layer decode operator trace from the active model profile and constrains that trace with the hardware timing budgets that matter for the Cambricon-LLM Figure 9 path:
 
 | Operator group | Hardware path | Modeled by |
 |---|---|---|
 | Weight GeMV for linear layers | Flash-side IFC | flash-resident weight bytes, tile payload, `READ_COMPUTE`, `READ_SLICE` |
 | Attention state memory term | NPU/DRAM | bytes from layers, cache heads, head dim, context length |
 | Attention score/value arithmetic term | NPU | ops from layers, attention heads, head dim, context length |
+| LLM decode operator trace | IFC, DRAM, NPU | 13 scheduled operators per transformer layer |
 
 The weight GeMV term aggregates the decode-token linear layers through `parameters_billion`. This is intentional: the Figure 9 timing path is dominated by reading and computing flash-resident weights, and the public paper does not expose per-layer operator traces. The model still keeps the attention memory/compute terms separate so GQA/MQA-style `cache_heads` and `attention_heads` changes are visible.
 
@@ -147,15 +148,61 @@ If `npu_peak_TOPS` is positive in the system CSV, it is used directly. Otherwise
 npu_peak_ops_per_s = npu_frequency_hz * npu_ops_per_cycle
 ```
 
-## Step 4: TPOT And Throughput
+## Step 4: Operator Trace Scheduling
+
+After the three timing budgets are computed, the simulator expands every transformer layer into 13 decode operators:
+
+```text
+attention_norm
+qkv_projection
+key_cache_read
+attention_score
+softmax
+value_cache_read
+attention_value
+out_projection
+mlp_norm
+mlp_gate_up
+mlp_activation
+mlp_down
+residual
+```
+
+The projection and MLP linear operators are mapped to IFC. Cache reads are mapped to DRAM. Norm, attention score/value arithmetic, softmax, activation, and residual terms are mapped to NPU. The trace scheduler updates per-engine ready times and a decode dependency time:
+
+```text
+start_ms = max(dependency_ready_ms, engine_ready_ms)
+end_ms = start_ms + service_ms
+engine_ready_ms = end_ms
+dependency_ready_ms = end_ms
+```
+
+The current default trace preserves decode-token serial dependencies, so total trace time equals the sum of the IFC, DRAM, and NPU service budgets. This is deliberate: the public Figure 9 data does not expose a compiler/runtime schedule that would justify additional overlap assumptions. The trace layer makes the operator mapping explicit and machine-checkable without claiming to be an NPU compiler trace.
+
+Default trace outputs:
+
+| Metric | Value |
+|---|---:|
+| Operator trace rows | 21 |
+| Operator events | 13,104 |
+| Max operators per row | 1,040 |
+| Max trace-vs-TPOT delta | 0.000000% |
+
+## Step 5: TPOT And Throughput
 
 The final per-token latency is:
 
 ```text
-TPOT =
-    weight_stage_s
-  + attention_cache_s
-  + attention_compute_s
+TPOT = operator_trace_total_s
+
+operator_trace_total_s =
+    operator_trace_ifc_s
+  + operator_trace_dram_s
+  + operator_trace_npu_s
+
+operator_trace_ifc_s = weight_stage_s
+operator_trace_dram_s = attention_cache_s
+operator_trace_npu_s = attention_compute_s
 
 tokens_per_s = 1 / TPOT
 ```
@@ -166,6 +213,8 @@ The simulator writes both final and decomposed values:
 - `results/npu_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/latency_breakdown.csv`
+- `results/operator_trace.csv`
+- `results/operator_trace_summary.csv`
 - `results/cycle_weight_timing.csv`
 - `results/cycle_controller_trace.csv`
 - `results/cycle_controller_stats.csv`
@@ -174,7 +223,7 @@ The simulator writes both final and decomposed values:
 - `results/ssdsim_ifc_event_trace.csv`
 - `results/ssdsim_ifc_event_stats.csv`
 
-The first five artifacts are the primary TPOT reconstruction path. `cycle_weight_timing.csv` is the direct source for the flash-weight stage in `figure9_reproduction.csv`. The representative controller and SSDsim-derived trace artifacts are emitted from the same platform parameters and extended command semantics, but they are intentionally compact validation traces rather than million-command dumps for every Figure 9 row.
+`operator_trace_summary.csv` is the primary TPOT reconstruction path. `cycle_weight_timing.csv` is the direct source for the trace's flash-weight service budget in `figure9_reproduction.csv`. The representative controller and SSDsim-derived trace artifacts are emitted from the same platform parameters and extended command semantics, but they are intentionally compact validation traces rather than million-command dumps for every Figure 9 row.
 
 ## Context-Length Inference
 
@@ -216,6 +265,13 @@ Artifacts:
 | `total_tpot` | Sum used for final token latency. |
 
 This artifact is the easiest way to audit how model parameters and hardware configuration combine into latency.
+
+For the per-layer trace-level view, use:
+
+- `results/operator_trace.csv`
+- `results/operator_trace_summary.csv`
+- `docs/figures/operator_trace_breakdown.png`
+- `docs/figures/operator_trace_breakdown.pdf`
 
 Publication figure:
 

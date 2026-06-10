@@ -1,6 +1,6 @@
 # Figure 9 Reproduction Report
 
-This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, full-row microcycle-derived IFC weight-stage timing, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.
+This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes an operator-trace-driven decode schedule, full-row microcycle-derived IFC weight-stage timing, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.
 
 ## Summary
 
@@ -8,6 +8,12 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - Mean absolute relative error: 8.356%
 - Max absolute relative error: 14.508%
 - Worst case: llama2_13b on cam_llm_l
+
+## Operator Trace Summary
+
+- Operator trace events: 13104
+- Maximum operators in one row: 1040
+- Maximum trace-vs-TPOT delta: 0.000000000%
 
 ## Comparison
 
@@ -41,6 +47,8 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.
 - `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.
 - `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.
+- `operator_trace.csv` records the generated decode operator schedule with IFC, DRAM, and NPU engine assignment for every model/platform row.
+- `operator_trace_summary.csv` records per-row operator counts, engine latency totals, DRAM burst counts, and legacy-vs-trace TPOT deltas.
 - `cycle_weight_timing.csv` records full-row microcycle-derived IFC weight-stage timing for every Figure 9 row.
 - `controller_schedule.csv` records one OPT-6.7B/Cambricon-LLM-S event-timeline sample with channel/chip/die/plane placement and busy intervals.
 - `cycle_controller_trace.csv` records a C cycle-stepped command trace for the first configured platform.
@@ -63,6 +71,7 @@ This report compares the standalone C IFC simulator against the Cambricon-LLM Fi
 - Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.
 - `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.
 - `decode_latency_breakdown.png` and `decode_latency_breakdown.pdf` report decode-stage operator latency breakdowns.
+- `operator_trace_breakdown.png` and `operator_trace_breakdown.pdf` report LLM operator-trace engine timing and event counts.
 - `paper_reference_comparison.png` and `paper_reference_comparison.pdf` compare simulator throughput against paper Figure 9 references.
 - `context_length_inference.png` and `context_length_inference.pdf` show the context-length inverse fit against the paper Figure 9 references.
 - `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.

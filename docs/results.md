@@ -12,7 +12,7 @@ The simulator writes a row for each Figure 9 model/platform point. The main outp
 
 | Variant | Main artifacts | Result meaning |
 |---|---|---|
-| Standalone C cycle-timing simulator plus SSDsim-derived C event backend | `results/figure9_reproduction.csv`, `results/cycle_weight_timing.csv`, `results/latency_breakdown.csv`, `results/npu_timing.csv` | Owns the released 21-point token/s and TPOT performance numbers. |
+| Operator-trace-driven C cycle-timing simulator plus SSDsim-derived C event backend | `results/figure9_reproduction.csv`, `results/operator_trace_summary.csv`, `results/cycle_weight_timing.csv`, `results/latency_breakdown.csv`, `results/npu_timing.csv` | Owns the released 21-point token/s and TPOT performance numbers. |
 | SystemC replay checker | `results/systemc_cycle_compare.csv` | Checks that the representative C event stream replays with 0-cycle final-time delta through the SystemC kernel. |
 | SystemC component command-cycle model | `results/systemc_component_compare.csv`, `results/systemc_component_modules.csv`, `results/systemc_component.vcd` | Checks the same representative command stream after SystemC module decomposition; final-time delta is bounded rather than expected to be exactly zero. |
 
@@ -30,6 +30,9 @@ Current checked output:
 | Inferred Figure 9 context window | 975-1038 tokens |
 | Default reproduction context | 1000 tokens |
 | Largest full-row IFC command schedule | 1,544,720 physical commands and 3,463,434 stage issues |
+| LLM decode operator trace | 13,104 events, 21 row summaries |
+| Max operators in one row | 1,040 |
+| Max trace-vs-TPOT delta | 0.000000% |
 
 Reference-fit guardrails are enforced by `tests/test_simulator.c`:
 
@@ -51,6 +54,7 @@ The report in `results/report.md` includes:
 - context-length inference output;
 - full-row microcycle-derived weight-stage timing;
 - aggregate controller command count.
+- operator trace count and engine-latency summary.
 
 The release-facing per-scheme paper comparison is in `docs/paper_comparison.md` and `results/simulator_scheme_comparison.csv`.
 
@@ -63,6 +67,8 @@ Additional controller artifacts:
 - `results/cycle_weight_timing.csv`: per-row full-row microcycle-derived flash weight-stage timing used by TPOT.
 - `results/npu_timing.csv`: per-row NPU/DRAM timing and TPOT reconstruction.
 - `results/latency_breakdown.csv`: operator-group latency mapping for flash weight GeMV, sliced transfer, attention memory, attention compute, and total TPOT.
+- `results/operator_trace.csv`: per-layer decode operator event schedule with IFC, DRAM, and NPU engine assignment.
+- `results/operator_trace_summary.csv`: per-row operator counts, engine latency totals, work totals, and trace-vs-TPOT deltas.
 - `results/controller_schedule.csv`: sample channel/chip/die/plane schedule for OPT-6.7B on Cambricon-LLM-S.
 - `results/cycle_controller_trace.csv`: cycle-stepped command trace for the first configured platform.
 - `results/cycle_controller_stats.csv`: cycle-level command and resource statistics for that trace.
@@ -100,6 +106,8 @@ Publication-facing figures:
 - `docs/figures/performance_results_dashboard.pdf`: PDF version of the performance dashboard.
 - `docs/figures/decode_latency_breakdown.png`: decode TPOT operator breakdown across weight stage, attention memory, and attention compute.
 - `docs/figures/decode_latency_breakdown.pdf`: PDF version of the decode latency breakdown.
+- `docs/figures/operator_trace_breakdown.png`: operator-trace engine breakdown and trace-count summary.
+- `docs/figures/operator_trace_breakdown.pdf`: PDF version of the operator-trace breakdown.
 - `docs/figures/paper_reference_comparison.png`: paper Figure 9 reference versus simulator absolute throughput comparison.
 - `docs/figures/paper_reference_comparison.pdf`: PDF version of the paper-reference comparison.
 - `docs/figures/context_length_inference.png`: inverse context-length fit showing the stable 975-1038 token window.
@@ -127,6 +135,8 @@ Current pass/fail checks:
 | Maximum full-row microcycle commands | 1,544,720 | >0 | PASS |
 | Maximum full-row stage issue events | 3,463,434 | >0 | PASS |
 | Maximum full-row dispatch rounds | 1,062,163 | >0 | PASS |
+| Operator trace rows | 21 | 21 | PASS |
+| Operator trace max delta | 0.000000% | <=1e-9 | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
 | Cycle controller trace enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |

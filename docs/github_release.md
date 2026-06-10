@@ -2,15 +2,15 @@
 
 ## Suggested Tag
 
-`v0.2-ifc-cambricon-llm-cycle-systemc`
+`v0.3-ifc-cambricon-llm-operator-trace`
 
 ## Suggested Title
 
-IFC Cambricon-LLM C cycle simulator with SSDsim-derived backend and SystemC validation
+IFC Cambricon-LLM operator-trace C simulator with SSDsim-derived backend and SystemC validation
 
 ## Summary
 
-This release publishes the IFC Cambricon-LLM simulator as a reproducible architecture-simulation artifact for the public Cambricon-LLM Figure 9 W8A8 decode-speed path. The paper-facing results are produced by a standalone C timing simulator. The flash weight stage is sourced from a full-row microcycle IFC scheduler, and the extended IFC command path is audited with an SSDsim-derived C event backend plus C++/SystemC cross-checks.
+This release publishes the IFC Cambricon-LLM simulator as a reproducible architecture-simulation artifact for the public Cambricon-LLM Figure 9 W8A8 decode-speed path. The paper-facing results are produced by an operator-trace-driven standalone C timing simulator. The released TPOT is sourced from a per-layer LLM decode trace whose flash-side service budget is constrained by a full-row microcycle IFC scheduler, and whose extended IFC command path is audited with an SSDsim-derived C event backend plus C++/SystemC cross-checks.
 
 The simulator is intended to reconstruct the public timing method and expose the modeling assumptions. It is not the authors' private SSDsim fork, not RTL, and not a full SSD firmware/FTL model.
 
@@ -18,6 +18,7 @@ The simulator is intended to reconstruct the public timing method and expose the
 
 - Reproduces all 21 public Figure 9 W8A8 model/platform points.
 - Reports absolute decode throughput and TPOT for OPT and LLaMA2 on Cambricon-LLM-S/M/L.
+- Adds a 13-operator-per-layer LLM decode trace with 13,104 default events, 21 row summaries, and zero trace-vs-TPOT delta.
 - Infers a stable Figure 9 context-fit window of 975-1038 tokens, with the default reproduction setting at 1000 tokens.
 - Uses full-row microcycle-derived IFC weight-stage timing for every Figure 9 row, with up to 1,544,720 physical IFC commands and 3,463,434 stage issues in the largest row.
 - Adds an SSDsim-derived C backend for extended `READ_COMPUTE` and `READ_SLICE` command stages.
@@ -39,6 +40,9 @@ The simulator is intended to reconstruct the public timing method and expose the
 | Default reproduction context | 1000 tokens |
 | Largest full-row IFC command schedule | 1,544,720 physical commands |
 | Largest full-row stage issue schedule | 3,463,434 stage issues |
+| LLM decode operator trace | 13,104 events, 21 row summaries |
+| Max operators in one row | 1,040 |
+| Max trace-vs-TPOT delta | 0.000000% |
 | SSDsim-derived representative command stream | 256 commands, 1536 events |
 | SystemC replay delta vs C event backend | 0 cycles |
 | SystemC component final-time delta vs C event backend | +85.500 ns, 0.027039% |
@@ -70,6 +74,8 @@ SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
 results/summary.json
 results/figure9_reproduction.csv
 results/latency_breakdown.csv
+results/operator_trace.csv
+results/operator_trace_summary.csv
 results/cycle_weight_timing.csv
 results/controller_timing_summary.csv
 results/npu_timing.csv
@@ -83,6 +89,7 @@ results/systemc_component_compare.csv
 results/systemc_component.vcd
 docs/figures/performance_results_dashboard.png
 docs/figures/decode_latency_breakdown.png
+docs/figures/operator_trace_breakdown.png
 docs/figures/paper_reference_comparison.png
 docs/figures/context_length_inference.png
 docs/figures/systemc_component_comparison.png
@@ -90,7 +97,7 @@ docs/figures/systemc_component_comparison.png
 
 ## Result Ownership
 
-The standalone C simulator is the direct 21-point Figure 9 reproduction path and owns the released token/s, TPOT, latency-breakdown, and ablation tables.
+The standalone C simulator is the direct 21-point Figure 9 reproduction path and owns the released token/s, TPOT, operator-trace, latency-breakdown, and ablation tables.
 
 The SystemC replay checker is an equivalence guard for the representative IFC event stream. Exact agreement with the C backend is expected because it intentionally replays the same command/stage/resource rules through the SystemC kernel.
 
@@ -99,7 +106,7 @@ The component-level SystemC model is the hardware-structured validation path. It
 ## Recommended Method Wording
 
 ```text
-We implement a standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, a full-row microcycle-derived IFC weight-stage scheduler, an SSDsim-derived IFC command-stage backend and event loop for READ_COMPUTE and READ_SLICE commands, and C++/SystemC cross-checks. The simulator reproduces all 21 public Figure 9 W8A8 points with 8.356% mean absolute relative error and 14.508% maximum absolute relative error. A component-level SystemC command-cycle model validates a representative IFC command stream with exact event/completion counts and a bounded 0.027039% final-time delta versus the C event backend.
+We implement an operator-trace-driven standalone C timing simulator that reconstructs the Cambricon-LLM Figure 9 decode-speed path using public platform/model parameters, Section V tile equations, a 13-operator-per-layer LLM decode trace, a full-row microcycle-derived IFC weight-stage scheduler, an SSDsim-derived IFC command-stage backend and event loop for READ_COMPUTE and READ_SLICE commands, and C++/SystemC cross-checks. The simulator reproduces all 21 public Figure 9 W8A8 points with 8.356% mean absolute relative error and 14.508% maximum absolute relative error. A component-level SystemC command-cycle model validates a representative IFC command stream with exact event/completion counts and a bounded 0.027039% final-time delta versus the C event backend.
 ```
 
 ## Boundary
@@ -114,6 +121,7 @@ The right claim is narrower and stronger: this is an auditable public-method C a
 - `docs/release_summary.md`
 - `docs/method.md`
 - `docs/latency_model.md`
+- `docs/operator_trace.md`
 - `docs/controller_cycle_model.md`
 - `docs/ssdsim_ifc_backend.md`
 - `docs/paper_comparison.md`

@@ -386,8 +386,141 @@ static void require_context_inference_consistent(const char *path) {
     require_true(best_max_seen, "context inference max-error marker");
 }
 
+static int expected_operator_trace_events(const IfcConfig *config) {
+    int total = 0;
+    for (int model_id = 0; model_id < IFC_MODEL_COUNT; ++model_id) {
+        total += config->models[model_id].layers * IFC_PLATFORM_COUNT * IFC_TRACE_OPS_PER_LAYER;
+    }
+    return total;
+}
+
+static void require_operator_rows_consistent(
+    const IfcConfig *config,
+    const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        int model_id = i / IFC_PLATFORM_COUNT;
+        int layers = config->models[model_id].layers;
+        require_true(rows[i].operator_trace_ops == layers * IFC_TRACE_OPS_PER_LAYER, "operator trace op count");
+        require_true(rows[i].operator_trace_ifc_ops == layers * 4, "operator trace IFC op count");
+        require_true(rows[i].operator_trace_dram_ops == layers * 2, "operator trace DRAM op count");
+        require_true(rows[i].operator_trace_npu_ops == layers * 7, "operator trace NPU op count");
+        require_close(rows[i].operator_trace_total_ms, rows[i].tpot_ms, 1e-6, "operator trace TPOT source");
+        require_close(rows[i].operator_trace_total_ms, rows[i].legacy_tpot_ms, 1e-6, "operator trace legacy TPOT parity");
+        require_close(rows[i].operator_trace_ifc_ms, rows[i].weight_stage_ms, 1e-6, "operator trace IFC latency total");
+        require_close(rows[i].operator_trace_dram_ms, rows[i].attention_cache_ms, 1e-6, "operator trace DRAM latency total");
+        require_close(rows[i].operator_trace_npu_ms, rows[i].attention_compute_ms, 1e-6, "operator trace NPU latency total");
+        require_close(rows[i].operator_trace_weight_bytes, rows[i].weight_bytes, 1e-3, "operator trace weight bytes");
+        require_close(rows[i].operator_trace_dram_bytes, rows[i].attention_cache_bytes, 1e-3, "operator trace DRAM bytes");
+        require_close(rows[i].operator_trace_npu_ops_value, rows[i].attention_ops, 1e-3, "operator trace NPU ops");
+        require_true(rows[i].operator_trace_dram_bursts > 0, "operator trace DRAM bursts");
+        require_close(rows[i].operator_trace_delta_pct, 0.0, 1e-9, "operator trace TPOT delta");
+    }
+}
+
+static void require_operator_trace_consistent(
+    const char *path,
+    const IfcSimulationRow rows[IFC_ROW_COUNT],
+    int expected_events,
+    int expected_rows) {
+    FILE *file = fopen(path, "r");
+    char line[1024];
+    int row_counts[IFC_ROW_COUNT];
+    double row_last_end_ms[IFC_ROW_COUNT];
+    int events = 0;
+    int ifc_seen = 0;
+    int dram_seen = 0;
+    int npu_seen = 0;
+    memset(row_counts, 0, sizeof(row_counts));
+    memset(row_last_end_ms, 0, sizeof(row_last_end_ms));
+    require_true(file != NULL, "open operator trace");
+    require_true(fgets(line, sizeof(line), file) != NULL, "operator trace header");
+    while (fgets(line, sizeof(line), file) != NULL) {
+        int row_id;
+        char model[64];
+        char platform[64];
+        int layer_id;
+        int op_index;
+        char op_type[64];
+        char engine[32];
+        char mapped_stage[64];
+        double engine_ready_ms;
+        double start_ms;
+        double end_ms;
+        double service_ms;
+        double weight_bytes;
+        double dram_bytes;
+        double npu_ops;
+        double cycle_ns;
+        long long service_cycles;
+        long long dram_bursts;
+        int parsed = sscanf(
+            line,
+            "%d,%63[^,],%63[^,],%d,%d,%63[^,],%31[^,],%63[^,],%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lf,%lld,%lld",
+            &row_id,
+            model,
+            platform,
+            &layer_id,
+            &op_index,
+            op_type,
+            engine,
+            mapped_stage,
+            &engine_ready_ms,
+            &start_ms,
+            &end_ms,
+            &service_ms,
+            &weight_bytes,
+            &dram_bytes,
+            &npu_ops,
+            &cycle_ns,
+            &service_cycles,
+            &dram_bursts);
+        require_true(parsed == 18, "parse operator trace row");
+        require_true(row_id >= 0 && row_id < expected_rows, "operator trace row id");
+        require_true(layer_id >= 0, "operator trace layer id");
+        require_true(op_index >= 0 && op_index < IFC_TRACE_OPS_PER_LAYER, "operator trace op index");
+        require_true(model[0] != '\0' && platform[0] != '\0' && op_type[0] != '\0', "operator trace labels");
+        require_true(mapped_stage[0] != '\0', "operator trace mapped stage");
+        require_true(start_ms >= engine_ready_ms, "operator trace engine ready ordering");
+        require_true(end_ms >= start_ms, "operator trace end ordering");
+        require_close(end_ms - start_ms, service_ms, 1e-6, "operator trace service interval");
+        require_true(service_ms > 0.0, "operator trace positive service");
+        require_true(cycle_ns > 0.0, "operator trace cycle");
+        require_true(service_cycles > 0, "operator trace service cycles");
+        if (strcmp(engine, "IFC") == 0) {
+            ifc_seen = 1;
+            require_true(weight_bytes > 0.0, "operator trace IFC weight bytes");
+            require_true(dram_bytes == 0.0 && npu_ops == 0.0, "operator trace IFC work isolation");
+        } else if (strcmp(engine, "DRAM") == 0) {
+            dram_seen = 1;
+            require_true(dram_bytes > 0.0, "operator trace DRAM bytes");
+            require_true(dram_bursts > 0, "operator trace DRAM bursts");
+            require_true(weight_bytes == 0.0 && npu_ops == 0.0, "operator trace DRAM work isolation");
+        } else if (strcmp(engine, "NPU") == 0) {
+            npu_seen = 1;
+            require_true(npu_ops > 0.0, "operator trace NPU ops");
+            require_true(weight_bytes == 0.0 && dram_bytes == 0.0, "operator trace NPU work isolation");
+        } else {
+            require_true(0, "unexpected operator trace engine");
+        }
+        if (end_ms > row_last_end_ms[row_id]) {
+            row_last_end_ms[row_id] = end_ms;
+        }
+        ++row_counts[row_id];
+        ++events;
+    }
+    fclose(file);
+    require_true(events == expected_events, "operator trace event count");
+    for (int row_id = 0; row_id < expected_rows; ++row_id) {
+        require_true(row_counts[row_id] > 0, "operator trace per-row coverage");
+        require_close(row_last_end_ms[row_id], rows[row_id].operator_trace_total_ms, 1e-6, "operator trace final time");
+    }
+    require_true(ifc_seen && dram_seen && npu_seen, "operator trace engine coverage");
+}
+
 int main(void) {
+    IfcConfig default_config;
     IfcTileModel tile = ifc_derive_tile_model(&IFC_PLATFORMS[0]);
+    ifc_config_init_default(&default_config);
     require_close(tile.tile_height, 256.0, 1e-9, "Cambricon-LLM-S tile height");
     require_close(tile.tile_width, 2048.0, 1e-9, "Cambricon-LLM-S tile width");
     require_true(tile.alpha_read_compute > 0.35 && tile.alpha_read_compute < 0.36, "alpha range");
@@ -401,6 +534,7 @@ int main(void) {
     require_true(summary.row_count == 21, "row count");
     require_true(summary.max_abs_relative_error_pct <= 15.0, "max reproduction error");
     require_true(summary.mean_abs_relative_error_pct <= 9.0, "mean reproduction error");
+    require_operator_rows_consistent(&default_config, rows);
 
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         require_true(rows[i].read_compute_requests > 0.0, "read-compute command count");
@@ -468,6 +602,13 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
     require_context_inference_consistent("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/operator_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/operator_trace_summary.csv");
+    require_operator_trace_consistent(
+        "/tmp/ifc_cambricon_llm_test_outputs/operator_trace.csv",
+        rows,
+        expected_operator_trace_events(&default_config),
+        IFC_ROW_COUNT);
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/plot_manifest.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_plot_source.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_timeline_source.csv");
@@ -490,6 +631,7 @@ int main(void) {
     require_true(strcmp(custom_rows[0].platform, "ifc_s_1600") == 0, "custom platform name");
     require_true(strcmp(custom_rows[0].model, "small_7b") == 0, "custom model name");
     require_true(fabs(custom_rows[0].simulated_tokens_per_s - rows[0].simulated_tokens_per_s) > 1e-4, "custom config changes throughput");
+    require_operator_rows_consistent(&custom_config, custom_rows);
     require_true(ifc_write_outputs_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom outputs");
     require_true(ifc_write_analysis_outputs_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom analysis outputs");
     require_true(ifc_write_plots_config("/tmp/ifc_cambricon_llm_custom_outputs", &custom_config, custom_rows, &custom_summary) == 0, "write custom plot outputs");
@@ -507,6 +649,13 @@ int main(void) {
     require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/context_length_inference.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/operator_trace.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/operator_trace_summary.csv");
+    require_operator_trace_consistent(
+        "/tmp/ifc_cambricon_llm_custom_outputs/operator_trace.csv",
+        custom_rows,
+        expected_operator_trace_events(&custom_config),
+        IFC_ROW_COUNT);
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_timeline_source.csv");
 
     require_true(system("make hw-cycle >/tmp/ifc_cambricon_llm_hw_cycle_test.log 2>&1") == 0, "run hardware cycle target");

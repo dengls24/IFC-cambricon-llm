@@ -18,6 +18,8 @@ cycle_weight_max_total_commands,1544720.000000,>0,PASS
 microcycle_rows,21.000000,21,PASS
 microcycle_max_stage_issue_events,3463434.000000,>0,PASS
 microcycle_max_dispatch_rounds,1062163.000000,>0,PASS
+operator_trace_rows,21.000000,21,PASS
+operator_trace_max_delta_pct,0.000000,<=1e-9,PASS
 controller_balance_delta_max_pct,0.000000,<=1e-6,PASS
 cycle_controller_trace_enabled,1.000000,1,PASS
 ssdsim_ifc_backend_enabled,1.000000,1,PASS

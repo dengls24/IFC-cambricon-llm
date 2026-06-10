@@ -1,6 +1,6 @@
 # IFC Cambricon-LLM Simulator
 
-Research-artifact simulator for the Cambricon-LLM in-flash-computing decode path. The project reconstructs the public Figure 9 W8A8 timing method with a standalone C simulator, an SSDsim-derived IFC command backend, and SystemC cross-checks.
+Research-artifact simulator for the Cambricon-LLM in-flash-computing decode path. The project reconstructs the public Figure 9 W8A8 timing method with an operator-trace-driven standalone C simulator, an SSDsim-derived IFC command backend, and SystemC cross-checks.
 
 Project author and maintainer: **Deng Lishuo (`dengls24`)**
 
@@ -17,13 +17,14 @@ Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for
 | Figure 9 W8A8 points reproduced | 21 | `results/figure9_reproduction.csv` |
 | Inferred Figure 9 context window | 975-1038 tokens; default 1000 tokens | `results/context_length_inference.csv` |
 | Full-row IFC microcycle work | up to 1,544,720 physical commands and 3,463,434 stage issues | `results/cycle_weight_timing.csv` |
+| LLM decode operator trace | 13,104 events; 13 ops/layer; max 1,040 ops/row; 0.000000% TPOT delta | `results/operator_trace_summary.csv` |
 | Cambricon-LLM-S read-slicing speedup range | 1.724x-1.741x | `results/figure12_read_slice_ablation.csv` |
 | Cambricon-LLM-S hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
 | SystemC component final-time delta vs C backend | +85.500000 ns, 0.027039% | `results/systemc_component_compare.csv` |
 
 Reference-fit quality is kept as a secondary audit metric in `results/summary.json` (mean absolute relative difference 8.356%, max 14.508%). The main released performance outputs are the absolute decode throughput and TPOT tables below.
 
-The C simulator is the direct paper-facing Figure 9 reproduction path. Its weight-stage TPOT is sourced from a full-row microcycle IFC scheduler for every Figure 9 row, including stage issue-width limiting, issue-queue depth reporting, and module-clock quantization, then combined with the NPU attention tail. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
+The C simulator is the direct paper-facing Figure 9 reproduction path. Its released TPOT is sourced from `operator_trace_total_ms`: a 13-operator-per-layer decode trace whose IFC service time is constrained by the full-row microcycle IFC scheduler, and whose DRAM/NPU service times come from the configured attention-cache and NPU arithmetic paths. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
 
 GitHub release text is prepared in [`docs/github_release.md`](docs/github_release.md). The longer release audit is in [`docs/release_summary.md`](docs/release_summary.md).
 
@@ -31,11 +32,11 @@ GitHub release text is prepared in [`docs/github_release.md`](docs/github_releas
 
 | Variant | Command | Result scope | Released result |
 |---|---|---|---|
-| Standalone C microcycle simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction with per-row IFC microcycle weight timing | Owns all token/s and TPOT tables in this README |
+| Operator-trace-driven C simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction with per-row IFC microcycle weight timing and LLM decode operator traces | Owns all token/s and TPOT tables in this README |
 | SystemC replay checker | `make systemc-cycle` | Representative IFC command stream replayed through the SystemC kernel | Lightweight 0-cycle equivalence guard |
 | SystemC component command-cycle model | `make systemc-component` | Representative IFC command stream split into controller, execution-fabric, FIFO, ONFI, array, and IFC-compute modules | Detailed C-vs-SystemC comparison: +85.500000 ns final-time delta, 0.027039% |
 
-Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs, and their flash weight stage comes from the full-row microcycle backend in `results/cycle_weight_timing.csv`. The SystemC replay checker is a lightweight equivalence guard. The SystemC component model is the meaningful SystemC result: it compares a componentized command-cycle simulation against the representative C event backend and exposes the small timing drift introduced by FIFO, issue width, and module-clock quantization.
+Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs, and their TPOT comes from `results/operator_trace_summary.csv`. The trace's flash-side service budget comes from the full-row microcycle backend in `results/cycle_weight_timing.csv`. The SystemC replay checker is a lightweight equivalence guard. The SystemC component model is the meaningful SystemC result: it compares a componentized command-cycle simulation against the representative C event backend and exposes the small timing drift introduced by FIFO, issue width, and module-clock quantization.
 
 ## Experimental Figures
 
@@ -43,13 +44,19 @@ Read the results this way: the absolute inference-performance numbers are standa
 
 PDF version: [performance_results_dashboard.pdf](docs/figures/performance_results_dashboard.pdf)
 
-The dashboard summarizes the standalone C simulator's absolute decode throughput, TPOT latency, and full 21-point throughput table, then separates the SystemC replay/component checks as validation deltas. Detailed source tables are in `results/figure9_reproduction.csv`, `results/cycle_weight_timing.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
+The dashboard summarizes the standalone C simulator's absolute decode throughput, TPOT latency, and full 21-point throughput table, then separates the SystemC replay/component checks as validation deltas. Detailed source tables are in `results/figure9_reproduction.csv`, `results/operator_trace_summary.csv`, `results/cycle_weight_timing.csv`, `results/figure12_read_slice_ablation.csv`, `results/figure14_tiling_ablation.csv`, and `results/systemc_component_compare.csv`.
 
 ![LLM decode latency breakdown](docs/figures/decode_latency_breakdown.png)
 
 PDF version: [decode_latency_breakdown.pdf](docs/figures/decode_latency_breakdown.pdf)
 
 The latency breakdown figure decomposes standalone C decode TPOT into the microcycle-derived flash-weight stage, attention state memory, and attention score/value compute. It also shows the raw full-row IFC microcycle weight timing before platform pipeline calibration.
+
+![LLM operator trace engine breakdown](docs/figures/operator_trace_breakdown.png)
+
+PDF version: [operator_trace_breakdown.pdf](docs/figures/operator_trace_breakdown.pdf)
+
+The operator-trace figure shows the 13-op/layer decode schedule summarized by IFC, DRAM, and NPU engine time. The released TPOT is the trace total; `make test` checks that it matches the microcycle-derived flash stage plus DRAM/NPU attention terms for every default and custom row.
 
 ![Paper Figure 9 reference comparison](docs/figures/paper_reference_comparison.png)
 
@@ -95,7 +102,7 @@ TPOT latency is reported as simulated ms/token for the same standalone C runs.
 | LLaMA2-13B | 532.772 | 190.055 | 62.379 |
 | LLaMA2-70B | 2967.342 | 957.876 | 343.320 |
 
-TPOT is computed as `weight_stage_ms + attention_cache_ms + attention_compute_ms`. In the default release path, `weight_stage_ms` is copied from `cycle_weight_stage_ms`, the calibrated full-row IFC microcycle schedule in `results/cycle_weight_timing.csv`; the analytic overlap path is retained only as a fallback and ablation reference. `make test` checks this equality for every Figure 9 row.
+TPOT is reported as `operator_trace_total_ms`. In the default release path, the trace expands each transformer layer into 13 decode operators and schedules them through IFC, DRAM, and NPU engine-ready timelines. Its IFC service budget is copied from `cycle_weight_stage_ms`, the calibrated full-row IFC microcycle schedule in `results/cycle_weight_timing.csv`; the analytic overlap path is retained only as a fallback and ablation reference. `make test` checks that `operator_trace_total_ms = weight_stage_ms + attention_cache_ms + attention_compute_ms` for every Figure 9 row.
 
 ## Architecture
 
@@ -107,6 +114,7 @@ PDF version: [architecture_summary.pdf](docs/figures/architecture_summary.pdf)
 
 - C timing simulator for Cambricon-LLM Figure 9 decode-speed reproduction.
 - Runtime-configurable model, flash platform, NPU/DRAM, ONFI bandwidth, and IFC compute profiles.
+- LLM decode operator trace generation with 13 scheduled operators per transformer layer.
 - Full-row microcycle-derived IFC weight-stage timing for every Figure 9 row.
 - SSDsim-derived C event backend for the extended IFC commands `READ_COMPUTE` and `READ_SLICE`.
 - Dependency-free C++ hardware-cycle checker.
@@ -120,11 +128,11 @@ Implementation-source mix, measured with `wc -l` over `src/*.c`, `include/*.h`, 
 
 | Language / file type | Files | Source lines | Share |
 |---|---:|---:|---:|
-| C / C header / C tests | 10 | 4,585 | 71.9% |
-| C++ / SystemC | 3 | 1,677 | 26.3% |
-| Makefile | 1 | 92 | 1.4% |
+| C / C header / C tests | 10 | 5,182 | 74.3% |
+| C++ / SystemC | 3 | 1,677 | 24.0% |
+| Makefile | 1 | 92 | 1.3% |
 | Shell | 1 | 22 | 0.3% |
-| Total | 15 | 6,376 | 100.0% |
+| Total | 15 | 6,973 | 100.0% |
 
 ## Quick Start
 
@@ -193,6 +201,8 @@ Main paper-facing outputs:
 - `results/summary.json`
 - `results/report.md`
 - `results/latency_breakdown.csv`
+- `results/operator_trace.csv`
+- `results/operator_trace_summary.csv`
 - `results/cycle_weight_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
@@ -202,6 +212,8 @@ Main paper-facing outputs:
 - `docs/figures/performance_results_dashboard.pdf`
 - `docs/figures/decode_latency_breakdown.png`
 - `docs/figures/decode_latency_breakdown.pdf`
+- `docs/figures/operator_trace_breakdown.png`
+- `docs/figures/operator_trace_breakdown.pdf`
 - `docs/figures/paper_reference_comparison.png`
 - `docs/figures/paper_reference_comparison.pdf`
 - `docs/figures/context_length_inference.png`
@@ -246,8 +258,9 @@ The simulator follows the public Cambricon-LLM method path:
 
 3. Compute logical read-compute and sliced-read demand, expand it into physical channel/chip/die commands, and schedule the full-row IFC weight stage with integer controller cycles for C/A, vector transfer, data transfer, array read, and IFC compute.
 4. Add the NPU attention compute path and DRAM attention-cache path.
-5. Sweep context length for inverse Figure 9 fit and keep the inferred 1K setting as the default reproduction context.
-6. Emit token/s, TPOT, breakdowns, ablations, traces, and cross-checks.
+5. Expand every transformer layer into a 13-operator decode trace and schedule it through IFC, DRAM, and NPU engine-ready timelines.
+6. Sweep context length for inverse Figure 9 fit and keep the inferred 1K setting as the default reproduction context.
+7. Emit token/s, TPOT, breakdowns, ablations, traces, and cross-checks.
 
 For Cambricon-LLM-S, the derived tile is `256 x 2048`, matching the paper's tile-size study.
 
@@ -272,6 +285,7 @@ When custom hardware or model profiles are used with default references, token/s
 | Topic | Document |
 |---|---|
 | Method and timing model | `docs/method.md`, `docs/latency_model.md` |
+| LLM operator trace model | `docs/operator_trace.md` |
 | Controller and SSDsim-derived backend | `docs/controller_cycle_model.md`, `docs/ssdsim_ifc_backend.md` |
 | Configuration | `docs/configuration.md` |
 | Results and release summary | `docs/results.md`, `docs/release_summary.md` |

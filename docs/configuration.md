@@ -116,6 +116,8 @@ attention_cache_bytes = layers * 2 * cache_heads * head_dim * context_tokens
 attention_ops = 2 * layers * attention_heads * head_dim * context_tokens
 ```
 
+The same model fields also drive the generated LLM decode operator trace. Each configured layer emits 13 operators into `operator_trace.csv`; changing layer count changes trace event count, while changing width/head/cache parameters changes the work bytes/ops assigned to those events.
+
 ## Reference CSV
 
 File: `configs/default_references.csv`
@@ -127,6 +129,8 @@ Reference values are only needed for paper-vs-simulator error reporting. For des
 All major artifacts use the active configuration:
 
 - `figure9_reproduction.csv`
+- `operator_trace.csv`
+- `operator_trace_summary.csv`
 - `request_trace.csv`
 - `cycle_weight_timing.csv`
 - `controller_schedule.csv`

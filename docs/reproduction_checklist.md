@@ -14,6 +14,8 @@ This checklist records what is covered by the current C reproduction and where e
 | DRAM attention-cache traffic timing | `results/npu_timing.csv` | PASS |
 | Extended `READ_COMPUTE` command accounting | `results/request_trace.csv` | PASS |
 | Sliced read command accounting | `results/request_trace.csv` | PASS |
+| LLM decode operator trace schedule | `results/operator_trace.csv` | PASS |
+| LLM decode operator trace summary | `results/operator_trace_summary.csv` | PASS |
 | Full-row microcycle-derived IFC weight-stage timing | `results/cycle_weight_timing.csv` | PASS |
 | Channel/chip/die/plane sample schedule | `results/controller_schedule.csv` | PASS |
 | Cycle-stepped controller command trace | `results/cycle_controller_trace.csv` | PASS |
@@ -32,6 +34,7 @@ This checklist records what is covered by the current C reproduction and where e
 | Figure 9 decode-speed reproduction | `results/figure9_reproduction.csv` | PASS |
 | Publication-facing performance dashboard | `docs/figures/performance_results_dashboard.png` | PASS |
 | Publication-facing decode latency breakdown | `docs/figures/decode_latency_breakdown.png` | PASS |
+| Publication-facing operator trace breakdown | `docs/figures/operator_trace_breakdown.png` | PASS |
 | Publication-facing paper-reference comparison | `docs/figures/paper_reference_comparison.png` | PASS |
 | Publication-facing context-length inference | `docs/figures/context_length_inference.png` | PASS |
 | Publication-facing SystemC component comparison | `docs/figures/systemc_component_comparison.png` | PASS |
@@ -53,6 +56,9 @@ This checklist records what is covered by the current C reproduction and where e
 | Maximum full-row microcycle commands | 1,544,720 | >0 | PASS |
 | Maximum full-row stage issue events | 3,463,434 | >0 | PASS |
 | Maximum full-row dispatch rounds | 1,062,163 | >0 | PASS |
+| Operator trace rows | 21 | 21 | PASS |
+| Operator trace events | 13,104 | >0 | PASS |
+| Operator trace max delta | 0.000000% | <=1e-9 | PASS |
 | Cambricon-LLM-S tile height | 256 | 256 | PASS |
 | Cambricon-LLM-S tile width | 2048 | 2048 | PASS |
 | Cambricon-LLM-S read-slicing speedup | 1.724x-1.741x | 1.6x-1.8x | PASS |

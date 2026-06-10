@@ -9,7 +9,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/main.c` | Parses `--output-dir`, runs the reproduction, and prints artifact paths. |
 | `src/profiles.c` | Holds model profiles, Cambricon-LLM-S/M/L platform profiles, Figure 9 reference points, and opcode names. |
 | `src/config.c` | Loads runtime CSV overrides for model, platform, system, and reference profiles. |
-| `src/simulator.c` | Implements the tile-size equations, per-token timing model, full-row microcycle weight-stage integration, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
+| `src/simulator.c` | Implements the tile-size equations, per-token timing model, per-layer LLM operator trace scheduler, full-row microcycle weight-stage integration, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
 | `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, full-row microcycle-derived weight-stage scheduler, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
 | `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
@@ -18,18 +18,22 @@ This project is organized as a small C simulator rather than a single-file numer
 | `systemc/ifc_hw_cycle_systemc.cpp` | Implements the optional `libsystemc` replay checker using `sc_module` and `SC_THREAD`. It shares the C++ command/stage/resource rules and checks kernel-time replay equivalence. |
 | `systemc/ifc_component_systemc.cpp` | Implements the optional component-level SystemC command-cycle model with separate controller and execution-fabric modules, FIFO communication, timed stage processes, module statistics, and VCD tracing. |
 | `tools/setup_systemc_local.sh` | Installs a local SystemC sysroot without root privileges. |
-| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, cycle-trace consistency, SSDsim-derived stage consistency, dependency-free hardware-cycle cross-check output, ablation speedup bounds, and nonempty output artifacts. |
+| `tests/test_simulator.c` | Checks tile dimensions, opcode naming, Figure 9 error thresholds, controller command accounting, operator-trace counts and TPOT reconstruction, cycle-trace consistency, SSDsim-derived stage consistency, dependency-free hardware-cycle cross-check output, ablation speedup bounds, and nonempty output artifacts. |
 
 ## Artifact Mapping
 
 | Artifact | Purpose |
 |---|---|
 | `results/figure9_reproduction.csv` | Paper-vs-simulator decode-speed table for all 21 Figure 9 points. |
+| `results/operator_trace.csv` | Per-layer LLM decode operator schedule with IFC, DRAM, and NPU engine assignment. |
+| `results/operator_trace_summary.csv` | Per-row operator counts, engine latency totals, work totals, and trace-vs-TPOT deltas. |
 | `results/cycle_weight_timing.csv` | Full-row microcycle-derived IFC weight-stage timing used by the TPOT table. |
 | `docs/figures/performance_results_dashboard.png` | Publication-facing performance dashboard with absolute token/s and TPOT. |
 | `docs/figures/performance_results_dashboard.pdf` | PDF version of the performance dashboard. |
 | `docs/figures/decode_latency_breakdown.png` | Publication-facing decode operator latency breakdown. |
 | `docs/figures/decode_latency_breakdown.pdf` | PDF version of the decode latency breakdown. |
+| `docs/figures/operator_trace_breakdown.png` | Publication-facing LLM operator trace engine breakdown. |
+| `docs/figures/operator_trace_breakdown.pdf` | PDF version of the operator trace breakdown. |
 | `docs/figures/paper_reference_comparison.png` | Publication-facing paper Figure 9 reference comparison. |
 | `docs/figures/paper_reference_comparison.pdf` | PDF version of the paper-reference comparison. |
 | `docs/figures/context_length_inference.png` | Publication-facing inverse context-length fit against Figure 9. |
@@ -75,6 +79,7 @@ This project is organized as a small C simulator rather than a single-file numer
 The implementation follows the paper's Figure 9 method path:
 
 - flash-resident model weights;
+- generated per-layer LLM decode operator trace with 13 operators per transformer layer;
 - Section V hardware-aware tile dimensions;
 - extended flash-controller commands for tiled read-compute and sliced reads;
 - full-row microcycle-derived IFC weight-stage timing for every Figure 9 row;
@@ -87,9 +92,9 @@ The implementation follows the paper's Figure 9 method path:
 - a context-length inverse-fit sweep for the public Figure 9 points;
 - one platform-level calibration term for command packing and pipeline effects.
 
-The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The full-row microcycle scheduler is used for flash weight-stage TPOT, while the emitted trace files are compact command-level audits rather than full SSD firmware or FTL models.
+The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The released TPOT is reported from the generated LLM operator trace; the trace's IFC service time is constrained by the full-row microcycle scheduler, while the emitted controller trace files are compact command-level audits rather than full SSD firmware or FTL models.
 
-Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The SSDsim-derived backend is documented in `docs/ssdsim_ifc_backend.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied. The default 1K context setting is inferred from the Figure 9 sweep rather than treated as an explicitly stated paper field.
+Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The operator trace layer is documented in `docs/operator_trace.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The SSDsim-derived backend is documented in `docs/ssdsim_ifc_backend.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied. The default 1K context setting is inferred from the Figure 9 sweep rather than treated as an explicitly stated paper field.
 
 ## Reliability Documentation
 

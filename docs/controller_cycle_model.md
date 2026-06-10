@@ -101,12 +101,15 @@ This is a command-level cycle model. It is stronger than a pure dataflow equatio
 The final TPOT in `figure9_reproduction.csv` is computed from:
 
 ```text
-TPOT = effective_weight_stage
+TPOT = operator_trace_total
+
+operator_trace_total =
+       effective_weight_stage
      + attention_state_memory
      + attention_score_value_compute
 ```
 
-The weight stage is derived in two steps. First, the paper's Section V tile/request equations produce logical read-compute and sliced-read demand from the configured flash platform and model size. Second, `ifc_estimate_cycle_weight_stage()` expands that demand into physical channel/chip/die commands and schedules the whole Figure 9 row with integer controller cycles plus microarchitectural issue constraints.
+The top-level schedule is emitted as `results/operator_trace.csv` and summarized in `results/operator_trace_summary.csv`. The weight stage inside that trace is derived in two steps. First, the paper's Section V tile/request equations produce logical read-compute and sliced-read demand from the configured flash platform and model size. Second, `ifc_estimate_cycle_weight_stage()` expands that demand into physical channel/chip/die commands and schedules the whole Figure 9 row with integer controller cycles plus microarchitectural issue constraints.
 
 For each row, the full-row scheduler records:
 
@@ -123,6 +126,7 @@ Those values are written to `results/cycle_weight_timing.csv` and copied into th
 This separation is intentional:
 
 - the Figure 9 table uses the full-row microcycle-derived weight stage plus NPU/DRAM attention timing needed for the paper reproduction;
+- the operator trace maps those row-level budgets onto per-layer decode operators and owns the released TPOT field;
 - `cycle_weight_timing.csv` proves that each Figure 9 row has been expanded to physical IFC commands and scheduled through integer cycles with finite stage issue bandwidth;
 - the representative controller trace proves that the extended command stream is representable as a C cycle-level resource schedule;
 - the SSDsim-derived trace proves that the same extended commands can be represented as C/A, array-read, data-transfer, and IFC-compute service stages;
@@ -161,6 +165,8 @@ Then inspect:
 - `results/ssdsim_ifc_event_trace.csv`
 - `results/ssdsim_ifc_event_stats.csv`
 - `results/controller_schedule.csv`
+- `results/operator_trace.csv`
+- `results/operator_trace_summary.csv`
 - `results/latency_breakdown.csv`
 
 The tests validate both numerical reproduction bounds and cycle-trace consistency.

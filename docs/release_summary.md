@@ -6,7 +6,8 @@ This document summarizes the release-ready simulator variants, current validatio
 
 The repository is a Cambricon-LLM style in-flash-computing architecture simulator for the Figure 9 decode-speed path. It includes:
 
-- a standalone C timing simulator for the 21 Figure 9 points, including full-row microcycle-derived IFC weight-stage timing;
+- an operator-trace-driven standalone C timing simulator for the 21 Figure 9 points, including full-row microcycle-derived IFC weight-stage timing;
+- a 13-operator-per-layer LLM decode trace that maps each row to IFC, DRAM, and NPU engine service;
 - an SSDsim-derived C event backend for extended `READ_COMPUTE` and `READ_SLICE` commands;
 - a dependency-free C++ hardware-cycle checker;
 - a SystemC replay equivalence checker;
@@ -28,6 +29,8 @@ Main artifacts:
 - `results/figure9_reproduction.csv`
 - `results/simulator_scheme_comparison.csv`
 - `results/latency_breakdown.csv`
+- `results/operator_trace.csv`
+- `results/operator_trace_summary.csv`
 - `results/cycle_weight_timing.csv`
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
@@ -55,41 +58,46 @@ Current values:
 | Inferred Figure 9 context window | 975-1038 tokens |
 | Default reproduction context | 1000 tokens |
 | Largest full-row IFC command schedule | 1,544,720 physical commands and 3,463,434 stage issues |
+| Decode operator trace | 13,104 events, 21 row summaries |
+| Maximum operators per row | 1,040 |
+| Max trace-vs-TPOT delta | 0.000000% |
 
 The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.356%, and the maximum absolute relative difference is 14.508%.
 
 Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 975-1038 token stable window; the best maximum-error and RMSE fits are 1005 and 1030 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
 
-The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
+The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. Its released TPOT is sourced from `operator_trace_total_ms`, whose IFC service budget is constrained by the full-row microcycle scheduler and whose DRAM/NPU service budgets are constrained by the configured system profile. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 
 Reference entries for the Cambricon-LLM paper, SSDsim-related simulator background, and SystemC are listed in `docs/references.md` and `data/references.bib`.
 
 ## Difference Versus Previous Public Commit
 
-Compared with commit `f89b811`, this release keeps the same 21-point Figure 9 reproduction boundary and adds explicit full-row stage-issue accounting, module-clock quantization fields, and TPOT-source checks.
+Compared with commit `b6098a8`, this release keeps the same 21-point Figure 9 numerical result and adds the LLM operator-trace layer, trace artifacts, trace tests, and trace-facing documentation.
 
-| Metric | `f89b811` | Current | Delta |
+| Metric | `b6098a8` | Current | Delta |
 |---|---:|---:|---:|
-| Mean absolute relative error | 8.354% | 8.356% | +0.002 percentage points |
-| Max absolute relative error | 14.541% | 14.508% | -0.033 percentage points |
+| Mean absolute relative error | 8.356% | 8.356% | 0.000 percentage points |
+| Max absolute relative error | 14.508% | 14.508% | 0.000 percentage points |
 | Fastest point | OPT-6.7B on L | OPT-6.7B on L | unchanged |
-| Fastest throughput | 31.113179 tokens/s | 31.104766 tokens/s | -0.008413 tokens/s |
-| Fastest TPOT | 32.140721 ms/token | 32.149414 ms/token | +0.008693 ms/token |
+| Fastest throughput | 31.104766 tokens/s | 31.104766 tokens/s | 0.000000 tokens/s |
+| Fastest TPOT | 32.149414 ms/token | 32.149414 ms/token | 0.000000 ms/token |
 | Largest full-row physical commands | 1,544,720 | 1,544,720 | 0 |
-| Largest full-row stage issues | not reported | 3,463,434 | newly reported |
-| Mean throughput shift over 21 rows | baseline | -0.0354% | small slowdown |
+| Largest full-row stage issues | 3,463,434 | 3,463,434 | 0 |
+| Operator trace rows | not emitted | 21 | newly emitted |
+| Operator trace events | not emitted | 13,104 | newly emitted |
+| Max trace-vs-TPOT delta | not emitted | 0.000000% | newly checked |
 
-The largest absolute TPOT shift is LLaMA2-70B on Cambricon-LLM-S: `2966.124110 -> 2967.342352 ms/token`, a `+1.218242 ms/token` change. This comes from exposing module-clock-quantized stage durations in the full-row microcycle path. The reproduction guardrails remain satisfied.
+The unchanged throughput is intentional: this version does not retune the paper fit. It makes the TPOT source stricter by routing the released latency through a generated per-layer operator trace whose engine totals are checked against the full-row IFC microcycle path and the configured DRAM/NPU timing path.
 
 ## Variant Result Ownership
 
 | Variant | Command | Released result ownership |
 |---|---|---|
-| Standalone C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, cycle-weight timing, latency-breakdown, and ablation results. |
+| Operator-trace-driven C timing simulator plus SSDsim-derived C event backend | `make run` | Owns the Figure 9 token/s, TPOT, operator trace, cycle-weight timing, latency-breakdown, and ablation results. |
 | SystemC replay checker | `make systemc-cycle` | Reports lightweight equivalence of a representative IFC event stream against the C event backend. |
 | SystemC component command-cycle model | `make systemc-component` | Reports detailed bounded timing drift of a componentized SystemC command stream against the C event backend. |
 
-Only the standalone C path is a direct paper-facing 21-point throughput reproduction. In that path, `results/cycle_weight_timing.csv` is the row-level flash-weight timing source, while the SystemC paths are release validation artifacts for the representative command-cycle backend.
+Only the standalone C path is a direct paper-facing 21-point throughput reproduction. In that path, `results/operator_trace_summary.csv` is the row-level TPOT source and `results/cycle_weight_timing.csv` constrains the trace's flash-weight service budget, while the SystemC paths are release validation artifacts for the representative command-cycle backend.
 
 ## C Backend
 
@@ -236,7 +244,7 @@ SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
 This release is suitable as an auditable architecture-simulator artifact for the stated Figure 9 reproduction path. It should be described as:
 
 ```text
-A standalone C timing simulator with full-row IFC microcycle-derived weight-stage timing, SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
+A standalone C timing simulator with a per-layer LLM decode operator trace, full-row IFC microcycle-derived weight-stage timing, SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
 ```
 
 It should not be described as:

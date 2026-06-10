@@ -12,10 +12,11 @@
 - Hardware-aware tiling：按 Section V 的 tile 公式推导 `H_req` 和 `W_req`。
 - Flash controller path：维护 channel/chip/die/plane busy timeline，为每个 Figure 9 行生成整行周期级 weight-stage timing，并生成事件级调度轨迹、命令级 cycle trace、SSDsim-derived command-stage trace、SSDsim-derived event-loop trace 和独立硬件周期 cross-check。
 - Extended command path：显式区分 `READ_COMPUTE` 与 `READ_SLICE`。
+- LLM operator trace path：每个 transformer layer 展开为 13 个 decode operators，并调度到 IFC、DRAM、NPU 三类 engine timeline。
 - NPU/DRAM path：NPU attention arithmetic 由 2 TOPS INT8 建模，attention-cache traffic 由 40 GB/s DRAM 建模。
 - Reproduction and ablation：输出 Figure 9 全 21 点复现、read-slicing 消融和 hardware-aware tiling 消融。
 
-这类分层时序模型是体系结构论文常用的仿真粒度：逻辑请求量由公式与结构参数决定，flash weight-stage latency 由整行物理 IFC 命令的周期调度给出，控制器行为由资源 timeline、cycle-stepped command state machine、SSDsim-style service stages、next-event loop 和独立硬件周期模型约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
+这类分层时序模型是体系结构论文常用的仿真粒度：逻辑请求量由公式与结构参数决定，LLM decode operator trace 给出逐层算子到 IFC/DRAM/NPU 的映射，flash weight-stage latency 由整行物理 IFC 命令的周期调度给出，控制器行为由资源 timeline、cycle-stepped command state machine、SSDsim-style service stages、next-event loop 和独立硬件周期模型约束，剩余不可见流水化损耗由平台级 efficiency term 吸收。
 
 ## 2. 参数真实性
 
@@ -36,7 +37,7 @@
 - `results/reproduction_checks.csv` 给出可机器检查的 pass/fail 条件。
 - Runtime CSV 配置可替换 hardware/model/system/reference profile；默认配置是论文复现模式，自定义配置是 design-space mode，除非 reference CSV 与自定义设置匹配，否则不把 relative-error 当作复现误差声明。
 
-这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、cycle-weight timing、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace 一直追到最终 TPOT 和 token/s。
+这种参数透明性比单纯给出曲线图更强，因为读者可以从平台 profile、tile profile、operator trace、cycle-weight timing、controller schedule、cycle trace、SSDsim-derived trace、event-loop trace 一直追到最终 TPOT 和 token/s。
 
 ## 3. 时序建模层次
 
@@ -150,7 +151,28 @@ alpha = t_read / (t_read + t_rc)
 
 整行 cycle-weight artifact 证明最终 TPOT 的 flash 部分来自实际物理命令调度；代表性轨迹证明扩展 command path 是按 controller resource state 发出的，而不是只在最终 token/s 上调参。需要同时明确：这仍然不是完整 SSDsim fork，不包含 FTL、GC、wear、ECC、host queue 或完整固件状态机。
 
-### 3.4 NPU/DRAM path
+### 3.4 LLM operator trace path
+
+新版本在最终 TPOT 之上加入逐层 operator trace。每个 transformer layer 展开为 13 个 decode operators：
+
+```text
+attention_norm, qkv_projection, key_cache_read, attention_score,
+softmax, value_cache_read, attention_value, out_projection,
+mlp_norm, mlp_gate_up, mlp_activation, mlp_down, residual
+```
+
+其中 projection 和 MLP linear operators 映射到 IFC，cache read 映射到 DRAM，其余 norm/attention/softmax/activation/residual 映射到 NPU。调度规则是：
+
+```text
+start_ms = max(dependency_ready_ms, engine_ready_ms)
+end_ms = start_ms + service_ms
+engine_ready_ms = end_ms
+dependency_ready_ms = end_ms
+```
+
+默认结果为 21 个 row summary、13,104 个 operator events，最大单行 1,040 个 operators，`operator_trace_total_ms` 与最终 TPOT 的最大差异为 0.000000%。该 trace 不是框架 runtime trace，也不是 NPU compiler trace；它是由模型结构参数生成的 architecture-level decode trace。其意义是把原先 row-level 的三个 timing budgets 显式映射到逐层算子和 engine timeline，并由测试检查 `operator_trace_total_ms = weight_stage_ms + attention_cache_ms + attention_compute_ms`。
+
+### 3.5 NPU/DRAM path
 
 NPU timing 分成两项：
 
@@ -162,12 +184,15 @@ attention_cache_s = attention_cache_bytes / 40 GB/s
 最终每 token latency：
 
 ```text
-TPOT = cycle_derived_tiled_weight_stage
+TPOT = operator_trace_total
+
+operator_trace_total =
+       cycle_derived_tiled_weight_stage
      + attention_cache_s
      + attention_compute_s
 ```
 
-`results/npu_timing.csv` 给出每行的 attention cache bytes、attention ops、DRAM timing、NPU compute timing 和 reconstructed TPOT。
+`results/operator_trace_summary.csv` 给出每行的 trace engine totals、operator counts 和 trace-vs-TPOT delta。`results/npu_timing.csv` 给出每行的 attention cache bytes、attention ops、DRAM timing、NPU compute timing 和 reconstructed TPOT。
 
 ## 4. 校准策略
 
@@ -258,6 +283,14 @@ controller_balance_delta_max_pct = 0.000000
 - `READ_SLICE` 到达 data-transfer complete。
 
 `make test` 还会运行 `make hw-cycle` 并检查 `results/hw_cycle_compare.csv`，确认 dependency-free 硬件周期模型与 C event backend 在核心事件指标上对齐。安装 SystemC 后，`make test-systemc` 会运行 replay checker，`make test-systemc-component` 会运行 component-level SystemC model，`make test-all` 会同时检查两条 SystemC 路径。
+
+新版本的 `make test` 还会解析 `operator_trace.csv` 并检查：
+
+- 事件数与模型层数和每层 13 个 operators 匹配；
+- IFC、DRAM、NPU 三类 engine 均被覆盖；
+- 每个 event 的 `end_ms - start_ms` 与 `service_ms` 一致；
+- IFC event 只携带 weight bytes，DRAM event 只携带 DRAM bytes，NPU event 只携带 NPU ops；
+- 每行 trace total 与最终 TPOT 完全一致。
 
 ### 5.4 Artifact 可复跑
 

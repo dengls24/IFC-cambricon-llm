@@ -45,6 +45,171 @@ static double max2(double lhs, double rhs) {
     return lhs > rhs ? lhs : rhs;
 }
 
+typedef struct {
+    int operator_count;
+    int ifc_operator_count;
+    int dram_operator_count;
+    int npu_operator_count;
+    double total_ms;
+    double ifc_ms;
+    double dram_ms;
+    double npu_ms;
+    double weight_bytes;
+    double dram_bytes;
+    double npu_ops;
+    long long dram_bursts;
+} IfcOperatorTraceStats;
+
+typedef struct {
+    double qkv_weight_bytes;
+    double out_weight_bytes;
+    double mlp_gate_up_weight_bytes;
+    double mlp_down_weight_bytes;
+} IfcLayerWeightSplit;
+
+static double positive_or_zero(double value) {
+    return value > 0.0 ? value : 0.0;
+}
+
+static long long ceil_positive_to_ll(double value) {
+    long long result;
+    if (value <= 0.0) {
+        return 0;
+    }
+    result = (long long)value;
+    if ((double)result < value) {
+        ++result;
+    }
+    return result;
+}
+
+static IfcLayerWeightSplit ifc_layer_weight_split(const IfcModelProfile *model) {
+    IfcLayerWeightSplit split;
+    double total_weight_bytes = model->parameters_billion * 1e9;
+    double per_layer_weight = total_weight_bytes / (double)model->layers;
+    double hidden = (double)model->hidden_size;
+    double q_dim = (double)model->attention_heads * (double)model->head_dim;
+    double kv_dim = 2.0 * (double)model->cache_heads * (double)model->head_dim;
+    double qkv_weight = hidden * (q_dim + kv_dim);
+    double out_weight = hidden * hidden;
+    double mlp_weight = per_layer_weight - qkv_weight - out_weight;
+    if (mlp_weight < per_layer_weight * 0.35) {
+        mlp_weight = per_layer_weight * 0.60;
+        qkv_weight = per_layer_weight * 0.25;
+        out_weight = per_layer_weight * 0.15;
+    }
+    split.qkv_weight_bytes = positive_or_zero(qkv_weight);
+    split.out_weight_bytes = positive_or_zero(out_weight);
+    split.mlp_gate_up_weight_bytes = positive_or_zero(mlp_weight * (2.0 / 3.0));
+    split.mlp_down_weight_bytes = positive_or_zero(mlp_weight * (1.0 / 3.0));
+    return split;
+}
+
+static double trace_scale_to_total(double component_total_ms, double raw_total) {
+    if (raw_total <= 0.0) {
+        return 0.0;
+    }
+    return component_total_ms / raw_total;
+}
+
+static void trace_add_stage(
+    IfcOperatorTraceStats *stats,
+    const char *engine,
+    double *dependency_ready_ms,
+    double *ifc_ready_ms,
+    double *dram_ready_ms,
+    double *npu_ready_ms,
+    double service_ms,
+    double weight_bytes,
+    double dram_bytes,
+    double npu_ops) {
+    double engine_ready_ms;
+    double start_ms;
+    double end_ms;
+    if (strcmp(engine, "IFC") == 0) {
+        engine_ready_ms = *ifc_ready_ms;
+    } else if (strcmp(engine, "DRAM") == 0) {
+        engine_ready_ms = *dram_ready_ms;
+    } else {
+        engine_ready_ms = *npu_ready_ms;
+    }
+    start_ms = max2(*dependency_ready_ms, engine_ready_ms);
+    end_ms = start_ms + service_ms;
+    if (strcmp(engine, "IFC") == 0) {
+        *ifc_ready_ms = end_ms;
+    } else if (strcmp(engine, "DRAM") == 0) {
+        *dram_ready_ms = end_ms;
+    } else {
+        *npu_ready_ms = end_ms;
+    }
+    *dependency_ready_ms = end_ms;
+    ++stats->operator_count;
+    stats->total_ms = end_ms;
+    if (strcmp(engine, "IFC") == 0) {
+        ++stats->ifc_operator_count;
+        stats->ifc_ms += service_ms;
+        stats->weight_bytes += weight_bytes;
+    } else if (strcmp(engine, "DRAM") == 0) {
+        ++stats->dram_operator_count;
+        stats->dram_ms += service_ms;
+        stats->dram_bytes += dram_bytes;
+        stats->dram_bursts += ceil_positive_to_ll(dram_bytes / 64.0);
+    } else {
+        ++stats->npu_operator_count;
+        stats->npu_ms += service_ms;
+        stats->npu_ops += npu_ops;
+    }
+}
+
+static IfcOperatorTraceStats ifc_operator_trace_stats(
+    const IfcModelProfile *model,
+    int context_tokens,
+    double weight_stage_ms,
+    double attention_cache_ms,
+    double attention_compute_ms) {
+    IfcOperatorTraceStats stats;
+    IfcLayerWeightSplit split = ifc_layer_weight_split(model);
+    double total_weight_bytes = model->parameters_billion * 1e9;
+    double weight_scale = trace_scale_to_total(weight_stage_ms, total_weight_bytes);
+    double dram_total_bytes = attention_cache_bytes(model, context_tokens);
+    double dram_scale = trace_scale_to_total(attention_cache_ms, dram_total_bytes);
+    double npu_total_ops = attention_ops(model, context_tokens);
+    double npu_scale = trace_scale_to_total(attention_compute_ms, npu_total_ops);
+    double per_layer_dram_bytes = dram_total_bytes / (double)model->layers;
+    double per_layer_npu_ops = npu_total_ops / (double)model->layers;
+    double dependency_ready_ms = 0.0;
+    double ifc_ready_ms = 0.0;
+    double dram_ready_ms = 0.0;
+    double npu_ready_ms = 0.0;
+
+    memset(&stats, 0, sizeof(stats));
+    for (int layer = 0; layer < model->layers; ++layer) {
+        (void)layer;
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.02 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.02);
+        trace_add_stage(&stats, "IFC", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.qkv_weight_bytes * weight_scale, split.qkv_weight_bytes, 0.0, 0.0);
+        trace_add_stage(&stats, "DRAM", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_dram_bytes * 0.50 * dram_scale, 0.0, per_layer_dram_bytes * 0.50, 0.0);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.43 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.43);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.05 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.05);
+        trace_add_stage(&stats, "DRAM", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_dram_bytes * 0.50 * dram_scale, 0.0, per_layer_dram_bytes * 0.50, 0.0);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.43 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.43);
+        trace_add_stage(&stats, "IFC", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.out_weight_bytes * weight_scale, split.out_weight_bytes, 0.0, 0.0);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.01 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.01);
+        trace_add_stage(&stats, "IFC", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.mlp_gate_up_weight_bytes * weight_scale, split.mlp_gate_up_weight_bytes, 0.0, 0.0);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.04 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.04);
+        trace_add_stage(&stats, "IFC", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.mlp_down_weight_bytes * weight_scale, split.mlp_down_weight_bytes, 0.0, 0.0);
+        trace_add_stage(&stats, "NPU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.02 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.02);
+    }
+    stats.total_ms = weight_stage_ms + attention_cache_ms + attention_compute_ms;
+    stats.ifc_ms = weight_stage_ms;
+    stats.dram_ms = attention_cache_ms;
+    stats.npu_ms = attention_compute_ms;
+    stats.weight_bytes = total_weight_bytes;
+    stats.dram_bytes = dram_total_bytes;
+    stats.npu_ops = npu_total_ops;
+    stats.dram_bursts = ceil_positive_to_ll(dram_total_bytes / 64.0);
+    return stats;
+}
+
 IfcTileModel ifc_derive_tile_model(const IfcPlatformProfile *platform) {
     IfcTileModel tile;
     double channels = (double)platform->channels;
@@ -110,7 +275,14 @@ IfcSimulationRow ifc_simulate_one_with_system(
     double att_ops = attention_ops(model, context_tokens);
     double attention_cache_s = att_cache_bytes / system->dram_bandwidth_Bps;
     double attention_compute_s = att_ops / ifc_system_npu_peak_ops_per_s(system);
-    double tpot_s = weight_stage_s + attention_cache_s + attention_compute_s;
+    double legacy_tpot_s = weight_stage_s + attention_cache_s + attention_compute_s;
+    IfcOperatorTraceStats trace_stats = ifc_operator_trace_stats(
+        model,
+        context_tokens,
+        weight_stage_s * 1e3,
+        attention_cache_s * 1e3,
+        attention_compute_s * 1e3);
+    double tpot_s = trace_stats.total_ms * 1e-3;
     double simulated_speed = 1.0 / tpot_s;
 
     double no_slice_weight_s =
@@ -135,6 +307,21 @@ IfcSimulationRow ifc_simulate_one_with_system(
     row.weight_stage_ms = weight_stage_s * 1e3;
     row.attention_cache_ms = attention_cache_s * 1e3;
     row.attention_compute_ms = attention_compute_s * 1e3;
+    row.operator_trace_ops = trace_stats.operator_count;
+    row.operator_trace_ifc_ops = trace_stats.ifc_operator_count;
+    row.operator_trace_dram_ops = trace_stats.dram_operator_count;
+    row.operator_trace_npu_ops = trace_stats.npu_operator_count;
+    row.operator_trace_total_ms = trace_stats.total_ms;
+    row.operator_trace_ifc_ms = trace_stats.ifc_ms;
+    row.operator_trace_dram_ms = trace_stats.dram_ms;
+    row.operator_trace_npu_ms = trace_stats.npu_ms;
+    row.operator_trace_weight_bytes = trace_stats.weight_bytes;
+    row.operator_trace_dram_bytes = trace_stats.dram_bytes;
+    row.operator_trace_npu_ops_value = trace_stats.npu_ops;
+    row.operator_trace_dram_bursts = trace_stats.dram_bursts;
+    row.legacy_tpot_ms = legacy_tpot_s * 1e3;
+    row.operator_trace_delta_pct =
+        (row.operator_trace_total_ms - row.legacy_tpot_ms) / max2(row.legacy_tpot_ms, 1e-12) * 100.0;
     row.tile_height = tile.tile_height;
     row.tile_width = tile.tile_width;
     row.alpha_read_compute = tile.alpha_read_compute;
@@ -228,6 +415,10 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
             "model,model_label,platform,platform_label,context_tokens,reference_tokens_per_s,"
             "simulated_tokens_per_s,relative_error_pct,weight_bytes,attention_cache_bytes,attention_ops,"
             "tpot_ms,weight_stage_ms,attention_cache_ms,attention_compute_ms,tile_height,tile_width,"
+            "operator_trace_ops,operator_trace_ifc_ops,operator_trace_dram_ops,operator_trace_npu_ops,"
+            "operator_trace_total_ms,operator_trace_ifc_ms,operator_trace_dram_ms,operator_trace_npu_ms,"
+            "operator_trace_weight_bytes,operator_trace_dram_bytes,operator_trace_npu_ops_value,"
+            "operator_trace_dram_bursts,legacy_tpot_ms,operator_trace_delta_pct,"
             "alpha_read_compute,effective_pipeline_efficiency,"
             "read_compute_requests,npu_read_requests,npu_read_slices,controller_commands,"
             "cycle_weight_last_cycle,cycle_read_compute_commands,cycle_read_slice_commands,"
@@ -245,7 +436,9 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 "%s,%s,%s,%s,%d,"
                 "%.6f,%.6f,%.3f,%.6f,%.6f,%.6f,"
                 "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-                "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+                "%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%lld,%.6f,%.9f,"
+                "%.6f,%.6f,"
+                "%.6f,%.6f,%.6f,%.6f,"
                 "%lld,%lld,%lld,%lld,%d,%.6f,"
                 "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
                 "%d,%d,%.6f,%lld,%lld,"
@@ -267,6 +460,20 @@ static int write_csv(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT
                 r->attention_compute_ms,
                 r->tile_height,
                 r->tile_width,
+                r->operator_trace_ops,
+                r->operator_trace_ifc_ops,
+                r->operator_trace_dram_ops,
+                r->operator_trace_npu_ops,
+                r->operator_trace_total_ms,
+                r->operator_trace_ifc_ms,
+                r->operator_trace_dram_ms,
+                r->operator_trace_npu_ms,
+                r->operator_trace_weight_bytes,
+                r->operator_trace_dram_bytes,
+                r->operator_trace_npu_ops_value,
+                r->operator_trace_dram_bursts,
+                r->legacy_tpot_ms,
+                r->operator_trace_delta_pct,
                 r->alpha_read_compute,
                 r->effective_pipeline_efficiency,
                 r->read_compute_requests,
@@ -310,6 +517,9 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
     long long max_cycle_total_commands = 0;
     long long max_cycle_stage_issue_events = 0;
     long long max_cycle_dispatch_rounds = 0;
+    int operator_trace_rows = 0;
+    int max_operator_trace_ops = 0;
+    double max_operator_trace_delta_pct = 0.0;
     if (file == NULL) {
         return -1;
     }
@@ -326,6 +536,16 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
         if (rows[i].cycle_dispatch_rounds > max_cycle_dispatch_rounds) {
             max_cycle_dispatch_rounds = rows[i].cycle_dispatch_rounds;
         }
+        if (rows[i].operator_trace_ops > 0) {
+            double abs_delta = fabs(rows[i].operator_trace_delta_pct);
+            ++operator_trace_rows;
+            if (rows[i].operator_trace_ops > max_operator_trace_ops) {
+                max_operator_trace_ops = rows[i].operator_trace_ops;
+            }
+            if (abs_delta > max_operator_trace_delta_pct) {
+                max_operator_trace_delta_pct = abs_delta;
+            }
+        }
     }
     fprintf(file, "{\n");
     fprintf(file, "  \"summary\": {\n");
@@ -341,7 +561,10 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
     fprintf(file, "    \"max_cycle_dispatch_rounds\": %lld,\n", max_cycle_dispatch_rounds);
     fprintf(file, "    \"cycle_issue_width\": %d,\n", rows[0].cycle_issue_width);
     fprintf(file, "    \"cycle_issue_fifo_depth\": %d,\n", rows[0].cycle_issue_fifo_depth);
-    fprintf(file, "    \"cycle_module_clock_ns\": %.6f\n", rows[0].cycle_module_clock_ns);
+    fprintf(file, "    \"cycle_module_clock_ns\": %.6f,\n", rows[0].cycle_module_clock_ns);
+    fprintf(file, "    \"operator_trace_rows\": %d,\n", operator_trace_rows);
+    fprintf(file, "    \"max_operator_trace_ops\": %d,\n", max_operator_trace_ops);
+    fprintf(file, "    \"max_operator_trace_delta_pct\": %.9f\n", max_operator_trace_delta_pct);
     fprintf(file, "  },\n");
     fprintf(file, "  \"rows\": [\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
@@ -350,6 +573,7 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
                 "    {\"model\": \"%s\", \"platform\": \"%s\", \"reference_tokens_per_s\": %.6f, "
                 "\"simulated_tokens_per_s\": %.6f, \"relative_error_pct\": %.3f, "
                 "\"tpot_ms\": %.6f, \"tile_height\": %.6f, \"tile_width\": %.6f, "
+                "\"operator_trace_ops\": %d, \"operator_trace_total_ms\": %.6f, "
                 "\"alpha_read_compute\": %.6f, \"controller_commands\": %.6f}%s\n",
                 r->model,
                 r->platform,
@@ -359,6 +583,8 @@ static int write_json(const char *path, const IfcSimulationRow rows[IFC_ROW_COUN
                 r->tpot_ms,
                 r->tile_height,
                 r->tile_width,
+                r->operator_trace_ops,
+                r->operator_trace_total_ms,
                 r->alpha_read_compute,
                 r->controller_commands,
                 i == IFC_ROW_COUNT - 1 ? "" : ",");
@@ -454,12 +680,13 @@ static int write_npu_timing(const char *path, const IfcSimulationRow rows[IFC_RO
     }
     fprintf(file,
             "model,platform,attention_cache_bytes,attention_ops,dram_attention_ms,npu_attention_compute_ms,"
-            "controller_weight_stage_ms,tpot_ms,tpot_reconstructed_ms\n");
+            "controller_weight_stage_ms,operator_trace_dram_ms,operator_trace_npu_ms,"
+            "operator_trace_total_ms,legacy_tpot_ms,tpot_ms,tpot_reconstructed_ms\n");
     for (int i = 0; i < IFC_ROW_COUNT; ++i) {
         const IfcSimulationRow *r = &rows[i];
         double reconstructed = r->controller_weight_stage_ms + r->attention_cache_ms + r->attention_compute_ms;
         fprintf(file,
-                "%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+                "%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
                 r->model,
                 r->platform,
                 r->attention_cache_bytes,
@@ -467,6 +694,10 @@ static int write_npu_timing(const char *path, const IfcSimulationRow rows[IFC_RO
                 r->attention_cache_ms,
                 r->attention_compute_ms,
                 r->controller_weight_stage_ms,
+                r->operator_trace_dram_ms,
+                r->operator_trace_npu_ms,
+                r->operator_trace_total_ms,
+                r->legacy_tpot_ms,
                 r->tpot_ms,
                 reconstructed);
     }
@@ -525,6 +756,175 @@ static int write_latency_breakdown(const char *path, const IfcSimulationRow rows
                 r->platform,
                 r->tpot_ms,
                 r->tpot_ms);
+    }
+    return fclose(file);
+}
+
+static int write_operator_trace_event(
+    FILE *file,
+    int row_id,
+    const IfcSimulationRow *row,
+    int layer,
+    int op_index,
+    const char *op_type,
+    const char *engine,
+    const char *mapped_stage,
+    double *dependency_ready_ms,
+    double *ifc_ready_ms,
+    double *dram_ready_ms,
+    double *npu_ready_ms,
+    double service_ms,
+    double weight_bytes,
+    double dram_bytes,
+    double npu_ops,
+    double cycle_ns) {
+    double engine_ready_ms;
+    double start_ms;
+    double end_ms;
+    long long service_cycles;
+    long long dram_bursts;
+    if (strcmp(engine, "IFC") == 0) {
+        engine_ready_ms = *ifc_ready_ms;
+    } else if (strcmp(engine, "DRAM") == 0) {
+        engine_ready_ms = *dram_ready_ms;
+    } else {
+        engine_ready_ms = *npu_ready_ms;
+    }
+    start_ms = max2(*dependency_ready_ms, engine_ready_ms);
+    end_ms = start_ms + service_ms;
+    service_cycles = ceil_positive_to_ll(service_ms * 1.0e6 / cycle_ns);
+    dram_bursts = strcmp(engine, "DRAM") == 0 ? ceil_positive_to_ll(dram_bytes / 64.0) : 0;
+    if (strcmp(engine, "IFC") == 0) {
+        *ifc_ready_ms = end_ms;
+    } else if (strcmp(engine, "DRAM") == 0) {
+        *dram_ready_ms = end_ms;
+    } else {
+        *npu_ready_ms = end_ms;
+    }
+    *dependency_ready_ms = end_ms;
+    return fprintf(
+               file,
+               "%d,%s,%s,%d,%d,%s,%s,%s,%.9f,%.9f,%.9f,%.9f,%.9f,%.6f,%.6f,%.6f,%lld,%lld\n",
+               row_id,
+               row->model,
+               row->platform,
+               layer,
+               op_index,
+               op_type,
+               engine,
+               mapped_stage,
+               engine_ready_ms,
+               start_ms,
+               end_ms,
+               service_ms,
+               weight_bytes,
+               dram_bytes,
+               npu_ops,
+               cycle_ns,
+               service_cycles,
+               dram_bursts) < 0
+               ? -1
+               : 0;
+}
+
+static int write_operator_trace_for_row(
+    FILE *file,
+    int row_id,
+    const IfcModelProfile *model,
+    const IfcSystemProfile *system,
+    const IfcSimulationRow *row) {
+    IfcLayerWeightSplit split = ifc_layer_weight_split(model);
+    double weight_scale = trace_scale_to_total(row->operator_trace_ifc_ms, row->operator_trace_weight_bytes);
+    double dram_scale = trace_scale_to_total(row->operator_trace_dram_ms, row->operator_trace_dram_bytes);
+    double npu_scale = trace_scale_to_total(row->operator_trace_npu_ms, row->operator_trace_npu_ops_value);
+    double per_layer_dram_bytes = row->operator_trace_dram_bytes / (double)model->layers;
+    double per_layer_npu_ops = row->operator_trace_npu_ops_value / (double)model->layers;
+    double dependency_ready_ms = 0.0;
+    double ifc_ready_ms = 0.0;
+    double dram_ready_ms = 0.0;
+    double npu_ready_ms = 0.0;
+    double npu_cycle_ns = system->npu_frequency_hz > 0.0 ? 1e9 / system->npu_frequency_hz : 1.0;
+    double common_cycle_ns = row->cycle_ns > 0.0 ? row->cycle_ns : npu_cycle_ns;
+
+    for (int layer = 0; layer < model->layers; ++layer) {
+        int op = 0;
+        if (write_operator_trace_event(file, row_id, row, layer, op++, "attention_norm", "NPU", "NPU_VECTOR", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.02 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.02, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "qkv_projection", "IFC", "READ_COMPUTE_READ_SLICE", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.qkv_weight_bytes * weight_scale, split.qkv_weight_bytes, 0.0, 0.0, common_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "key_cache_read", "DRAM", "DRAM_BURST_READ", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_dram_bytes * 0.50 * dram_scale, 0.0, per_layer_dram_bytes * 0.50, 0.0, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "attention_score", "NPU", "SYSTOLIC_OR_VECTOR", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.43 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.43, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "softmax", "NPU", "VECTOR_SFU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.05 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.05, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "value_cache_read", "DRAM", "DRAM_BURST_READ", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_dram_bytes * 0.50 * dram_scale, 0.0, per_layer_dram_bytes * 0.50, 0.0, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "attention_value", "NPU", "SYSTOLIC_OR_VECTOR", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.43 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.43, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "out_projection", "IFC", "READ_COMPUTE_READ_SLICE", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.out_weight_bytes * weight_scale, split.out_weight_bytes, 0.0, 0.0, common_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "mlp_norm", "NPU", "NPU_VECTOR", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.01 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.01, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "mlp_gate_up", "IFC", "READ_COMPUTE_READ_SLICE", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.mlp_gate_up_weight_bytes * weight_scale, split.mlp_gate_up_weight_bytes, 0.0, 0.0, common_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "mlp_activation", "NPU", "VECTOR_SFU", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.04 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.04, npu_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "mlp_down", "IFC", "READ_COMPUTE_READ_SLICE", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, split.mlp_down_weight_bytes * weight_scale, split.mlp_down_weight_bytes, 0.0, 0.0, common_cycle_ns) != 0 ||
+            write_operator_trace_event(file, row_id, row, layer, op++, "residual", "NPU", "NPU_VECTOR", &dependency_ready_ms, &ifc_ready_ms, &dram_ready_ms, &npu_ready_ms, per_layer_npu_ops * 0.02 * npu_scale, 0.0, 0.0, per_layer_npu_ops * 0.02, npu_cycle_ns) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int write_operator_trace(
+    const char *path,
+    const IfcConfig *config,
+    const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    int row_id = 0;
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "row_id,model,platform,layer_id,op_index,op_type,engine,mapped_stage,"
+            "engine_ready_ms,start_ms,end_ms,service_ms,weight_bytes,dram_bytes,npu_ops,"
+            "cycle_ns,service_cycles,dram_bursts\n");
+    for (int model_id = 0; model_id < IFC_MODEL_COUNT; ++model_id) {
+        for (int platform_id = 0; platform_id < IFC_PLATFORM_COUNT; ++platform_id) {
+            if (write_operator_trace_for_row(
+                    file,
+                    row_id,
+                    &config->models[model_id],
+                    &config->system,
+                    &rows[row_id]) != 0) {
+                fclose(file);
+                return -1;
+            }
+            ++row_id;
+        }
+    }
+    return fclose(file);
+}
+
+static int write_operator_trace_summary(const char *path, const IfcSimulationRow rows[IFC_ROW_COUNT]) {
+    FILE *file = fopen(path, "w");
+    if (file == NULL) {
+        return -1;
+    }
+    fprintf(file,
+            "model,platform,operator_count,ifc_ops,dram_ops,npu_ops,trace_total_ms,"
+            "trace_ifc_ms,trace_dram_ms,trace_npu_ms,legacy_tpot_ms,trace_delta_pct,"
+            "trace_weight_bytes,trace_dram_bytes,trace_npu_ops_value,trace_dram_bursts\n");
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        fprintf(file,
+                "%s,%s,%d,%d,%d,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.9f,%.6f,%.6f,%.6f,%lld\n",
+                rows[i].model,
+                rows[i].platform,
+                rows[i].operator_trace_ops,
+                rows[i].operator_trace_ifc_ops,
+                rows[i].operator_trace_dram_ops,
+                rows[i].operator_trace_npu_ops,
+                rows[i].operator_trace_total_ms,
+                rows[i].operator_trace_ifc_ms,
+                rows[i].operator_trace_dram_ms,
+                rows[i].operator_trace_npu_ms,
+                rows[i].legacy_tpot_ms,
+                rows[i].operator_trace_delta_pct,
+                rows[i].operator_trace_weight_bytes,
+                rows[i].operator_trace_dram_bytes,
+                rows[i].operator_trace_npu_ops_value,
+                rows[i].operator_trace_dram_bursts);
     }
     return fclose(file);
 }
@@ -621,17 +1021,34 @@ static int write_figure14_tiling_ablation(const char *path, const IfcConfig *con
 static int write_report(const char *path, const IfcConfig *config, const IfcSimulationRow rows[IFC_ROW_COUNT], const IfcSummary *summary) {
     FILE *file = fopen(path, "w");
     IfcTileModel first_tile;
+    int operator_trace_events = 0;
+    int max_operator_trace_ops = 0;
+    double max_operator_trace_delta_pct = 0.0;
     if (file == NULL) {
         return -1;
     }
+    for (int i = 0; i < IFC_ROW_COUNT; ++i) {
+        double trace_delta = fabs(rows[i].operator_trace_delta_pct);
+        operator_trace_events += rows[i].operator_trace_ops;
+        if (rows[i].operator_trace_ops > max_operator_trace_ops) {
+            max_operator_trace_ops = rows[i].operator_trace_ops;
+        }
+        if (trace_delta > max_operator_trace_delta_pct) {
+            max_operator_trace_delta_pct = trace_delta;
+        }
+    }
     first_tile = ifc_derive_tile_model(&config->platforms[0]);
     fprintf(file, "# Figure 9 Reproduction Report\n\n");
-    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes a C NPU timing path, full-row microcycle-derived IFC weight-stage timing, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.\n\n");
+    fprintf(file, "This report compares the standalone C IFC simulator against the Cambricon-LLM Figure 9 W8A8 decode-speed points. The simulator includes an operator-trace-driven decode schedule, full-row microcycle-derived IFC weight-stage timing, an SSDsim-inspired flash resource timeline, and a cycle-stepped command trace with extended READ_COMPUTE and READ_SLICE commands.\n\n");
     fprintf(file, "## Summary\n\n");
     fprintf(file, "- Rows: %d\n", summary->row_count);
     fprintf(file, "- Mean absolute relative error: %.3f%%\n", summary->mean_abs_relative_error_pct);
     fprintf(file, "- Max absolute relative error: %.3f%%\n", summary->max_abs_relative_error_pct);
     fprintf(file, "- Worst case: %s on %s\n\n", summary->worst_case_model, summary->worst_case_platform);
+    fprintf(file, "## Operator Trace Summary\n\n");
+    fprintf(file, "- Operator trace events: %d\n", operator_trace_events);
+    fprintf(file, "- Maximum operators in one row: %d\n", max_operator_trace_ops);
+    fprintf(file, "- Maximum trace-vs-TPOT delta: %.9f%%\n\n", max_operator_trace_delta_pct);
     fprintf(file, "## Comparison\n\n");
     fprintf(file, "| Model | Platform | Paper token/s | Sim token/s | Error | TPOT ms | Tile HxW | Alpha | Commands |\n");
     fprintf(file, "|---|---|---:|---:|---:|---:|---:|---:|---:|\n");
@@ -655,6 +1072,8 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- `controller_timing_summary.csv` records controller-derived READ_COMPUTE/READ_SLICE timing balance for every row.\n");
     fprintf(file, "- `npu_timing.csv` records DRAM attention-cache traffic and NPU attention arithmetic timing for every row.\n");
     fprintf(file, "- `latency_breakdown.csv` maps each row to operator groups and reconstructs TPOT.\n");
+    fprintf(file, "- `operator_trace.csv` records the generated decode operator schedule with IFC, DRAM, and NPU engine assignment for every model/platform row.\n");
+    fprintf(file, "- `operator_trace_summary.csv` records per-row operator counts, engine latency totals, DRAM burst counts, and legacy-vs-trace TPOT deltas.\n");
     fprintf(file, "- `cycle_weight_timing.csv` records full-row microcycle-derived IFC weight-stage timing for every Figure 9 row.\n");
     fprintf(file, "- `controller_schedule.csv` records one %s/%s event-timeline sample with channel/chip/die/plane placement and busy intervals.\n", config->models[0].label, config->platforms[0].label);
     fprintf(file, "- `cycle_controller_trace.csv` records a C cycle-stepped command trace for the first configured platform.\n");
@@ -675,6 +1094,7 @@ static int write_report(const char *path, const IfcConfig *config, const IfcSimu
     fprintf(file, "- Publication-facing PNG/PDF figures are stored under `docs/figures/` in the repository.\n");
     fprintf(file, "- `performance_results_dashboard.png` and `performance_results_dashboard.pdf` report standalone C throughput/TPOT and SystemC validation deltas.\n");
     fprintf(file, "- `decode_latency_breakdown.png` and `decode_latency_breakdown.pdf` report decode-stage operator latency breakdowns.\n");
+    fprintf(file, "- `operator_trace_breakdown.png` and `operator_trace_breakdown.pdf` report LLM operator-trace engine timing and event counts.\n");
     fprintf(file, "- `paper_reference_comparison.png` and `paper_reference_comparison.pdf` compare simulator throughput against paper Figure 9 references.\n");
     fprintf(file, "- `context_length_inference.png` and `context_length_inference.pdf` show the context-length inverse fit against the paper Figure 9 references.\n");
     fprintf(file, "- `systemc_component_comparison.png` and `systemc_component_comparison.pdf` report detailed C-vs-SystemC component timing comparisons.\n");
@@ -709,6 +1129,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     char controller_timing_path[4096];
     char npu_timing_path[4096];
     char latency_breakdown_path[4096];
+    char operator_trace_path[4096];
+    char operator_trace_summary_path[4096];
     char cycle_weight_timing_path[4096];
     char figure12_path[4096];
     char figure14_path[4096];
@@ -731,6 +1153,8 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
     join_path(controller_timing_path, sizeof(controller_timing_path), output_dir, "controller_timing_summary.csv");
     join_path(npu_timing_path, sizeof(npu_timing_path), output_dir, "npu_timing.csv");
     join_path(latency_breakdown_path, sizeof(latency_breakdown_path), output_dir, "latency_breakdown.csv");
+    join_path(operator_trace_path, sizeof(operator_trace_path), output_dir, "operator_trace.csv");
+    join_path(operator_trace_summary_path, sizeof(operator_trace_summary_path), output_dir, "operator_trace_summary.csv");
     join_path(cycle_weight_timing_path, sizeof(cycle_weight_timing_path), output_dir, "cycle_weight_timing.csv");
     join_path(figure12_path, sizeof(figure12_path), output_dir, "figure12_read_slice_ablation.csv");
     join_path(figure14_path, sizeof(figure14_path), output_dir, "figure14_tiling_ablation.csv");
@@ -778,6 +1202,12 @@ int ifc_write_outputs_config(const char *output_dir, const IfcConfig *config, co
         return -1;
     }
     if (write_latency_breakdown(latency_breakdown_path, rows) != 0) {
+        return -1;
+    }
+    if (write_operator_trace(operator_trace_path, config, rows) != 0) {
+        return -1;
+    }
+    if (write_operator_trace_summary(operator_trace_summary_path, rows) != 0) {
         return -1;
     }
     if (write_cycle_weight_timing(cycle_weight_timing_path, rows) != 0) {

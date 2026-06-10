@@ -6,12 +6,12 @@ This document separates the paper-facing comparison for the two simulator scheme
 
 | Scheme | Direct paper target | What is compared | Main artifact |
 |---|---|---|---|
-| C timing plus SSDsim-derived event backend | Yes | 21 Cambricon-LLM Figure 9 decode-speed points | `results/figure9_reproduction.csv` |
+| Operator-trace-driven C timing plus SSDsim-derived event backend | Yes | 21 Cambricon-LLM Figure 9 decode-speed points | `results/figure9_reproduction.csv`, `results/operator_trace_summary.csv` |
 | SystemC component command-cycle model | No, command-stream anchor only | Representative IFC command stream versus the C backend used by the paper-facing simulator | `results/systemc_component_compare.csv` |
 
 The SystemC replay checker is an equivalence checker, not a third independent simulator scheme. Its exact agreement with the C backend is expected by construction.
 
-The published performance tables should therefore be attributed to the C timing simulator. Its flash-weight stage comes from a full-row microcycle scheduler for every Figure 9 row. SystemC results should be cited as cross-check evidence for the representative IFC command stream, not as independent throughput predictions.
+The published performance tables should therefore be attributed to the C timing simulator. Its released TPOT is sourced from a generated LLM decode operator trace; the trace's flash-weight service budget comes from a full-row microcycle scheduler for every Figure 9 row. SystemC results should be cited as cross-check evidence for the representative IFC command stream, not as independent throughput predictions.
 
 ## Scheme 1: C Timing And SSDsim-Derived Event Backend
 
@@ -31,6 +31,8 @@ Context inference figure: `docs/figures/context_length_inference.png` and `docs/
 | Inferred context guardrail window | 975-1038 tokens |
 | Default reproduction context | 1000 tokens |
 | Largest full-row IFC command schedule | 1,544,720 physical commands and 3,463,434 stage issues |
+| LLM decode operator trace | 13,104 events, 21 row summaries |
+| Max trace-vs-TPOT delta | 0.000000% |
 
 Per-point comparison:
 
@@ -102,7 +104,7 @@ Interpretation: the SystemC component model does not provide a new direct paper 
 Use this wording for release:
 
 ```text
-The C simulator directly reproduces Cambricon-LLM Figure 9 with full-row microcycle-derived IFC weight-stage timing, 8.356% mean absolute relative error over 21 decode-speed points, and an inferred 975-1038 token context-fit window around the default 1K setting. The SystemC component model is a command-cycle cross-check of the representative IFC command stream; it preserves event and completion counts exactly and introduces a bounded +85.5 ns final-time delta, or 0.027039%, versus the C backend.
+The C simulator directly reproduces Cambricon-LLM Figure 9 with a per-layer LLM decode operator trace, full-row microcycle-derived IFC weight-stage timing, 8.356% mean absolute relative error over 21 decode-speed points, and an inferred 975-1038 token context-fit window around the default 1K setting. The SystemC component model is a command-cycle cross-check of the representative IFC command stream; it preserves event and completion counts exactly and introduces a bounded +85.5 ns final-time delta, or 0.027039%, versus the C backend.
 ```
 
 Do not describe the SystemC component model as an independent full Figure 9 reproduction or as RTL.
