@@ -78,6 +78,11 @@ typedef struct {
     double read_slice_data_cycles;
     double array_read_cycles;
     double ifc_compute_cycles;
+    int issue_width;
+    int issue_fifo_depth;
+    double module_clock_ns;
+    long long stage_issue_events;
+    long long dispatch_rounds;
 } IfcCycleWeightStats;
 
 typedef struct {
@@ -140,6 +145,11 @@ typedef struct {
     double cycle_read_slice_data_cycles;
     double cycle_array_read_cycles;
     double cycle_ifc_compute_cycles;
+    int cycle_issue_width;
+    int cycle_issue_fifo_depth;
+    double cycle_module_clock_ns;
+    long long cycle_stage_issue_events;
+    long long cycle_dispatch_rounds;
     double read_compute_channel_rate_pct;
     double ifc_read_compute_path_ms;
     double npu_weight_read_path_ms;

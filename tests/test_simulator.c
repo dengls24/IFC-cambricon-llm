@@ -425,10 +425,18 @@ int main(void) {
             rows[i].controller_weight_stage_ms + rows[i].attention_cache_ms + rows[i].attention_compute_ms,
             1e-6,
             "TPOT decomposition");
-        require_true(rows[i].cycle_weight_last_cycle > 0, "cycle-derived weight stage cycle");
+        require_true(rows[i].cycle_weight_last_cycle > 0, "microcycle-derived weight stage cycle");
         require_true(rows[i].cycle_total_commands > rows[i].controller_commands, "full-row physical command expansion");
-        require_true(rows[i].cycle_weight_raw_ms > 0.0, "cycle-derived raw weight time");
-        require_close(rows[i].weight_stage_ms, rows[i].cycle_weight_stage_ms, 1e-6, "cycle-derived weight stage source");
+        require_true(rows[i].cycle_weight_raw_ms > 0.0, "microcycle-derived raw weight time");
+        require_close(rows[i].weight_stage_ms, rows[i].cycle_weight_stage_ms, 1e-6, "microcycle-derived weight stage source");
+        require_true(rows[i].cycle_issue_width == 8, "microcycle issue width");
+        require_true(rows[i].cycle_issue_fifo_depth == 8, "microcycle FIFO depth");
+        require_close(rows[i].cycle_module_clock_ns, 2.5, 1e-9, "microcycle module clock");
+        require_true(
+            rows[i].cycle_stage_issue_events ==
+                rows[i].cycle_read_compute_commands * 4LL + rows[i].cycle_read_slice_commands * 2LL,
+            "microcycle stage issue event count");
+        require_true(rows[i].cycle_dispatch_rounds > 0, "microcycle dispatch rounds");
         require_true(rows[i].speedup_vs_no_read_slicing > 1.0, "read slicing positive speedup");
         require_true(rows[i].speedup_vs_no_tiling > 1.0, "tiling positive speedup");
         if (strcmp(rows[i].platform, IFC_PLATFORMS[0].name) == 0) {
@@ -460,9 +468,9 @@ int main(void) {
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
     require_context_inference_consistent("/tmp/ifc_cambricon_llm_test_outputs/context_length_inference.csv");
-    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_decode_speed.svg");
-    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_relative_error.svg");
-    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_schedule_timeline.svg");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/plot_manifest.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/figure9_plot_source.csv");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_test_outputs/figures/controller_timeline_source.csv");
 
     IfcConfig custom_config;
     IfcSimulationRow custom_rows[IFC_ROW_COUNT];
@@ -499,7 +507,7 @@ int main(void) {
     require_ssdsim_ifc_event_trace_consistent("/tmp/ifc_cambricon_llm_custom_outputs/ssdsim_ifc_event_trace.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/system_profile.csv");
     require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/context_length_inference.csv");
-    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_schedule_timeline.svg");
+    require_nonempty_file("/tmp/ifc_cambricon_llm_custom_outputs/figures/controller_timeline_source.csv");
 
     require_true(system("make hw-cycle >/tmp/ifc_cambricon_llm_hw_cycle_test.log 2>&1") == 0, "run hardware cycle target");
     require_nonempty_file("results/hw_cycle_trace.csv");

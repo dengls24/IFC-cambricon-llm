@@ -12,7 +12,7 @@ The controller side adds one full-row timing artifact and several compact valida
 
 | Artifact | Model level |
 |---|---|
-| `results/cycle_weight_timing.csv` | Full-row cycle-derived flash weight-stage timing for every Figure 9 model/platform row. |
+| `results/cycle_weight_timing.csv` | Full-row microcycle-derived flash weight-stage timing for every Figure 9 model/platform row. |
 | `results/controller_schedule.csv` | Event timeline in ns for a representative command stream. |
 | `results/cycle_controller_trace.csv` | Cycle-stepped C controller trace for the same class of command stream. |
 | `results/cycle_controller_stats.csv` | Cycle-level aggregate statistics for that trace. |
@@ -106,22 +106,24 @@ TPOT = effective_weight_stage
      + attention_score_value_compute
 ```
 
-The weight stage is derived in two steps. First, the paper's Section V tile/request equations produce logical read-compute and sliced-read demand from the configured flash platform and model size. Second, `ifc_estimate_cycle_weight_stage()` expands that demand into physical channel/chip/die commands and schedules the whole Figure 9 row with integer controller cycles.
+The weight stage is derived in two steps. First, the paper's Section V tile/request equations produce logical read-compute and sliced-read demand from the configured flash platform and model size. Second, `ifc_estimate_cycle_weight_stage()` expands that demand into physical channel/chip/die commands and schedules the whole Figure 9 row with integer controller cycles plus microarchitectural issue constraints.
 
 For each row, the full-row scheduler records:
 
 - physical `READ_COMPUTE` and `READ_SLICE` command counts;
 - final row completion cycle;
 - C/A, vector-transfer, data-transfer, array-read, and IFC-compute cycle costs;
-- raw cycle-derived weight-stage time;
+- 2.5 ns module-clock quantized stage durations;
+- 8-wide stage issue, 8-entry issue-queue depth, stage issue events, and dispatch rounds;
+- raw microcycle-derived weight-stage time;
 - platform-efficiency calibrated weight-stage time used by TPOT.
 
-Those values are written to `results/cycle_weight_timing.csv` and copied into the cycle columns in `results/figure9_reproduction.csv`. A literal trace file for every physical command is deliberately not emitted because the largest default row already schedules 1,544,720 physical commands. The compact trace files remain representative validation artifacts for command semantics and resource ordering.
+Those values are written to `results/cycle_weight_timing.csv` and copied into the cycle columns in `results/figure9_reproduction.csv`. A literal trace file for every physical command is deliberately not emitted because the largest default row schedules 1,544,720 physical commands and 3,463,434 stage issue events. The compact trace files remain representative validation artifacts for command semantics and resource ordering.
 
 This separation is intentional:
 
-- the Figure 9 table uses the full-row cycle-derived weight stage plus NPU/DRAM attention timing needed for the paper reproduction;
-- `cycle_weight_timing.csv` proves that each Figure 9 row has been expanded to physical IFC commands and scheduled through integer cycles;
+- the Figure 9 table uses the full-row microcycle-derived weight stage plus NPU/DRAM attention timing needed for the paper reproduction;
+- `cycle_weight_timing.csv` proves that each Figure 9 row has been expanded to physical IFC commands and scheduled through integer cycles with finite stage issue bandwidth;
 - the representative controller trace proves that the extended command stream is representable as a C cycle-level resource schedule;
 - the SSDsim-derived trace proves that the same extended commands can be represented as C/A, array-read, data-transfer, and IFC-compute service stages;
 - the SSDsim-derived event trace proves that those service stages can execute through a next-event loop with explicit ISSUE and COMPLETE events;

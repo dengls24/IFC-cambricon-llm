@@ -9,11 +9,11 @@ This project is organized as a small C simulator rather than a single-file numer
 | `src/main.c` | Parses `--output-dir`, runs the reproduction, and prints artifact paths. |
 | `src/profiles.c` | Holds model profiles, Cambricon-LLM-S/M/L platform profiles, Figure 9 reference points, and opcode names. |
 | `src/config.c` | Loads runtime CSV overrides for model, platform, system, and reference profiles. |
-| `src/simulator.c` | Implements the tile-size equations, per-token timing model, full-row cycle weight-stage integration, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
+| `src/simulator.c` | Implements the tile-size equations, per-token timing model, full-row microcycle weight-stage integration, NPU timing terms, CSV/JSON/Markdown output writers, and ablation tables. |
 | `src/analysis.c` | Writes platform/model summaries, tile profiles, and pass/fail reproduction checks. |
-| `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, full-row cycle-derived weight-stage scheduler, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
+| `src/controller.c` | Implements the SSDsim-inspired channel/chip/die/plane busy timeline, full-row microcycle-derived weight-stage scheduler, cycle-stepped command trace, and extended `READ_COMPUTE`/`READ_SLICE` opcodes. |
 | `src/ssdsim_ifc.c` | Implements an SSDsim-derived command-stage backend and event loop for `READ_COMPUTE` and `READ_SLICE`. |
-| `src/plots.c` | Writes standalone local plots for Figure 9 reproduction and Figure 12/Figure 14 style ablations. |
+| `src/plots.c` | Writes local plot-source CSV manifests for Figure 9, controller timeline, and ablation audit data. |
 | `systemc/ifc_hw_cycle_model.cpp` | Implements the optional dependency-free C++ hardware-cycle cross-check model. |
 | `systemc/ifc_hw_cycle_systemc.cpp` | Implements the optional `libsystemc` replay checker using `sc_module` and `SC_THREAD`. It shares the C++ command/stage/resource rules and checks kernel-time replay equivalence. |
 | `systemc/ifc_component_systemc.cpp` | Implements the optional component-level SystemC command-cycle model with separate controller and execution-fabric modules, FIFO communication, timed stage processes, module statistics, and VCD tracing. |
@@ -25,7 +25,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | Artifact | Purpose |
 |---|---|
 | `results/figure9_reproduction.csv` | Paper-vs-simulator decode-speed table for all 21 Figure 9 points. |
-| `results/cycle_weight_timing.csv` | Full-row cycle-derived IFC weight-stage timing used by the TPOT table. |
+| `results/cycle_weight_timing.csv` | Full-row microcycle-derived IFC weight-stage timing used by the TPOT table. |
 | `docs/figures/performance_results_dashboard.png` | Publication-facing performance dashboard with absolute token/s and TPOT. |
 | `docs/figures/performance_results_dashboard.pdf` | PDF version of the performance dashboard. |
 | `docs/figures/decode_latency_breakdown.png` | Publication-facing decode operator latency breakdown. |
@@ -68,7 +68,7 @@ This project is organized as a small C simulator rather than a single-file numer
 | `results/reproduction_checks.csv` | Pass/fail reproduction checks used by the result documentation. |
 | `results/figure12_read_slice_ablation.csv` | Read-slicing ablation table. |
 | `results/figure14_tiling_ablation.csv` | Hardware-aware tiling ablation table. |
-| `results/figures/` | Raw local comparison plots emitted by the C plot helper. |
+| `results/figures/` | Ignored local plot-source CSV files emitted by the C helper. |
 
 ## Reproduction Scope
 
@@ -77,7 +77,7 @@ The implementation follows the paper's Figure 9 method path:
 - flash-resident model weights;
 - Section V hardware-aware tile dimensions;
 - extended flash-controller commands for tiled read-compute and sliced reads;
-- full-row cycle-derived IFC weight-stage timing for every Figure 9 row;
+- full-row microcycle-derived IFC weight-stage timing for every Figure 9 row;
 - command-level cycle trace generation for controller resource ordering;
 - SSDsim-derived command-stage trace generation for extended commands;
 - SSDsim-derived event-loop execution for extended commands;
@@ -87,7 +87,7 @@ The implementation follows the paper's Figure 9 method path:
 - a context-length inverse-fit sweep for the public Figure 9 points;
 - one platform-level calibration term for command packing and pipeline effects.
 
-The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The full-row cycle scheduler is used for flash weight-stage TPOT, while the emitted trace files are compact command-level audits rather than full SSD firmware or FTL models.
+The project does not claim to be the authors' original SSDsim fork. It is a reproducible C reconstruction of the timing model and controller behavior needed for the Figure 9 decode-speed comparison plus the Figure 12/Figure 14 style ablation checks. The full-row microcycle scheduler is used for flash weight-stage TPOT, while the emitted trace files are compact command-level audits rather than full SSD firmware or FTL models.
 
 Runtime configuration is documented in `docs/configuration.md`. The latency model and operator grouping are documented in `docs/latency_model.md`. The controller cycle model is documented in `docs/controller_cycle_model.md`. The SSDsim-derived backend is documented in `docs/ssdsim_ifc_backend.md`. The built-in defaults preserve the paper reproduction path; CSV overrides are intended for design-space experiments unless a matching reference CSV is supplied. The default 1K context setting is inferred from the Figure 9 sweep rather than treated as an explicitly stated paper field.
 

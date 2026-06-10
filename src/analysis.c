@@ -239,7 +239,10 @@ static int write_reproduction_checks(
     double max_balance_delta = 0.0;
     double min_cycle_command_expansion = 1e30;
     double max_cycle_total_commands = 0.0;
+    double max_cycle_stage_issue_events = 0.0;
+    double max_cycle_dispatch_rounds = 0.0;
     int cycle_weight_rows = 0;
+    int microcycle_rows = 0;
     IfcTileModel first_tile = ifc_derive_tile_model(&config->platforms[0]);
     IfcContextFitSummary context_fit;
 
@@ -265,6 +268,19 @@ static int write_reproduction_checks(
             }
             if ((double)rows[i].cycle_total_commands > max_cycle_total_commands) {
                 max_cycle_total_commands = (double)rows[i].cycle_total_commands;
+            }
+            if ((double)rows[i].cycle_stage_issue_events > max_cycle_stage_issue_events) {
+                max_cycle_stage_issue_events = (double)rows[i].cycle_stage_issue_events;
+            }
+            if ((double)rows[i].cycle_dispatch_rounds > max_cycle_dispatch_rounds) {
+                max_cycle_dispatch_rounds = (double)rows[i].cycle_dispatch_rounds;
+            }
+            if (rows[i].cycle_issue_width > 0 &&
+                rows[i].cycle_issue_fifo_depth > 0 &&
+                rows[i].cycle_module_clock_ns > 0.0 &&
+                rows[i].cycle_stage_issue_events > 0 &&
+                rows[i].cycle_dispatch_rounds > 0) {
+                ++microcycle_rows;
             }
         }
         if (strcmp(rows[i].platform, config->platforms[0].name) == 0) {
@@ -300,6 +316,9 @@ static int write_reproduction_checks(
         write_check(file, "cycle_weight_rows", (double)cycle_weight_rows, "21", cycle_weight_rows == IFC_ROW_COUNT) != 0 ||
         write_check(file, "cycle_weight_min_command_expansion", min_cycle_command_expansion, ">1", min_cycle_command_expansion > 1.0) != 0 ||
         write_check(file, "cycle_weight_max_total_commands", max_cycle_total_commands, ">0", max_cycle_total_commands > 0.0) != 0 ||
+        write_check(file, "microcycle_rows", (double)microcycle_rows, "21", microcycle_rows == IFC_ROW_COUNT) != 0 ||
+        write_check(file, "microcycle_max_stage_issue_events", max_cycle_stage_issue_events, ">0", max_cycle_stage_issue_events > 0.0) != 0 ||
+        write_check(file, "microcycle_max_dispatch_rounds", max_cycle_dispatch_rounds, ">0", max_cycle_dispatch_rounds > 0.0) != 0 ||
         write_check(file, "controller_balance_delta_max_pct", max_balance_delta, "<=1e-6", max_balance_delta <= 1e-6) != 0 ||
         write_check(file, "cycle_controller_trace_enabled", 1.0, "1", 1) != 0 ||
         write_check(file, "ssdsim_ifc_backend_enabled", 1.0, "1", 1) != 0 ||

@@ -97,14 +97,22 @@ physical_READ_SLICE =
     round(npu_read_slices * command_multiplier)
 ```
 
-`src/controller.c::ifc_estimate_cycle_weight_stage()` schedules the full Figure 9 row with integer controller cycles. Every command includes explicit C/A cycles. `READ_COMPUTE` commands include vector transfer, array read, and IFC compute stages. `READ_SLICE` commands include sliced data transfer. The scheduler tracks channel, chip, die, plane, and IFC-compute resource readiness, then reports:
+`src/controller.c::ifc_estimate_cycle_weight_stage()` schedules the full Figure 9 row with integer controller cycles. Every command includes explicit C/A cycles. `READ_COMPUTE` commands include vector transfer, array read, and IFC compute stages. `READ_SLICE` commands include sliced data transfer. Before a stage can start, the microcycle scheduler also applies:
+
+- 2.5 ns module-clock quantization of stage service time;
+- an 8-stage global issue width;
+- an 8-entry issue-queue depth boundary reported with the full-row schedule;
+- per-cycle issue-bucket occupancy checks so independent channels can still overlap.
+
+The scheduler tracks channel, chip, die, plane, IFC-compute resource readiness, and stage-issue occupancy, then reports:
 
 - `cycle_weight_last_cycle`;
 - physical `READ_COMPUTE` and `READ_SLICE` command counts;
-- raw cycle-derived weight-stage latency;
-- calibrated cycle-derived weight-stage latency.
+- stage issue events and dispatch rounds;
+- raw microcycle-derived weight-stage latency;
+- calibrated microcycle-derived weight-stage latency.
 
-Platform-level command packing and pipeline loss are applied after the raw full-row cycle result:
+Platform-level command packing and pipeline loss are applied after the raw full-row microcycle result:
 
 ```text
 effective_efficiency =
@@ -182,11 +190,11 @@ The current default profile gives:
 | Fit criterion | Context length | Error summary |
 |---|---:|---|
 | Best mean absolute error | 555 tokens | 8.207% mean absolute error, but 23.765% maximum error |
-| Best maximum-error fit | 1007 tokens | 14.413% maximum error |
-| Best RMSE fit | 1032 tokens | 9.701% RMSE |
-| Default reproduction setting | 1000 tokens | 8.354% mean absolute error, 14.541% maximum error |
+| Best maximum-error fit | 1005 tokens | 14.413% maximum error |
+| Best RMSE fit | 1030 tokens | 9.701% RMSE |
+| Default reproduction setting | 1000 tokens | 8.356% mean absolute error, 14.508% maximum error |
 
-The stable guardrail window is 977-1040 tokens. For release reporting, the repository therefore describes the default as an inferred 1K context setting. This wording is intentional: it is a reproduction fit against Figure 9, not an explicit statement from the paper text.
+The stable guardrail window is 975-1038 tokens. For release reporting, the repository therefore describes the default as an inferred 1K context setting. This wording is intentional: it is a reproduction fit against Figure 9, not an explicit statement from the paper text.
 
 Artifacts:
 
@@ -202,7 +210,7 @@ Artifacts:
 |---|---|
 | `flash_weight_gemv` | Logical tiled weight GeMV mapped to flash-side `READ_COMPUTE`. |
 | `flash_weight_slice_transfer` | Sliced transfer path for the non-read-compute weight fraction. |
-| `effective_weight_stage` | Full-row cycle-derived weight-stage latency after platform efficiency. |
+| `effective_weight_stage` | Full-row microcycle-derived weight-stage latency after platform efficiency. |
 | `attention_state_memory` | DRAM memory term for decode attention state access. |
 | `attention_score_value_compute` | NPU compute term for decode attention score/value arithmetic. |
 | `total_tpot` | Sum used for final token latency. |
@@ -214,7 +222,7 @@ Publication figure:
 - `docs/figures/decode_latency_breakdown.png`
 - `docs/figures/decode_latency_breakdown.pdf`
 
-The figure shows the additive TPOT terms and separately shows the raw full-row cycle weight timing before pipeline calibration, so the flash stage is not presented as a simple sum of dataflow formulas.
+The figure shows the additive TPOT terms and separately shows the raw full-row microcycle weight timing before pipeline calibration, so the flash stage is not presented as a simple sum of dataflow formulas.
 
 ## Controller Cycle Audit
 

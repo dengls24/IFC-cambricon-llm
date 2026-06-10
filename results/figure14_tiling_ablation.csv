@@ -1,8 +1,8 @@
 model,platform,full_tokens_per_s,without_hardware_aware_tiling_tokens_per_s,speedup,paper_text_range
-opt_6_7b,cam_llm_s,3.664621,2.731884,1.341426,1.3x-1.4x
-opt_13b,cam_llm_s,1.877732,1.398021,1.343136,1.3x-1.4x
-opt_30b,cam_llm_s,0.799188,0.594151,1.345092,1.3x-1.4x
-opt_66b,cam_llm_s,0.350342,0.260223,1.346311,1.3x-1.4x
-llama2_7b,cam_llm_s,3.643047,2.715699,1.341477,1.3x-1.4x
-llama2_13b,cam_llm_s,1.877732,1.398021,1.343136,1.3x-1.4x
-llama2_70b,cam_llm_s,0.337140,0.249837,1.349439,1.3x-1.4x
+opt_6_7b,cam_llm_s,3.663151,2.730781,1.341430,1.3x-1.4x
+opt_13b,cam_llm_s,1.876975,1.397455,1.343138,1.3x-1.4x
+opt_30b,cam_llm_s,0.798864,0.593909,1.345094,1.3x-1.4x
+opt_66b,cam_llm_s,0.350199,0.260117,1.346313,1.3x-1.4x
+llama2_7b,cam_llm_s,3.641585,2.714603,1.341480,1.3x-1.4x
+llama2_13b,cam_llm_s,1.876975,1.397455,1.343138,1.3x-1.4x
+llama2_70b,cam_llm_s,0.337002,0.249735,1.349440,1.3x-1.4x

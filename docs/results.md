@@ -23,13 +23,13 @@ Current checked output:
 | Metric | Value |
 |---|---:|
 | Rows | 21 |
-| Fastest simulated decode speed | 31.113 tokens/s |
+| Fastest simulated decode speed | 31.105 tokens/s |
 | Fastest point | OPT-6.7B on Cambricon-LLM-L |
-| LLaMA2-7B on Cambricon-LLM-L | 30.874 tokens/s, 32.390 ms/token |
-| LLaMA2-70B on Cambricon-LLM-L | 2.914 tokens/s, 343.203 ms/token |
-| Inferred Figure 9 context window | 977-1040 tokens |
+| LLaMA2-7B on Cambricon-LLM-L | 30.866 tokens/s, 32.399 ms/token |
+| LLaMA2-70B on Cambricon-LLM-L | 2.913 tokens/s, 343.320 ms/token |
+| Inferred Figure 9 context window | 975-1038 tokens |
 | Default reproduction context | 1000 tokens |
-| Largest full-row IFC command schedule | 1,544,720 physical commands |
+| Largest full-row IFC command schedule | 1,544,720 physical commands and 3,463,434 stage issues |
 
 Reference-fit guardrails are enforced by `tests/test_simulator.c`:
 
@@ -38,7 +38,7 @@ max absolute relative error <= 15%
 mean absolute relative error <= 9%
 ```
 
-The current guardrail values are 8.354% mean absolute relative difference and 14.541% maximum absolute relative difference.
+The current guardrail values are 8.356% mean absolute relative difference and 14.508% maximum absolute relative difference.
 
 The report in `results/report.md` includes:
 
@@ -49,7 +49,7 @@ The report in `results/report.md` includes:
 - derived tile shape;
 - read-compute workload fraction;
 - context-length inference output;
-- full-row cycle-derived weight-stage timing;
+- full-row microcycle-derived weight-stage timing;
 - aggregate controller command count.
 
 The release-facing per-scheme paper comparison is in `docs/paper_comparison.md` and `results/simulator_scheme_comparison.csv`.
@@ -60,7 +60,7 @@ Additional controller artifacts:
 
 - `results/request_trace.csv`: per-row aggregate `READ_COMPUTE` and `READ_SLICE` requests.
 - `results/controller_timing_summary.csv`: per-row controller path balance and command counts.
-- `results/cycle_weight_timing.csv`: per-row full-row cycle-derived flash weight-stage timing used by TPOT.
+- `results/cycle_weight_timing.csv`: per-row full-row microcycle-derived flash weight-stage timing used by TPOT.
 - `results/npu_timing.csv`: per-row NPU/DRAM timing and TPOT reconstruction.
 - `results/latency_breakdown.csv`: operator-group latency mapping for flash weight GeMV, sliced transfer, attention memory, attention compute, and total TPOT.
 - `results/controller_schedule.csv`: sample channel/chip/die/plane schedule for OPT-6.7B on Cambricon-LLM-S.
@@ -102,29 +102,31 @@ Publication-facing figures:
 - `docs/figures/decode_latency_breakdown.pdf`: PDF version of the decode latency breakdown.
 - `docs/figures/paper_reference_comparison.png`: paper Figure 9 reference versus simulator absolute throughput comparison.
 - `docs/figures/paper_reference_comparison.pdf`: PDF version of the paper-reference comparison.
-- `docs/figures/context_length_inference.png`: inverse context-length fit showing the stable 977-1040 token window.
+- `docs/figures/context_length_inference.png`: inverse context-length fit showing the stable 975-1038 token window.
 - `docs/figures/context_length_inference.pdf`: PDF version of the context-length inference figure.
 - `docs/figures/systemc_component_comparison.png`: detailed C-vs-SystemC component comparison for the representative command stream.
 - `docs/figures/systemc_component_comparison.pdf`: PDF version of the SystemC component comparison.
 - `docs/figures/architecture_summary.png`: homepage simulator architecture summary.
 - `docs/figures/architecture_summary.pdf`: PDF version of the architecture summary.
 
-Additional raw comparison plots are kept under `results/figures/` for local inspection when plot generation is enabled.
+Additional local plot-source CSV files may be written under `results/figures/` for test inspection when helper output generation is enabled.
 
 Current pass/fail checks:
 
 | Check | Value | Target | Status |
 |---|---:|---:|---|
 | Figure 9 rows | 21 | 21 | PASS |
-| Mean absolute relative error | 8.354% | <=9% | PASS |
-| Max absolute relative error | 14.541% | <=15% | PASS |
+| Mean absolute relative error | 8.356% | <=9% | PASS |
+| Max absolute relative error | 14.508% | <=15% | PASS |
 | Cambricon-LLM-S tile height | 256 | 256 | PASS |
 | Cambricon-LLM-S tile width | 2048 | 2048 | PASS |
-| Read-slicing speedup range | 1.724x-1.742x | 1.6x-1.8x | PASS |
+| Read-slicing speedup range | 1.724x-1.741x | 1.6x-1.8x | PASS |
 | Tiling speedup range | 1.341x-1.349x | 1.3x-1.4x | PASS |
-| Inferred context guardrail window | 977-1040 tokens | includes 1000 | PASS |
-| Full-row cycle timing rows | 21 | 21 | PASS |
-| Maximum full-row cycle commands | 1,544,720 | >0 | PASS |
+| Inferred context guardrail window | 975-1038 tokens | includes 1000 | PASS |
+| Full-row microcycle timing rows | 21 | 21 | PASS |
+| Maximum full-row microcycle commands | 1,544,720 | >0 | PASS |
+| Maximum full-row stage issue events | 3,463,434 | >0 | PASS |
+| Maximum full-row dispatch rounds | 1,062,163 | >0 | PASS |
 | Controller path balance delta | 0.000000% | <=1e-6 | PASS |
 | Cycle controller trace enabled | 1 | 1 | PASS |
 | SSDsim-derived IFC backend enabled | 1 | 1 | PASS |

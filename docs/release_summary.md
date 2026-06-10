@@ -6,7 +6,7 @@ This document summarizes the release-ready simulator variants, current validatio
 
 The repository is a Cambricon-LLM style in-flash-computing architecture simulator for the Figure 9 decode-speed path. It includes:
 
-- a standalone C timing simulator for the 21 Figure 9 points, including full-row cycle-derived IFC weight-stage timing;
+- a standalone C timing simulator for the 21 Figure 9 points, including full-row microcycle-derived IFC weight-stage timing;
 - an SSDsim-derived C event backend for extended `READ_COMPUTE` and `READ_SLICE` commands;
 - a dependency-free C++ hardware-cycle checker;
 - a SystemC replay equivalence checker;
@@ -48,21 +48,38 @@ Current values:
 | Metric | Value |
 |---|---:|
 | Figure 9 rows | 21 |
-| Fastest simulated decode speed | 31.113 tokens/s |
+| Fastest simulated decode speed | 31.105 tokens/s |
 | Fastest point | OPT-6.7B on Cambricon-LLM-L |
-| LLaMA2-7B on Cambricon-LLM-L | 30.874 tokens/s, 32.390 ms/token |
-| LLaMA2-70B on Cambricon-LLM-L | 2.914 tokens/s, 343.203 ms/token |
-| Inferred Figure 9 context window | 977-1040 tokens |
+| LLaMA2-7B on Cambricon-LLM-L | 30.866 tokens/s, 32.399 ms/token |
+| LLaMA2-70B on Cambricon-LLM-L | 2.913 tokens/s, 343.320 ms/token |
+| Inferred Figure 9 context window | 975-1038 tokens |
 | Default reproduction context | 1000 tokens |
-| Largest full-row IFC command schedule | 1,544,720 physical commands |
+| Largest full-row IFC command schedule | 1,544,720 physical commands and 3,463,434 stage issues |
 
-The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.354%, and the maximum absolute relative difference is 14.541%.
+The Figure 9 reference-fit audit remains in `results/summary.json`: mean absolute relative difference is 8.356%, and the maximum absolute relative difference is 14.508%.
 
-Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 977-1040 token stable window; the best maximum-error and RMSE fits are 1007 and 1032 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
+Context length is treated as a configurable reproduction parameter. The inverse-fit sweep in `results/context_length_inference.csv` shows that the default 1000-token setting sits inside the 975-1038 token stable window; the best maximum-error and RMSE fits are 1005 and 1030 tokens respectively. This should be described as inferred from the public Figure 9 curve, not as an explicit Figure 9 field in the paper text.
 
 The per-scheme comparison against the Cambricon-LLM paper result is documented in `docs/paper_comparison.md`. The C scheme is the direct 21-point Figure 9 reproduction path. The SystemC component scheme is a representative command-stream cross-check against the C backend anchor and should not be described as an independent 21-point Figure 9 reproduction.
 
 Reference entries for the Cambricon-LLM paper, SSDsim-related simulator background, and SystemC are listed in `docs/references.md` and `data/references.bib`.
+
+## Difference Versus Previous Public Commit
+
+Compared with commit `f89b811`, this release keeps the same 21-point Figure 9 reproduction boundary and adds explicit full-row stage-issue accounting, module-clock quantization fields, and TPOT-source checks.
+
+| Metric | `f89b811` | Current | Delta |
+|---|---:|---:|---:|
+| Mean absolute relative error | 8.354% | 8.356% | +0.002 percentage points |
+| Max absolute relative error | 14.541% | 14.508% | -0.033 percentage points |
+| Fastest point | OPT-6.7B on L | OPT-6.7B on L | unchanged |
+| Fastest throughput | 31.113179 tokens/s | 31.104766 tokens/s | -0.008413 tokens/s |
+| Fastest TPOT | 32.140721 ms/token | 32.149414 ms/token | +0.008693 ms/token |
+| Largest full-row physical commands | 1,544,720 | 1,544,720 | 0 |
+| Largest full-row stage issues | not reported | 3,463,434 | newly reported |
+| Mean throughput shift over 21 rows | baseline | -0.0354% | small slowdown |
+
+The largest absolute TPOT shift is LLaMA2-70B on Cambricon-LLM-S: `2966.124110 -> 2967.342352 ms/token`, a `+1.218242 ms/token` change. This comes from exposing module-clock-quantized stage durations in the full-row microcycle path. The reproduction guardrails remain satisfied.
 
 ## Variant Result Ownership
 
@@ -219,7 +236,7 @@ SYSTEMC_HOME=../.ifc_systemc/systemc_sysroot/usr
 This release is suitable as an auditable architecture-simulator artifact for the stated Figure 9 reproduction path. It should be described as:
 
 ```text
-A standalone C timing simulator with full-row IFC cycle-derived weight-stage timing, SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
+A standalone C timing simulator with full-row IFC microcycle-derived weight-stage timing, SSDsim-derived IFC event modeling, dependency-free and SystemC cross-checks, and a component-level SystemC command-cycle model for the representative IFC command stream.
 ```
 
 It should not be described as:

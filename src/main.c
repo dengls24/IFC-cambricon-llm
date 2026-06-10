@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
     printf("system_profile_csv: %s/system_profile.csv\n", options.output_dir);
     printf("context_inference_csv: %s/context_length_inference.csv\n", options.output_dir);
     printf("reproduction_checks_csv: %s/reproduction_checks.csv\n", options.output_dir);
-    printf("raw_plot_dir: %s/figures (local helper output, ignored for release)\n", options.output_dir);
+    printf("plot_source_dir: %s/figures (local CSV helper output, ignored for release)\n", options.output_dir);
     printf("rows: %d\n", summary.row_count);
     printf("mean_abs_relative_error_pct: %.3f\n", summary.mean_abs_relative_error_pct);
     printf("max_abs_relative_error_pct: %.3f\n", summary.max_abs_relative_error_pct);

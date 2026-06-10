@@ -10,30 +10,32 @@ Primary reference paper: [Cambricon-LLM: A Chiplet-Based Hybrid Architecture for
 
 | Result | Current value | Artifact |
 |---|---:|---|
-| Fastest simulated decode speed | 31.113 tokens/s, 32.141 ms/token | `results/figure9_reproduction.csv` |
+| Fastest simulated decode speed | 31.105 tokens/s, 32.149 ms/token | `results/figure9_reproduction.csv` |
 | Fastest point | OPT-6.7B on Cambricon-LLM-L | `results/figure9_reproduction.csv` |
-| LLaMA2-7B on Cambricon-LLM-L | 30.874 tokens/s, 32.390 ms/token | `results/figure9_reproduction.csv` |
-| LLaMA2-70B on Cambricon-LLM-L | 2.914 tokens/s, 343.203 ms/token | `results/figure9_reproduction.csv` |
+| LLaMA2-7B on Cambricon-LLM-L | 30.866 tokens/s, 32.399 ms/token | `results/figure9_reproduction.csv` |
+| LLaMA2-70B on Cambricon-LLM-L | 2.913 tokens/s, 343.320 ms/token | `results/figure9_reproduction.csv` |
 | Figure 9 W8A8 points reproduced | 21 | `results/figure9_reproduction.csv` |
-| Inferred Figure 9 context window | 977-1040 tokens; default 1000 tokens | `results/context_length_inference.csv` |
-| Full-row IFC cycle commands | up to 1,544,720 physical commands per Figure 9 row | `results/cycle_weight_timing.csv` |
-| Cambricon-LLM-S read-slicing speedup range | 1.724x-1.742x | `results/figure12_read_slice_ablation.csv` |
+| Inferred Figure 9 context window | 975-1038 tokens; default 1000 tokens | `results/context_length_inference.csv` |
+| Full-row IFC microcycle work | up to 1,544,720 physical commands and 3,463,434 stage issues | `results/cycle_weight_timing.csv` |
+| Cambricon-LLM-S read-slicing speedup range | 1.724x-1.741x | `results/figure12_read_slice_ablation.csv` |
 | Cambricon-LLM-S hardware-aware tiling speedup range | 1.341x-1.349x | `results/figure14_tiling_ablation.csv` |
 | SystemC component final-time delta vs C backend | +85.500000 ns, 0.027039% | `results/systemc_component_compare.csv` |
 
-Reference-fit quality is kept as a secondary audit metric in `results/summary.json` (mean absolute relative difference 8.354%, max 14.541%). The main released performance outputs are the absolute decode throughput and TPOT tables below.
+Reference-fit quality is kept as a secondary audit metric in `results/summary.json` (mean absolute relative difference 8.356%, max 14.508%). The main released performance outputs are the absolute decode throughput and TPOT tables below.
 
-The C simulator is the direct paper-facing Figure 9 reproduction path. Its weight-stage TPOT is sourced from a full-row discrete IFC cycle scheduler for every Figure 9 row, then combined with the NPU attention tail. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
+The C simulator is the direct paper-facing Figure 9 reproduction path. Its weight-stage TPOT is sourced from a full-row microcycle IFC scheduler for every Figure 9 row, including stage issue-width limiting, issue-queue depth reporting, and module-clock quantization, then combined with the NPU attention tail. The SystemC component model is a command-cycle cross-check for a representative IFC command stream; it is not an independent full Figure 9 simulator and is not RTL.
+
+GitHub release text is prepared in [`docs/github_release.md`](docs/github_release.md). The longer release audit is in [`docs/release_summary.md`](docs/release_summary.md).
 
 ## Simulator Variants And Result Ownership
 
 | Variant | Command | Result scope | Released result |
 |---|---|---|---|
-| Standalone C cycle-timing simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction with per-row IFC cycle weight timing | Owns all token/s and TPOT tables in this README |
+| Standalone C microcycle simulator plus SSDsim-derived C event backend | `make run` | Full 21-point Cambricon-LLM Figure 9 decode-speed reproduction with per-row IFC microcycle weight timing | Owns all token/s and TPOT tables in this README |
 | SystemC replay checker | `make systemc-cycle` | Representative IFC command stream replayed through the SystemC kernel | Lightweight 0-cycle equivalence guard |
 | SystemC component command-cycle model | `make systemc-component` | Representative IFC command stream split into controller, execution-fabric, FIFO, ONFI, array, and IFC-compute modules | Detailed C-vs-SystemC comparison: +85.500000 ns final-time delta, 0.027039% |
 
-Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs, and their flash weight stage comes from the full-row cycle backend in `results/cycle_weight_timing.csv`. The SystemC replay checker is a lightweight equivalence guard. The SystemC component model is the meaningful SystemC result: it compares a componentized command-cycle simulation against the representative C event backend and exposes the small timing drift introduced by FIFO, issue width, and module-clock quantization.
+Read the results this way: the absolute inference-performance numbers are standalone C simulator outputs, and their flash weight stage comes from the full-row microcycle backend in `results/cycle_weight_timing.csv`. The SystemC replay checker is a lightweight equivalence guard. The SystemC component model is the meaningful SystemC result: it compares a componentized command-cycle simulation against the representative C event backend and exposes the small timing drift introduced by FIFO, issue width, and module-clock quantization.
 
 ## Experimental Figures
 
@@ -47,7 +49,7 @@ The dashboard summarizes the standalone C simulator's absolute decode throughput
 
 PDF version: [decode_latency_breakdown.pdf](docs/figures/decode_latency_breakdown.pdf)
 
-The latency breakdown figure decomposes standalone C decode TPOT into the cycle-derived flash-weight stage, attention state memory, and attention score/value compute. It also shows the raw full-row IFC cycle weight timing before platform pipeline calibration.
+The latency breakdown figure decomposes standalone C decode TPOT into the microcycle-derived flash-weight stage, attention state memory, and attention score/value compute. It also shows the raw full-row IFC microcycle weight timing before platform pipeline calibration.
 
 ![Paper Figure 9 reference comparison](docs/figures/paper_reference_comparison.png)
 
@@ -59,7 +61,7 @@ The paper-reference comparison reports absolute paper-vs-simulator decode throug
 
 PDF version: [context_length_inference.pdf](docs/figures/context_length_inference.pdf)
 
-The context-length inference figure treats decode context length as a sweep parameter and fits the public Figure 9 throughput references. The stable paper-fit window is 977-1040 tokens; the default 1000-token context is inside that window, while the best RMSE and best max-error points are 1032 and 1007 tokens respectively. This is an inferred reproduction setting, not a claim that the paper text explicitly states the Figure 9 context length.
+The context-length inference figure treats decode context length as a sweep parameter and fits the public Figure 9 throughput references. The stable paper-fit window is 975-1038 tokens; the default 1000-token context is inside that window, while the best RMSE and best max-error points are 1030 and 1005 tokens respectively. This is an inferred reproduction setting, not a claim that the paper text explicitly states the Figure 9 context length.
 
 ![SystemC component model detailed comparison](docs/figures/systemc_component_comparison.png)
 
@@ -73,25 +75,27 @@ Decode throughput is reported as simulated tokens/s from the standalone C paper-
 
 | Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
 |---|---:|---:|---:|
-| OPT-6.7B | 3.664621 | 10.076709 | 31.113179 |
-| OPT-13B | 1.877732 | 5.263514 | 16.035697 |
-| OPT-30B | 0.799188 | 2.315939 | 6.745747 |
-| OPT-66B | 0.350342 | 1.062302 | 2.843882 |
-| LLaMA2-7B | 3.643047 | 10.016988 | 30.873976 |
-| LLaMA2-13B | 1.877732 | 5.263514 | 16.035697 |
-| LLaMA2-70B | 0.337140 | 1.044370 | 2.913724 |
+| OPT-6.7B | 3.663151 | 10.073148 | 31.104766 |
+| OPT-13B | 1.876975 | 5.261630 | 16.031076 |
+| OPT-30B | 0.798864 | 2.315097 | 6.743696 |
+| OPT-66B | 0.350199 | 1.061912 | 2.842984 |
+| LLaMA2-7B | 3.641585 | 10.013449 | 30.865517 |
+| LLaMA2-13B | 1.876975 | 5.261630 | 16.031076 |
+| LLaMA2-70B | 0.337002 | 1.043976 | 2.912732 |
 
 TPOT latency is reported as simulated ms/token for the same standalone C runs.
 
 | Model | Cambricon-LLM-S | Cambricon-LLM-M | Cambricon-LLM-L |
 |---|---:|---:|---:|
-| OPT-6.7B | 272.880 | 99.239 | 32.141 |
-| OPT-13B | 532.557 | 189.987 | 62.361 |
-| OPT-30B | 1251.271 | 431.790 | 148.242 |
-| OPT-66B | 2854.357 | 941.352 | 351.632 |
-| LLaMA2-7B | 274.496 | 99.830 | 32.390 |
-| LLaMA2-13B | 532.557 | 189.987 | 62.361 |
-| LLaMA2-70B | 2966.124 | 957.515 | 343.203 |
+| OPT-6.7B | 272.989 | 99.274 | 32.149 |
+| OPT-13B | 532.772 | 190.055 | 62.379 |
+| OPT-30B | 1251.778 | 431.947 | 148.287 |
+| OPT-66B | 2855.518 | 941.697 | 351.743 |
+| LLaMA2-7B | 274.606 | 99.866 | 32.399 |
+| LLaMA2-13B | 532.772 | 190.055 | 62.379 |
+| LLaMA2-70B | 2967.342 | 957.876 | 343.320 |
+
+TPOT is computed as `weight_stage_ms + attention_cache_ms + attention_compute_ms`. In the default release path, `weight_stage_ms` is copied from `cycle_weight_stage_ms`, the calibrated full-row IFC microcycle schedule in `results/cycle_weight_timing.csv`; the analytic overlap path is retained only as a fallback and ablation reference. `make test` checks this equality for every Figure 9 row.
 
 ## Architecture
 
@@ -103,7 +107,7 @@ PDF version: [architecture_summary.pdf](docs/figures/architecture_summary.pdf)
 
 - C timing simulator for Cambricon-LLM Figure 9 decode-speed reproduction.
 - Runtime-configurable model, flash platform, NPU/DRAM, ONFI bandwidth, and IFC compute profiles.
-- Full-row cycle-derived IFC weight-stage timing for every Figure 9 row.
+- Full-row microcycle-derived IFC weight-stage timing for every Figure 9 row.
 - SSDsim-derived C event backend for the extended IFC commands `READ_COMPUTE` and `READ_SLICE`.
 - Dependency-free C++ hardware-cycle checker.
 - SystemC replay checker that proves exact event equivalence with the C backend.
@@ -116,11 +120,11 @@ Implementation-source mix, measured with `wc -l` over `src/*.c`, `include/*.h`, 
 
 | Language / file type | Files | Source lines | Share |
 |---|---:|---:|---:|
-| C / C header / C tests | 10 | 4,522 | 71.6% |
-| C++ / SystemC | 3 | 1,677 | 26.6% |
-| Makefile | 1 | 92 | 1.5% |
+| C / C header / C tests | 10 | 4,585 | 71.9% |
+| C++ / SystemC | 3 | 1,677 | 26.3% |
+| Makefile | 1 | 92 | 1.4% |
 | Shell | 1 | 22 | 0.3% |
-| Total | 15 | 6,313 | 100.0% |
+| Total | 15 | 6,376 | 100.0% |
 
 ## Quick Start
 
@@ -133,8 +137,8 @@ Expected summary:
 ```text
 passed: Cambricon-LLM Figure 9 C reproduction
 rows: 21
-mean_abs_relative_error_pct: 8.354
-max_abs_relative_error_pct: 14.541
+mean_abs_relative_error_pct: 8.356
+max_abs_relative_error_pct: 14.508
 ```
 
 Run the C test suite:

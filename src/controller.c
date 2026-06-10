@@ -1,6 +1,8 @@
 #include "ifc_cambricon_llm.h"
 
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define IFC_CONTROLLER_MAX_CHANNELS 64
@@ -8,6 +10,9 @@
 #define IFC_CONTROLLER_MAX_DIES_PER_CHIP 8
 #define IFC_CONTROLLER_MAX_PLANES_PER_DIE 8
 #define IFC_CONTROLLER_MAX_CYCLE_COMMANDS 4096
+#define IFC_MICRO_STAGE_ISSUE_WIDTH 8
+#define IFC_MICRO_ISSUE_FIFO_DEPTH 8
+#define IFC_MICRO_MODULE_CLOCK_NS 2.5
 
 typedef struct {
     double channel_busy_until_ns[IFC_CONTROLLER_MAX_CHANNELS];
@@ -67,6 +72,22 @@ typedef struct {
     IfcCycleStage stage;
 } IfcCycleCommand;
 
+typedef struct {
+    long long cycle;
+    int count;
+    int used;
+} IfcIssueBucket;
+
+typedef struct {
+    IfcIssueBucket *buckets;
+    size_t bucket_count;
+    long long dispatch_cycles;
+    long long issue_events;
+    long long dispatch_rounds;
+    int issue_width;
+    int fifo_depth;
+} IfcMicroIssueScheduler;
+
 static double max2(double lhs, double rhs) {
     return lhs > rhs ? lhs : rhs;
 }
@@ -81,6 +102,101 @@ static long long ceil_cycles(double duration_ns, double cycle_ns) {
         ++cycles;
     }
     return cycles > 0 ? cycles : 1;
+}
+
+static long long quantize_stage_cycles(long long base_cycles, double cycle_ns, double module_clock_ns) {
+    double base_ns;
+    double module_cycles;
+    double quantized_ns;
+    if (base_cycles <= 0) {
+        return 1;
+    }
+    if (module_clock_ns <= 0.0 || cycle_ns <= 0.0) {
+        return base_cycles;
+    }
+    base_ns = (double)base_cycles * cycle_ns;
+    module_cycles = ceil(base_ns / module_clock_ns);
+    quantized_ns = module_cycles * module_clock_ns;
+    return ceil_cycles(quantized_ns, cycle_ns);
+}
+
+static size_t next_power_of_two_size(size_t value) {
+    size_t result = 1;
+    while (result < value) {
+        result <<= 1;
+    }
+    return result;
+}
+
+static size_t issue_bucket_hash(long long cycle, size_t mask) {
+    unsigned long long value = (unsigned long long)cycle;
+    value ^= value >> 33;
+    value *= 0xff51afd7ed558ccdULL;
+    value ^= value >> 33;
+    value *= 0xc4ceb9fe1a85ec53ULL;
+    value ^= value >> 33;
+    return (size_t)value & mask;
+}
+
+static int micro_issue_scheduler_init(
+    IfcMicroIssueScheduler *scheduler,
+    double cycle_ns,
+    long long expected_issue_events) {
+    int effective_width = IFC_MICRO_STAGE_ISSUE_WIDTH;
+    size_t desired_buckets;
+    if (effective_width > IFC_MICRO_ISSUE_FIFO_DEPTH) {
+        effective_width = IFC_MICRO_ISSUE_FIFO_DEPTH;
+    }
+    if (effective_width < 1) {
+        effective_width = 1;
+    }
+    desired_buckets = next_power_of_two_size((size_t)(expected_issue_events * 2 + 1024));
+    scheduler->buckets = (IfcIssueBucket *)calloc(desired_buckets, sizeof(IfcIssueBucket));
+    if (scheduler->buckets == NULL) {
+        return -1;
+    }
+    scheduler->bucket_count = desired_buckets;
+    scheduler->dispatch_cycles = ceil_cycles(IFC_MICRO_MODULE_CLOCK_NS, cycle_ns);
+    scheduler->issue_events = 0;
+    scheduler->dispatch_rounds = 0;
+    scheduler->issue_width = effective_width;
+    scheduler->fifo_depth = IFC_MICRO_ISSUE_FIFO_DEPTH;
+    return 0;
+}
+
+static void micro_issue_scheduler_destroy(IfcMicroIssueScheduler *scheduler) {
+    free(scheduler->buckets);
+    scheduler->buckets = NULL;
+    scheduler->bucket_count = 0;
+}
+
+static long long micro_issue_stage(IfcMicroIssueScheduler *scheduler, long long earliest_cycle) {
+    long long cycle = earliest_cycle;
+    size_t mask = scheduler->bucket_count - 1U;
+    for (;;) {
+        size_t index = issue_bucket_hash(cycle, mask);
+        for (;;) {
+            IfcIssueBucket *bucket = &scheduler->buckets[index];
+            if (!bucket->used) {
+                bucket->used = 1;
+                bucket->cycle = cycle;
+                bucket->count = 1;
+                ++scheduler->issue_events;
+                ++scheduler->dispatch_rounds;
+                return cycle;
+            }
+            if (bucket->cycle == cycle) {
+                if (bucket->count < scheduler->issue_width) {
+                    ++bucket->count;
+                    ++scheduler->issue_events;
+                    return cycle;
+                }
+                break;
+            }
+            index = (index + 1U) & mask;
+        }
+        cycle += scheduler->dispatch_cycles;
+    }
 }
 
 static long long round_positive_to_ll(double value) {
@@ -579,6 +695,7 @@ static void cycle_weight_submit_read_compute(
                          [IFC_CONTROLLER_MAX_DIES_PER_CHIP][IFC_CONTROLLER_MAX_PLANES_PER_DIE],
     long long compute_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
                            [IFC_CONTROLLER_MAX_DIES_PER_CHIP],
+    IfcMicroIssueScheduler *issue_scheduler,
     long long *last_cycle) {
     int channel;
     int chip;
@@ -588,23 +705,25 @@ static void cycle_weight_submit_read_compute(
     long long end;
 
     cycle_weight_place(platform, index, 0, &channel, &chip, &die, &plane);
-    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    start = micro_issue_stage(issue_scheduler, max_ll(channel_ready[channel], chip_ready[channel][chip]));
     end = start + command_address_cycles;
     channel_ready[channel] = end;
     chip_ready[channel][chip] = end;
 
-    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    start = micro_issue_stage(issue_scheduler, max_ll(channel_ready[channel], chip_ready[channel][chip]));
     end = start + vector_cycles;
     channel_ready[channel] = end;
     chip_ready[channel][chip] = end;
 
-    start = max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]);
+    start = micro_issue_stage(issue_scheduler, max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]));
     end = start + array_read_cycles;
     chip_ready[channel][chip] = end;
     plane_ready[channel][chip][die][plane] = end;
 
-    start = max_ll(max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]),
-                   compute_ready[channel][chip][die]);
+    start = micro_issue_stage(
+        issue_scheduler,
+        max_ll(max_ll(chip_ready[channel][chip], plane_ready[channel][chip][die][plane]),
+               compute_ready[channel][chip][die]));
     end = start + ifc_compute_cycles;
     chip_ready[channel][chip] = end;
     plane_ready[channel][chip][die][plane] = end;
@@ -621,6 +740,7 @@ static void cycle_weight_submit_read_slice(
     long long data_cycles,
     long long channel_ready[IFC_CONTROLLER_MAX_CHANNELS],
     long long chip_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL],
+    IfcMicroIssueScheduler *issue_scheduler,
     long long *last_cycle) {
     int channel;
     int chip;
@@ -632,12 +752,12 @@ static void cycle_weight_submit_read_slice(
     cycle_weight_place(platform, index, 1, &channel, &chip, &die, &plane);
     (void)die;
     (void)plane;
-    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    start = micro_issue_stage(issue_scheduler, max_ll(channel_ready[channel], chip_ready[channel][chip]));
     end = start + command_address_cycles;
     channel_ready[channel] = end;
     chip_ready[channel][chip] = end;
 
-    start = max_ll(channel_ready[channel], chip_ready[channel][chip]);
+    start = micro_issue_stage(issue_scheduler, max_ll(channel_ready[channel], chip_ready[channel][chip]));
     end = start + data_cycles;
     channel_ready[channel] = end;
     chip_ready[channel][chip] = end;
@@ -659,6 +779,7 @@ int ifc_estimate_cycle_weight_stage(
                          [IFC_CONTROLLER_MAX_DIES_PER_CHIP][IFC_CONTROLLER_MAX_PLANES_PER_DIE];
     long long compute_ready[IFC_CONTROLLER_MAX_CHANNELS][IFC_CONTROLLER_MAX_CHIPS_PER_CHANNEL]
                            [IFC_CONTROLLER_MAX_DIES_PER_CHIP];
+    IfcMicroIssueScheduler issue_scheduler;
     long long read_compute_count;
     long long read_slice_count;
     long long slice_done = 0;
@@ -699,6 +820,11 @@ int ifc_estimate_cycle_weight_stage(
     array_read_cycles = ceil_cycles(platform->array_read_us * 1000.0, cycle_ns);
     ifc_compute_cycles =
         compute_ops_per_s > 0.0 ? ceil_cycles(ops_per_read_compute / compute_ops_per_s * 1e9, cycle_ns) : 1;
+    command_address_cycles = quantize_stage_cycles(command_address_cycles, cycle_ns, IFC_MICRO_MODULE_CLOCK_NS);
+    vector_cycles = quantize_stage_cycles(vector_cycles, cycle_ns, IFC_MICRO_MODULE_CLOCK_NS);
+    data_cycles = quantize_stage_cycles(data_cycles, cycle_ns, IFC_MICRO_MODULE_CLOCK_NS);
+    array_read_cycles = quantize_stage_cycles(array_read_cycles, cycle_ns, IFC_MICRO_MODULE_CLOCK_NS);
+    ifc_compute_cycles = quantize_stage_cycles(ifc_compute_cycles, cycle_ns, IFC_MICRO_MODULE_CLOCK_NS);
 
     command_multiplier = (long long)platform->chips_per_channel * (long long)platform->dies_per_chip;
     if (command_multiplier < 1) {
@@ -707,6 +833,12 @@ int ifc_estimate_cycle_weight_stage(
     read_compute_count = round_positive_to_ll(read_compute_requests * (double)command_multiplier);
     read_slice_count = round_positive_to_ll(read_slice_commands * (double)command_multiplier);
     if (read_compute_count <= 0 && read_slice_count <= 0) {
+        return -1;
+    }
+    if (micro_issue_scheduler_init(
+            &issue_scheduler,
+            cycle_ns,
+            read_compute_count * 4LL + read_slice_count * 2LL) != 0) {
         return -1;
     }
 
@@ -723,6 +855,7 @@ int ifc_estimate_cycle_weight_stage(
             chip_ready,
             plane_ready,
             compute_ready,
+            &issue_scheduler,
             &last_cycle);
         target_slices = ((rc + 1) * read_slice_count + read_compute_count / 2) / read_compute_count;
         while (slice_done < target_slices) {
@@ -733,6 +866,7 @@ int ifc_estimate_cycle_weight_stage(
                 data_cycles,
                 channel_ready,
                 chip_ready,
+                &issue_scheduler,
                 &last_cycle);
             ++slice_done;
         }
@@ -745,6 +879,7 @@ int ifc_estimate_cycle_weight_stage(
             data_cycles,
             channel_ready,
             chip_ready,
+            &issue_scheduler,
             &last_cycle);
         ++slice_done;
     }
@@ -762,6 +897,12 @@ int ifc_estimate_cycle_weight_stage(
     stats->read_slice_data_cycles = (double)data_cycles;
     stats->array_read_cycles = (double)array_read_cycles;
     stats->ifc_compute_cycles = (double)ifc_compute_cycles;
+    stats->issue_width = issue_scheduler.issue_width;
+    stats->issue_fifo_depth = issue_scheduler.fifo_depth;
+    stats->module_clock_ns = IFC_MICRO_MODULE_CLOCK_NS;
+    stats->stage_issue_events = issue_scheduler.issue_events;
+    stats->dispatch_rounds = issue_scheduler.dispatch_rounds;
+    micro_issue_scheduler_destroy(&issue_scheduler);
     return 0;
 }
 
