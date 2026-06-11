@@ -98,4 +98,4 @@ Runtime configuration is documented in `docs/configuration.md`. The latency mode
 
 ## Reliability Documentation
 
-The simulator's reliability argument is documented in `docs/simulator_reliability.md`. That document explains the modeling level, parameter transparency, calibration discipline, validation evidence, artifact reproducibility, and boundaries that should be stated when presenting the simulator as a paper-grade architecture reproduction artifact.
+The simulator stack and result-ownership boundary are documented in `docs/simulator_stack.md`. The simulator's reliability argument is documented in `docs/simulator_reliability.md`. Those documents explain the modeling level, parameter transparency, calibration discipline, validation evidence, artifact reproducibility, and boundaries that should be stated when presenting the simulator as a paper-grade architecture reproduction artifact.

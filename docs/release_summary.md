@@ -15,6 +15,8 @@ The repository is a Cambricon-LLM style in-flash-computing architecture simulato
 
 The simulator does not claim to be the authors' private SSDsim fork, a full SSD firmware simulator, or an RTL implementation.
 
+The released stack is defined in `docs/simulator_stack.md`. In short, Layer 1 is the paper-facing LLM operator-trace simulator that owns TPOT and token/s; Layers 2 and 3 constrain its IFC and DRAM/NPU service budgets; Layers 4 and 5 are representative command-stream audit and validation paths.
+
 ## Main Reproduction Result
 
 The primary Figure 9 result is emitted by:
@@ -35,6 +37,7 @@ Main artifacts:
 - `results/controller_timing_summary.csv`
 - `results/npu_timing.csv`
 - `results/context_length_inference.csv`
+- `docs/simulator_stack.md`
 - `docs/figures/performance_results_dashboard.png`
 - `docs/figures/performance_results_dashboard.pdf`
 - `docs/figures/decode_latency_breakdown.png`

@@ -28,6 +28,24 @@ The C simulator is the direct paper-facing Figure 9 reproduction path. Its relea
 
 GitHub release text is prepared in [`docs/github_release.md`](docs/github_release.md). The longer release audit is in [`docs/release_summary.md`](docs/release_summary.md).
 
+## Architecture And Version Map
+
+![IFC Cambricon-LLM simulator architecture](docs/figures/architecture_summary.png)
+
+PDF version: [architecture_summary.pdf](docs/figures/architecture_summary.pdf)
+
+The simulator is released as a layered architecture artifact rather than a single equation script. The top lane is the paper-facing C path that owns the 21-point Figure 9 throughput table. The lower lanes are command-cycle audit and validation paths for the extended IFC command stream. The full layer contract is documented in [`docs/simulator_stack.md`](docs/simulator_stack.md).
+
+| Layer | Path | What it models | Result ownership |
+|---:|---|---|---|
+| 0 | Public profiles | model, S/M/L flash scale, NPU/DRAM, ONFI, references, CSV overrides | Defines the experiment |
+| 1 | LLM operator trace | 13 decode operators per transformer layer, IFC/DRAM/NPU engine timelines | Owns TPOT and token/s |
+| 2 | Full-row IFC microcycle scheduler | physical command expansion, stage issues, `READ_COMPUTE`, `READ_SLICE` | Constrains Layer 1 IFC time |
+| 3 | DRAM/NPU timing | attention-cache bytes and attention arithmetic | Constrains Layer 1 DRAM/NPU time |
+| 4 | SSDsim-derived C backend | representative IFC command stream with stage events | Audits command semantics |
+| 5 | C++/SystemC checks | replay, component controller/fabric/FIFO/ONFI/array/IFC modules | Validates command-cycle behavior |
+| 6 | Release reports | CSV/JSON/Markdown/PNG/PDF artifacts | Publishes Layer 1 results and validation evidence |
+
 ## Simulator Variants And Result Ownership
 
 | Variant | Command | Result scope | Released result |
@@ -103,12 +121,6 @@ TPOT latency is reported as simulated ms/token for the same standalone C runs.
 | LLaMA2-70B | 2967.342 | 957.876 | 343.320 |
 
 TPOT is reported as `operator_trace_total_ms`. In the default release path, the trace expands each transformer layer into 13 decode operators and schedules them through IFC, DRAM, and NPU engine-ready timelines. Its IFC service budget is copied from `cycle_weight_stage_ms`, the calibrated full-row IFC microcycle schedule in `results/cycle_weight_timing.csv`; the analytic overlap path is retained only as a fallback and ablation reference. `make test` checks that `operator_trace_total_ms = weight_stage_ms + attention_cache_ms + attention_compute_ms` for every Figure 9 row.
-
-## Architecture
-
-![IFC Cambricon-LLM simulator architecture](docs/figures/architecture_summary.png)
-
-PDF version: [architecture_summary.pdf](docs/figures/architecture_summary.pdf)
 
 ## What This Repository Contains
 
@@ -284,6 +296,7 @@ When custom hardware or model profiles are used with default references, token/s
 
 | Topic | Document |
 |---|---|
+| Simulator stack and result ownership | `docs/simulator_stack.md` |
 | Method and timing model | `docs/method.md`, `docs/latency_model.md` |
 | LLM operator trace model | `docs/operator_trace.md` |
 | Controller and SSDsim-derived backend | `docs/controller_cycle_model.md`, `docs/ssdsim_ifc_backend.md` |
