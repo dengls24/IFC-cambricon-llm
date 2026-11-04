@@ -30,3 +30,11 @@ controller_timing_violations,0
 dispatch_cycles,100
 issue_backpressure_stalls,0
 width_limited_dispatches,3
+engram_source_rows,0
+engram_platform_rows,0
+engram_events_emitted,0
+engram_malformed_rows,0
+engram_max_visible_wait_cycle,0
+engram_max_ready_before_target_cycle,0
+engram_total_pages_per_token,0.000000
+engram_total_return_kb_per_token,0.000000

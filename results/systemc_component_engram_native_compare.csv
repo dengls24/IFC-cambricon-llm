@@ -1,0 +1,7 @@
+metric,expected,observed,delta,status
+platform_filtered_events,14,14,0,PASS
+engram_malformed_rows,0,0,0,PASS
+completed_commands,256,256,0,PASS
+fabric_completed,768,768,0,PASS
+controller_timing_violations,0,0,0,PASS
+max_visible_wait_cycle,0,0,0,PASS

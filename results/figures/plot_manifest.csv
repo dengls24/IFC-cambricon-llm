@@ -1,0 +1,6 @@
+artifact,format,release_role
+figure9_plot_source.csv,csv,local helper source table
+ablation_plot_source.csv,csv,local helper source table
+controller_timeline_source.csv,csv,local helper source table
+docs/figures/*.png,png,release figures
+docs/figures/*.pdf,pdf,release figures

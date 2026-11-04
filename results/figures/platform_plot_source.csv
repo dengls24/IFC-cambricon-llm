@@ -1,0 +1,4 @@
+platform,mean_abs_relative_error_pct,max_abs_relative_error_pct,mean_tokens_per_s
+cam_llm_s,4.322744,12.450223,1.792107
+cam_llm_m,8.477559,11.949568,5.004406
+cam_llm_l,12.268243,14.507683,15.218835

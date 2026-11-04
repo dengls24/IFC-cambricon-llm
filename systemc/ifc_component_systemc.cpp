@@ -1,8 +1,10 @@
 #define SC_INCLUDE_DYNAMIC_PROCESSES
 #include <systemc.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <set>
@@ -37,6 +39,32 @@ struct ComponentConfig {
     double module_clock_ns = 2.5;
     int issue_width = 8;
     int queue_depth = 8;
+};
+
+struct EngramNativeEvent {
+    int source_row_id = -1;
+    std::string model;
+    std::string platform;
+    int layer_id = -1;
+    std::string event_type;
+    std::string dependency_scope;
+    long long lookup_start_cycle = 0;
+    long long target_layer_start_cycle = 0;
+    long long lookup_ready_cycle = 0;
+    long long visible_wait_cycle = 0;
+    double pages_per_token = 0.0;
+    double return_kb_per_token = 0.0;
+};
+
+struct EngramNativeStats {
+    int source_rows = 0;
+    int platform_rows = 0;
+    int emitted_events = 0;
+    int malformed_rows = 0;
+    long long max_visible_wait_cycle = 0;
+    long long max_ready_before_target_cycle = 0;
+    double total_pages_per_token = 0.0;
+    double total_return_kb_per_token = 0.0;
 };
 
 struct IssueResult {
@@ -79,6 +107,14 @@ long long quantize_stage_cycles(long long base_cycles, const Timing &timing, con
     return ceil_cycles(quantized_ns, timing.cycle_ns);
 }
 
+long long cycle_from_ms(double value_ms, const Timing &timing) {
+    if (value_ms <= 0.0 || timing.cycle_ns <= 0.0) {
+        return 0;
+    }
+    double cycles = value_ms * 1.0e6 / timing.cycle_ns;
+    return static_cast<long long>(std::floor(cycles + 0.5));
+}
+
 std::string unit_key_for(const Command &command) {
     std::ostringstream out;
     Stage stage = stage_of(command);
@@ -116,6 +152,150 @@ const char *module_class_for(Stage stage) {
     return "ifc_compute";
 }
 
+
+std::vector<std::string> split_csv_line(const char *line) {
+    std::vector<std::string> fields;
+    std::string current;
+    bool in_quotes = false;
+    for (const char *ptr = line; *ptr != '\0'; ++ptr) {
+        char ch = *ptr;
+        if (ch == '"') {
+            in_quotes = !in_quotes;
+            continue;
+        }
+        if (ch == ',' && !in_quotes) {
+            fields.push_back(current);
+            current.clear();
+            continue;
+        }
+        if (ch != '\n' && ch != '\r') {
+            current.push_back(ch);
+        }
+    }
+    fields.push_back(current);
+    return fields;
+}
+
+int csv_index(const std::vector<std::string> &header, const char *name) {
+    for (int i = 0; i < static_cast<int>(header.size()); ++i) {
+        if (header[i] == name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+std::string csv_string(const std::vector<std::string> &fields, int index) {
+    if (index < 0 || index >= static_cast<int>(fields.size())) {
+        return "";
+    }
+    return fields[index];
+}
+
+int csv_int(const std::vector<std::string> &fields, int index, int fallback = 0) {
+    std::string value = csv_string(fields, index);
+    if (value.empty()) {
+        return fallback;
+    }
+    return std::atoi(value.c_str());
+}
+
+double csv_double(const std::vector<std::string> &fields, int index, double fallback = 0.0) {
+    std::string value = csv_string(fields, index);
+    if (value.empty()) {
+        return fallback;
+    }
+    return std::atof(value.c_str());
+}
+
+bool load_engram_events(
+    const char *event_path,
+    const Platform &platform,
+    const Timing &timing,
+    std::vector<EngramNativeEvent> *events,
+    EngramNativeStats *engram_stats) {
+    if (event_path == nullptr || std::strlen(event_path) == 0) {
+        return true;
+    }
+    FILE *file = std::fopen(event_path, "r");
+    if (file == nullptr) {
+        std::fprintf(stderr, "error: failed to load Engram event CSV %s\n", event_path);
+        return false;
+    }
+
+    char line[4096];
+    if (std::fgets(line, sizeof(line), file) == nullptr) {
+        std::fclose(file);
+        return true;
+    }
+    std::vector<std::string> header = split_csv_line(line);
+    int idx_row_id = csv_index(header, "row_id");
+    int idx_model = csv_index(header, "model");
+    int idx_platform = csv_index(header, "platform");
+    int idx_layer = csv_index(header, "layer_id");
+    int idx_event_type = csv_index(header, "event_type");
+    int idx_dependency = csv_index(header, "dependency_scope");
+    int idx_start = csv_index(header, "prefetch_start_ms");
+    int idx_target = csv_index(header, "target_layer_start_ms");
+    int idx_ready = csv_index(header, "ebuffer_ready_ms");
+    int idx_visible = csv_index(header, "visible_stall_ms");
+    int idx_pages = csv_index(header, "pages_per_token");
+    int idx_return = csv_index(header, "return_kb_per_token");
+    if (idx_platform < 0 || idx_layer < 0 || idx_start < 0 || idx_target < 0 || idx_ready < 0 ||
+        idx_visible < 0 || idx_pages < 0 || idx_return < 0) {
+        std::fprintf(stderr, "error: Engram event CSV is missing required columns\n");
+        std::fclose(file);
+        return false;
+    }
+
+    while (std::fgets(line, sizeof(line), file) != nullptr) {
+        std::vector<std::string> fields = split_csv_line(line);
+        ++engram_stats->source_rows;
+        if (csv_string(fields, idx_platform) != platform.name) {
+            continue;
+        }
+        ++engram_stats->platform_rows;
+        if (static_cast<int>(fields.size()) < static_cast<int>(header.size())) {
+            ++engram_stats->malformed_rows;
+            continue;
+        }
+        EngramNativeEvent event;
+        event.source_row_id = csv_int(fields, idx_row_id, -1);
+        event.model = csv_string(fields, idx_model);
+        event.platform = csv_string(fields, idx_platform);
+        event.layer_id = csv_int(fields, idx_layer, -1);
+        event.event_type = csv_string(fields, idx_event_type);
+        event.dependency_scope = csv_string(fields, idx_dependency);
+        event.lookup_start_cycle = cycle_from_ms(csv_double(fields, idx_start), timing);
+        event.target_layer_start_cycle = cycle_from_ms(csv_double(fields, idx_target), timing);
+        event.lookup_ready_cycle = cycle_from_ms(csv_double(fields, idx_ready), timing);
+        event.visible_wait_cycle = cycle_from_ms(csv_double(fields, idx_visible), timing);
+        event.pages_per_token = csv_double(fields, idx_pages);
+        event.return_kb_per_token = csv_double(fields, idx_return);
+        long long ready_margin = event.target_layer_start_cycle - event.lookup_ready_cycle;
+        if (ready_margin > engram_stats->max_ready_before_target_cycle) {
+            engram_stats->max_ready_before_target_cycle = ready_margin;
+        }
+        if (event.visible_wait_cycle > engram_stats->max_visible_wait_cycle) {
+            engram_stats->max_visible_wait_cycle = event.visible_wait_cycle;
+        }
+        engram_stats->total_pages_per_token += event.pages_per_token;
+        engram_stats->total_return_kb_per_token += event.return_kb_per_token;
+        events->push_back(event);
+    }
+    std::fclose(file);
+    std::sort(events->begin(), events->end(), [](const EngramNativeEvent &lhs, const EngramNativeEvent &rhs) {
+        if (lhs.lookup_start_cycle != rhs.lookup_start_cycle) {
+            return lhs.lookup_start_cycle < rhs.lookup_start_cycle;
+        }
+        if (lhs.target_layer_start_cycle != rhs.target_layer_start_cycle) {
+            return lhs.target_layer_start_cycle < rhs.target_layer_start_cycle;
+        }
+        return lhs.layer_id < rhs.layer_id;
+    });
+    return true;
+}
+
 bool write_component_event(
     FILE *file,
     Stats *stats,
@@ -128,7 +308,8 @@ bool write_component_event(
     Stage stage = stage_of(command);
     if (std::fprintf(
             file,
-            "%d,%lld,%s,%s,%d,%s,%d,%d,%s,%s,%s,%s,%s,%d,%d,%d,%d,%lld,%lld,%lld,%d\n",
+            "%d,%lld,%s,%s,%d,%s,%d,%d,%s,%s,%s,%s,%s,%d,%d,%d,%d,%lld,%lld,%lld,%d,"
+            "-1,0,0,0,0.000000,0.000000,\n",
             stats->events,
             event_cycle,
             event_type,
@@ -162,6 +343,58 @@ bool write_component_event(
         stats->max_active_commands = active_commands;
     }
     stats->last_event_cycle = event_cycle;
+    return true;
+}
+
+
+bool write_engram_component_event(
+    FILE *file,
+    const Stats *stats,
+    EngramNativeStats *engram_stats,
+    const EngramNativeEvent &event,
+    int active_commands) {
+    int event_id = stats->events + engram_stats->emitted_events;
+    long long duration_cycles = event.lookup_ready_cycle - event.lookup_start_cycle;
+    if (duration_cycles < 0) {
+        duration_cycles = 0;
+    }
+    if (std::fprintf(
+            file,
+            "%d,%lld,%s,engram_ebuffer,-1,ENGRAM_LOOKUP,%d,-1,ENGRAM_EBUFFER,"
+            "engram_prefetch,nand_lookup,engram_table,ebuffer_ready,-1,-1,-1,-1,"
+            "%lld,%lld,%lld,%d,%d,%lld,%lld,%lld,%.6f,%.6f,%s\n",
+            event_id,
+            event.lookup_start_cycle,
+            event.event_type.empty() ? "ENGRAM_LOOKUP_PREFETCH" : event.event_type.c_str(),
+            event.source_row_id,
+            event.lookup_start_cycle,
+            event.lookup_ready_cycle,
+            duration_cycles,
+            active_commands,
+            event.layer_id,
+            event.lookup_start_cycle,
+            event.lookup_ready_cycle,
+            event.visible_wait_cycle,
+            event.pages_per_token,
+            event.return_kb_per_token,
+            event.dependency_scope.c_str()) < 0) {
+        return false;
+    }
+    ++engram_stats->emitted_events;
+    return true;
+}
+
+bool write_engram_events(
+    FILE *file,
+    const Stats *stats,
+    EngramNativeStats *engram_stats,
+    const std::vector<EngramNativeEvent> &events,
+    int active_commands) {
+    for (const EngramNativeEvent &event : events) {
+        if (!write_engram_component_event(file, stats, engram_stats, event, active_commands)) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -255,13 +488,17 @@ class IfcComponentController : public sc_core::sc_module {
         Timing timing,
         ComponentConfig config,
         const char *trace_path,
-        Stats *stats)
+        const char *engram_event_path,
+        Stats *stats,
+        EngramNativeStats *engram_stats)
         : sc_core::sc_module(name),
           platform_(std::move(platform)),
           timing_(timing),
           config_(config),
           trace_path_(trace_path),
-          stats_(stats) {
+          engram_event_path_(engram_event_path == nullptr ? "" : engram_event_path),
+          stats_(stats),
+          engram_stats_(engram_stats) {
         SC_THREAD(run);
     }
 
@@ -278,9 +515,12 @@ class IfcComponentController : public sc_core::sc_module {
     Timing timing_;
     ComponentConfig config_;
     std::string trace_path_;
+    std::string engram_event_path_;
     Stats *stats_;
+    EngramNativeStats *engram_stats_;
     ResourceState resources_;
     std::vector<Command> commands_;
+    std::vector<EngramNativeEvent> engram_events_;
     FILE *trace_file_ = nullptr;
     int active_commands_ = 0;
     bool ok_ = false;
@@ -439,7 +679,16 @@ class IfcComponentController : public sc_core::sc_module {
             trace_file_,
             "event_id,event_cycle,event_type,module,command_id,opcode,logical_id,slice_id,stage,subrequest_state,"
             "channel_state,chip_state,plane_state,channel,chip,die,plane,stage_start_cycle,stage_end_cycle,"
-            "duration_cycles,active_commands\n");
+            "duration_cycles,active_commands,engram_layer_id,engram_lookup_start_cycle,engram_lookup_ready_cycle,"
+            "engram_visible_wait_cycle,engram_pages_per_token,engram_return_kb_per_token,engram_dependency_group\n");
+        if (!load_engram_events(
+                engram_event_path_.empty() ? nullptr : engram_event_path_.c_str(),
+                platform_,
+                timing_,
+                &engram_events_,
+                engram_stats_)) {
+            return false;
+        }
         update_signals();
 
         if (!dispatch_ready_until_blocked()) {
@@ -453,6 +702,9 @@ class IfcComponentController : public sc_core::sc_module {
             if (!dispatch_ready_until_blocked()) {
                 return false;
             }
+        }
+        if (!write_engram_events(trace_file_, stats_, engram_stats_, engram_events_, active_commands_)) {
+            return false;
         }
         return active_commands_ == 0 && timing_violations_ == 0;
     }
@@ -479,7 +731,8 @@ bool write_component_stats(
     double final_systemc_time_ns,
     const Stats &stats,
     const IfcComponentController &controller,
-    const IfcExecutionFabric &fabric) {
+    const IfcExecutionFabric &fabric,
+    const EngramNativeStats &engram_stats) {
     FILE *file = std::fopen(path, "w");
     if (file == nullptr) {
         return false;
@@ -516,6 +769,14 @@ bool write_component_stats(
     std::fprintf(file, "dispatch_cycles,%d\n", controller.dispatch_cycles());
     std::fprintf(file, "issue_backpressure_stalls,%d\n", controller.issue_backpressure_stalls());
     std::fprintf(file, "width_limited_dispatches,%d\n", controller.width_limited_dispatches());
+    std::fprintf(file, "engram_source_rows,%d\n", engram_stats.source_rows);
+    std::fprintf(file, "engram_platform_rows,%d\n", engram_stats.platform_rows);
+    std::fprintf(file, "engram_events_emitted,%d\n", engram_stats.emitted_events);
+    std::fprintf(file, "engram_malformed_rows,%d\n", engram_stats.malformed_rows);
+    std::fprintf(file, "engram_max_visible_wait_cycle,%lld\n", engram_stats.max_visible_wait_cycle);
+    std::fprintf(file, "engram_max_ready_before_target_cycle,%lld\n", engram_stats.max_ready_before_target_cycle);
+    std::fprintf(file, "engram_total_pages_per_token,%.6f\n", engram_stats.total_pages_per_token);
+    std::fprintf(file, "engram_total_return_kb_per_token,%.6f\n", engram_stats.total_return_kb_per_token);
     return std::fclose(file) == 0;
 }
 
@@ -588,6 +849,63 @@ bool write_component_compare(const char *path, const char *c_stats_path, const T
     return std::fclose(file) == 0;
 }
 
+
+bool write_engram_compare(
+    const char *path,
+    const Stats &stats,
+    const EngramNativeStats &engram_stats,
+    const IfcComponentController &controller,
+    const IfcExecutionFabric &fabric) {
+    if (path == nullptr || std::strlen(path) == 0) {
+        return true;
+    }
+    FILE *file = std::fopen(path, "w");
+    if (file == nullptr) {
+        return false;
+    }
+    std::fprintf(file, "metric,expected,observed,delta,status\n");
+    std::fprintf(
+        file,
+        "platform_filtered_events,%d,%d,%d,%s\n",
+        engram_stats.platform_rows,
+        engram_stats.emitted_events,
+        engram_stats.emitted_events - engram_stats.platform_rows,
+        engram_stats.platform_rows == engram_stats.emitted_events ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "engram_malformed_rows,0,%d,%d,%s\n",
+        engram_stats.malformed_rows,
+        engram_stats.malformed_rows,
+        engram_stats.malformed_rows == 0 ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "completed_commands,%d,%d,%d,%s\n",
+        stats.commands,
+        stats.completed_commands,
+        stats.completed_commands - stats.commands,
+        stats.commands == stats.completed_commands ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "fabric_completed,%d,%d,%d,%s\n",
+        fabric.issued(),
+        fabric.completed(),
+        fabric.completed() - fabric.issued(),
+        fabric.issued() == fabric.completed() ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "controller_timing_violations,0,%d,%d,%s\n",
+        controller.timing_violations(),
+        controller.timing_violations(),
+        controller.timing_violations() == 0 ? "PASS" : "FAIL");
+    std::fprintf(
+        file,
+        "max_visible_wait_cycle,0,%lld,%lld,%s\n",
+        engram_stats.max_visible_wait_cycle,
+        engram_stats.max_visible_wait_cycle,
+        engram_stats.max_visible_wait_cycle == 0 ? "PASS" : "CHECK");
+    return std::fclose(file) == 0;
+}
+
 bool write_component_module_stats(const char *path, const IfcExecutionFabric &fabric) {
     FILE *file = std::fopen(path, "w");
     if (file == nullptr) {
@@ -629,6 +947,8 @@ int sc_main(int argc, char **argv) {
     const char *module_stats_path = "results/systemc_component_modules.csv";
     const char *vcd_path = "results/systemc_component.vcd";
     const char *c_stats_path = "results/ssdsim_ifc_event_stats.csv";
+    const char *engram_event_path = nullptr;
+    const char *engram_compare_path = nullptr;
     ComponentConfig component_config;
 
     for (int i = 1; i < argc; ++i) {
@@ -648,6 +968,10 @@ int sc_main(int argc, char **argv) {
             vcd_path = nullptr;
         } else if (std::strcmp(argv[i], "--c-stats") == 0 && i + 1 < argc) {
             c_stats_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--engram-events") == 0 && i + 1 < argc) {
+            engram_event_path = argv[++i];
+        } else if (std::strcmp(argv[i], "--engram-compare") == 0 && i + 1 < argc) {
+            engram_compare_path = argv[++i];
         } else if (std::strcmp(argv[i], "--module-clock-ns") == 0 && i + 1 < argc) {
             component_config.module_clock_ns = std::atof(argv[++i]);
         } else if (std::strcmp(argv[i], "--issue-width") == 0 && i + 1 < argc) {
@@ -657,7 +981,7 @@ int sc_main(int argc, char **argv) {
         } else {
             std::fprintf(
                 stderr,
-                "usage: %s [--platforms-csv path] [--trace path] [--stats path] [--compare path] [--module-stats path] [--vcd path|--no-vcd] [--c-stats path] [--module-clock-ns ns] [--issue-width n] [--queue-depth n]\n",
+                "usage: %s [--platforms-csv path] [--trace path] [--stats path] [--compare path] [--module-stats path] [--vcd path|--no-vcd] [--c-stats path] [--engram-events path] [--engram-compare path] [--module-clock-ns ns] [--issue-width n] [--queue-depth n]\n",
                 argv[0]);
             return 1;
         }
@@ -679,13 +1003,14 @@ int sc_main(int argc, char **argv) {
 
     Timing timing = derive_timing(platform);
     Stats stats;
+    EngramNativeStats engram_stats;
     sc_core::sc_fifo<StageIssue> issue_fifo("issue_fifo", component_config.queue_depth);
     sc_core::sc_fifo<StageDone> done_fifo("done_fifo", 4096);
     sc_core::sc_signal<int> active_signal("active_commands");
     sc_core::sc_signal<int> completed_signal("completed_commands");
     sc_core::sc_signal<int> event_signal("events");
 
-    IfcComponentController controller("ifc_component_controller", platform, timing, component_config, trace_path, &stats);
+    IfcComponentController controller("ifc_component_controller", platform, timing, component_config, trace_path, engram_event_path, &stats, &engram_stats);
     IfcExecutionFabric fabric("ifc_execution_fabric", timing, component_config);
     controller.issue_out(issue_fifo);
     controller.done_in(done_fifo);
@@ -720,7 +1045,7 @@ int sc_main(int argc, char **argv) {
         std::fprintf(stderr, "error: SystemC execution fabric resource validation failed\n");
         return 1;
     }
-    if (!write_component_stats(stats_path, platform, timing, component_config, final_systemc_time_ns, stats, controller, fabric)) {
+    if (!write_component_stats(stats_path, platform, timing, component_config, final_systemc_time_ns, stats, controller, fabric, engram_stats)) {
         std::fprintf(stderr, "error: failed to write stats %s\n", stats_path);
         return 1;
     }
@@ -732,17 +1057,25 @@ int sc_main(int argc, char **argv) {
         std::fprintf(stderr, "error: failed to write compare %s\n", compare_path);
         return 1;
     }
+    if (!write_engram_compare(engram_compare_path, stats, engram_stats, controller, fabric)) {
+        std::fprintf(stderr, "error: failed to write Engram compare %s\n", engram_compare_path);
+        return 1;
+    }
 
     std::printf("passed: SystemC component model\n");
     std::printf("trace_csv: %s\n", trace_path);
     std::printf("stats_csv: %s\n", stats_path);
     std::printf("compare_csv: %s\n", compare_path);
     std::printf("module_stats_csv: %s\n", module_stats_path);
+    if (engram_compare_path != nullptr) {
+        std::printf("engram_compare_csv: %s\n", engram_compare_path);
+    }
     if (vcd_path != nullptr) {
         std::printf("vcd: %s\n", displayed_vcd_path(vcd_path).c_str());
     }
     std::printf("events: %d\n", stats.events);
     std::printf("last_event_cycle: %lld\n", stats.last_event_cycle);
     std::printf("systemc_time_ns: %.6f\n", final_systemc_time_ns);
+    std::printf("engram_events: %d\n", engram_stats.emitted_events);
     return 0;
 }

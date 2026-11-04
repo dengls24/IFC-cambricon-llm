@@ -1,0 +1,35 @@
+# Proposal only. Apply to a separate reviewed export, not the live source tree.
+# .gitignore does not remove already tracked files or history blobs.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+envs/
+site-packages/
+node_modules/
+.ipynb_checkpoints/
+.codex/
+.ssh/
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+auth.json
+credentials.json
+id_rsa
+id_ed25519
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+*.gguf
+*.whl
+*.tar
+*.tar.gz
+*.tar.zst
+# Add exact model/trace/build paths after per-project review.
+# Do not blanket-ignore models/, outputs/, *.json or *.csv: source/config/results may live there.
